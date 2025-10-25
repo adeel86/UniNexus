@@ -1,6 +1,6 @@
 import { Server as HTTPServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
-import { auth } from "./firebase-admin";
+import { auth } from "../../server/firebase-admin";
 
 export interface NotificationPayload {
   type: 'post' | 'comment' | 'like' | 'answer' | 'event' | 'achievement';
