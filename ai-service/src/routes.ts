@@ -1,4 +1,3 @@
-// uninexus-ai-service/src/routes.ts
 import { Router } from "express";
 import { generateAIResponse, analyzeCareerPath, type ChatMessage } from "./ai";
 import { z } from "zod";
