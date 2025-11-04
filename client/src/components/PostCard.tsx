@@ -1,0 +1,211 @@
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { UserAvatar } from "./UserAvatar";
+import { Heart, MessageCircle, Share2, ThumbsUp, Lightbulb, Handshake } from "lucide-react";
+import type { Post, User, Comment, Reaction } from "@shared/schema";
+import { useState } from "react";
+import { Textarea } from "@/components/ui/textarea";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { Badge } from "@/components/ui/badge";
+import { formatDistanceToNow } from "date-fns";
+
+type PostWithAuthor = Post & {
+  author: User;
+  comments: Comment[];
+  reactions: Reaction[];
+};
+
+interface PostCardProps {
+  post: PostWithAuthor;
+}
+
+const reactionTypes = [
+  { type: "like", icon: ThumbsUp, label: "Like" },
+  { type: "celebrate", icon: Heart, label: "Celebrate" },
+  { type: "insightful", icon: Lightbulb, label: "Insightful" },
+  { type: "support", icon: Handshake, label: "Support" },
+];
+
+export function PostCard({ post }: PostCardProps) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [showComments, setShowComments] = useState(false);
+  const [commentText, setCommentText] = useState("");
+
+  const reactionMutation = useMutation({
+    mutationFn: async (type: string) => {
+      return apiRequest("POST", "/api/reactions", { postId: post.id, type });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
+    },
+  });
+
+  const commentMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/comments", {
+        postId: post.id,
+        content: commentText,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
+      setCommentText("");
+      toast({ title: "Comment posted!" });
+    },
+  });
+
+  const handleReaction = (type: string) => {
+    const existingReaction = post.reactions.find(
+      (r) => r.userId === user?.id && r.type === type
+    );
+    
+    if (!existingReaction) {
+      reactionMutation.mutate(type);
+    }
+  };
+
+  const getReactionCount = (type: string) => {
+    return post.reactions.filter((r) => r.type === type).length;
+  };
+
+  const hasUserReacted = (type: string) => {
+    return post.reactions.some((r) => r.userId === user?.id && r.type === type);
+  };
+
+  return (
+    <Card className="p-6" data-testid={`post-${post.id}`}>
+      {/* Post Header */}
+      <div className="flex gap-3 mb-4">
+        <UserAvatar user={post.author} size="md" />
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold">
+              {post.author.firstName} {post.author.lastName}
+            </span>
+            {post.author.role === 'student' && post.author.major && (
+              <Badge variant="secondary" className="text-xs">
+                {post.author.major}
+              </Badge>
+            )}
+          </div>
+          <div className="text-sm text-muted-foreground">
+            {post.createdAt && formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
+            {post.category && (
+              <>
+                {" · "}
+                <span className="capitalize">{post.category}</span>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Post Content */}
+      <div className="mb-4">
+        <p className="text-base leading-relaxed whitespace-pre-wrap">{post.content}</p>
+        {post.imageUrl && (
+          <img
+            src={post.imageUrl}
+            alt="Post image"
+            className="mt-4 rounded-lg w-full object-cover max-h-96"
+          />
+        )}
+        {post.tags && post.tags.length > 0 && (
+          <div className="flex gap-2 mt-3 flex-wrap">
+            {post.tags.map((tag) => (
+              <Badge key={tag} variant="outline" className="text-xs">
+                #{tag}
+              </Badge>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Reaction Bar */}
+      <div className="flex items-center gap-1 mb-4 flex-wrap">
+        {reactionTypes.map(({ type, icon: Icon, label }) => {
+          const count = getReactionCount(type);
+          const isActive = hasUserReacted(type);
+          
+          return (
+            <Button
+              key={type}
+              variant={isActive ? "default" : "ghost"}
+              size="sm"
+              onClick={() => handleReaction(type)}
+              className={`gap-1 ${isActive ? 'bg-primary/10 text-primary' : ''}`}
+              data-testid={`button-react-${type}`}
+            >
+              <Icon className="h-4 w-4" />
+              {count > 0 && <span className="text-xs">{count}</span>}
+            </Button>
+          );
+        })}
+        
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowComments(!showComments)}
+          className="gap-1 ml-auto"
+          data-testid="button-toggle-comments"
+        >
+          <MessageCircle className="h-4 w-4" />
+          {post.comments.length > 0 && <span className="text-xs">{post.comments.length}</span>}
+        </Button>
+      </div>
+
+      {/* Comments Section */}
+      {showComments && (
+        <div className="border-t pt-4 space-y-4">
+          {/* Add Comment */}
+          <div className="flex gap-3">
+            <UserAvatar user={user!} size="sm" />
+            <div className="flex-1">
+              <Textarea
+                placeholder="Write a comment..."
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                className="min-h-[60px]"
+                data-testid="input-comment"
+              />
+              <Button
+                onClick={() => commentMutation.mutate()}
+                disabled={!commentText.trim() || commentMutation.isPending}
+                size="sm"
+                className="mt-2"
+                data-testid="button-submit-comment"
+              >
+                {commentMutation.isPending ? "Posting..." : "Post Comment"}
+              </Button>
+            </div>
+          </div>
+
+          {/* Comments List */}
+          {post.comments.length > 0 && (
+            <div className="space-y-3">
+              {post.comments.map((comment) => (
+                <div key={comment.id} className="flex gap-3" data-testid={`comment-${comment.id}`}>
+                  <UserAvatar user={comment.author} size="sm" />
+                  <div className="flex-1 bg-muted rounded-lg p-3">
+                    <div className="font-medium text-sm mb-1">
+                      {comment.author.firstName} {comment.author.lastName}
+                    </div>
+                    <p className="text-sm">{comment.content}</p>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {comment.createdAt && formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}

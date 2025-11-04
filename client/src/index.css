@@ -76,9 +76,9 @@
   --chart-4: 200 80% 42%;
   --chart-5: 340 70% 46%;
 
-  --font-sans: Inter, sans-serif;
-  --font-serif: Georgia, serif;
-  --font-mono: Menlo, monospace;
+  --font-sans: 'Inter', sans-serif;
+  --font-heading: 'Poppins', sans-serif;
+  --font-mono: 'Menlo', monospace;
   --radius: .5rem; /* 8px */
   --shadow-2xs: 0px 2px 0px 0px hsl(280 85% 55% / 0.00);
   --shadow-xs: 0px 2px 0px 0px hsl(280 85% 55% / 0.00);
