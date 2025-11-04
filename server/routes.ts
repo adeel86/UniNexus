@@ -1,15 +1,542 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
+import { eq, desc, sql, and, or, like } from "drizzle-orm";
+import { db } from "./db";
 import { storage } from "./storage";
+import { setupAuth, isAuthenticated } from "./replitAuth";
+import {
+  users,
+  posts,
+  comments,
+  reactions,
+  badges,
+  userBadges,
+  skills,
+  userSkills,
+  endorsements,
+  courses,
+  courseEnrollments,
+  courseDiscussions,
+  discussionReplies,
+  challenges,
+  challengeParticipants,
+  notifications,
+  announcements,
+  insertPostSchema,
+  insertCommentSchema,
+  insertReactionSchema,
+  insertEndorsementSchema,
+  insertChallengeSchema,
+  insertAnnouncementSchema,
+  insertCourseDiscussionSchema,
+} from "@shared/schema";
+import OpenAI from "openai";
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // put application routes here
-  // prefix all routes with /api
+  // Auth middleware
+  await setupAuth(app);
 
-  // use storage to perform CRUD operations on the storage interface
-  // e.g. storage.insertUser(user) or storage.getUserByUsername(username)
+  // ========================================================================
+  // AUTH ENDPOINTS
+  // ========================================================================
+
+  app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // ========================================================================
+  // POSTS ENDPOINTS
+  // ========================================================================
+
+  app.get("/api/posts", async (req: Request, res: Response) => {
+    const { category } = req.query;
+    
+    try {
+      let query = db
+        .select({
+          id: posts.id,
+          authorId: posts.authorId,
+          content: posts.content,
+          imageUrl: posts.imageUrl,
+          category: posts.category,
+          tags: posts.tags,
+          viewCount: posts.viewCount,
+          createdAt: posts.createdAt,
+          updatedAt: posts.updatedAt,
+          author: users,
+        })
+        .from(posts)
+        .leftJoin(users, eq(posts.authorId, users.id))
+        .orderBy(desc(posts.createdAt))
+        .$dynamic();
+
+      if (category && category !== 'all') {
+        query = query.where(eq(posts.category, category as string));
+      }
+
+      const postsData = await query;
+
+      // Fetch comments and reactions for each post
+      const postsWithDetails = await Promise.all(
+        postsData.map(async (post) => {
+          const postComments = await db
+            .select({
+              id: comments.id,
+              postId: comments.postId,
+              authorId: comments.authorId,
+              content: comments.content,
+              createdAt: comments.createdAt,
+              author: users,
+            })
+            .from(comments)
+            .leftJoin(users, eq(comments.authorId, users.id))
+            .where(eq(comments.postId, post.id))
+            .orderBy(comments.createdAt);
+
+          const postReactions = await db
+            .select()
+            .from(reactions)
+            .where(eq(reactions.postId, post.id));
+
+          return {
+            ...post,
+            comments: postComments,
+            reactions: postReactions,
+          };
+        })
+      );
+
+      res.json(postsWithDetails);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/posts", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const validatedData = insertPostSchema.parse({
+        ...req.body,
+        authorId: req.user!.id,
+      });
+
+      const [newPost] = await db.insert(posts).values(validatedData).returning();
+
+      // Update engagement score
+      await db
+        .update(users)
+        .set({
+          engagementScore: sql`${users.engagementScore} + 10`,
+        })
+        .where(eq(users.id, req.user!.id));
+
+      res.json(newPost);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
+  // COMMENTS ENDPOINTS
+  // ========================================================================
+
+  app.post("/api/comments", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const validatedData = insertCommentSchema.parse({
+        ...req.body,
+        authorId: req.user!.id,
+      });
+
+      const [newComment] = await db.insert(comments).values(validatedData).returning();
+
+      // Update engagement score
+      await db
+        .update(users)
+        .set({
+          engagementScore: sql`${users.engagementScore} + 5`,
+        })
+        .where(eq(users.id, req.user!.id));
+
+      res.json(newComment);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
+  // REACTIONS ENDPOINTS
+  // ========================================================================
+
+  app.post("/api/reactions", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const validatedData = insertReactionSchema.parse({
+        ...req.body,
+        userId: req.user!.id,
+      });
+
+      // Check if reaction already exists
+      const existing = await db
+        .select()
+        .from(reactions)
+        .where(
+          and(
+            eq(reactions.postId, validatedData.postId),
+            eq(reactions.userId, req.user!.id),
+            eq(reactions.type, validatedData.type)
+          )
+        )
+        .limit(1);
+
+      if (existing.length > 0) {
+        return res.status(400).json({ error: "Already reacted" });
+      }
+
+      const [newReaction] = await db.insert(reactions).values(validatedData).returning();
+
+      // Update engagement score
+      await db
+        .update(users)
+        .set({
+          engagementScore: sql`${users.engagementScore} + 2`,
+        })
+        .where(eq(users.id, req.user!.id));
+
+      res.json(newReaction);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
+  // BADGES ENDPOINTS
+  // ========================================================================
+
+  app.get("/api/user-badges/:userId", async (req: Request, res: Response) => {
+    try {
+      const userBadgesData = await db
+        .select({
+          id: userBadges.id,
+          userId: userBadges.userId,
+          badgeId: userBadges.badgeId,
+          earnedAt: userBadges.earnedAt,
+          badge: badges,
+        })
+        .from(userBadges)
+        .leftJoin(badges, eq(userBadges.badgeId, badges.id))
+        .where(eq(userBadges.userId, req.params.userId))
+        .orderBy(desc(userBadges.earnedAt));
+
+      res.json(userBadgesData);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
+  // SKILLS & ENDORSEMENTS
+  // ========================================================================
+
+  app.get("/api/skills", async (req: Request, res: Response) => {
+    try {
+      const allSkills = await db.select().from(skills).orderBy(skills.name);
+      res.json(allSkills);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/endorsements/:userId", async (req: Request, res: Response) => {
+    try {
+      const userEndorsements = await db
+        .select({
+          id: endorsements.id,
+          endorserId: endorsements.endorserId,
+          endorsedUserId: endorsements.endorsedUserId,
+          skillId: endorsements.skillId,
+          comment: endorsements.comment,
+          createdAt: endorsements.createdAt,
+          endorser: users,
+          skill: skills,
+        })
+        .from(endorsements)
+        .leftJoin(users, eq(endorsements.endorserId, users.id))
+        .leftJoin(skills, eq(endorsements.skillId, skills.id))
+        .where(eq(endorsements.endorsedUserId, req.params.userId))
+        .orderBy(desc(endorsements.createdAt));
+
+      res.json(userEndorsements);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/endorsements", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const validatedData = insertEndorsementSchema.parse({
+        ...req.body,
+        endorserId: req.user!.id,
+      });
+
+      const [newEndorsement] = await db.insert(endorsements).values(validatedData).returning();
+
+      // Update endorsement score for endorsed user
+      await db
+        .update(users)
+        .set({
+          endorsementScore: sql`${users.endorsementScore} + 10`,
+          engagementScore: sql`${users.engagementScore} + 15`,
+        })
+        .where(eq(users.id, validatedData.endorsedUserId));
+
+      // Create notification
+      await db.insert(notifications).values({
+        userId: validatedData.endorsedUserId,
+        type: "endorsement",
+        title: "New Endorsement!",
+        message: `${req.user!.firstName} ${req.user!.lastName} endorsed you`,
+        link: "/profile",
+      });
+
+      res.json(newEndorsement);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
+  // STUDENTS ENDPOINT (for teachers, industry, admins)
+  // ========================================================================
+
+  app.get("/api/students", async (req: Request, res: Response) => {
+    try {
+      const students = await db
+        .select()
+        .from(users)
+        .where(eq(users.role, "student"))
+        .orderBy(desc(users.engagementScore));
+
+      res.json(students);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
+  // CHALLENGES ENDPOINTS
+  // ========================================================================
+
+  app.get("/api/challenges/:status?", async (req: Request, res: Response) => {
+    try {
+      let query = db.select().from(challenges).orderBy(desc(challenges.createdAt)).$dynamic();
+
+      if (req.params.status && req.params.status !== 'all') {
+        query = query.where(eq(challenges.status, req.params.status));
+      }
+
+      const challengesData = await query;
+      res.json(challengesData);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/challenges", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const validatedData = insertChallengeSchema.parse({
+        ...req.body,
+        organizerId: req.user!.id,
+      });
+
+      const [newChallenge] = await db.insert(challenges).values(validatedData).returning();
+      res.json(newChallenge);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
+  // NOTIFICATIONS ENDPOINT
+  // ========================================================================
+
+  app.get("/api/notifications", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const userNotifications = await db
+        .select()
+        .from(notifications)
+        .where(eq(notifications.userId, req.user!.id))
+        .orderBy(desc(notifications.createdAt))
+        .limit(20);
+
+      res.json(userNotifications);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
+  // AI CAREERBOT ENDPOINT
+  // ========================================================================
+
+  app.post("/api/careerbot/chat", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { message } = req.body;
+
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ error: "Message is required" });
+      }
+
+      const systemPrompt = `You are an AI career advisor for university students. You provide personalized career guidance, skill recommendations, resume tips, interview preparation advice, and learning path suggestions. You are helpful, encouraging, and knowledgeable about various career paths and industries.
+
+User Profile:
+- Name: ${req.user!.firstName} ${req.user!.lastName}
+- Major: ${req.user!.major || "Not specified"}
+- University: ${req.user!.university || "Not specified"}
+- Engagement Score: ${req.user!.engagementScore}
+- Problem Solver Score: ${req.user!.problemSolverScore}
+
+Keep your responses concise (2-4 paragraphs max), actionable, and encouraging. Use a friendly, professional tone suitable for Gen Z students.`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: message },
+        ],
+        temperature: 0.7,
+        max_tokens: 500,
+      });
+
+      const assistantMessage = completion.choices[0]?.message?.content || "I'm sorry, I couldn't generate a response. Please try again.";
+
+      // Update engagement score for using CareerBot
+      await db
+        .update(users)
+        .set({
+          engagementScore: sql`${users.engagementScore} + 3`,
+        })
+        .where(eq(users.id, req.user!.id));
+
+      res.json({ message: assistantMessage });
+    } catch (error: any) {
+      console.error("CareerBot error:", error);
+      res.status(500).json({ error: "Failed to get response from CareerBot" });
+    }
+  });
+
+  // ========================================================================
+  // ADMIN ENDPOINTS
+  // ========================================================================
+
+  app.get("/api/admin/users", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated() || req.user!.role !== 'master_admin') {
+      return res.status(403).send("Forbidden");
+    }
+
+    try {
+      const allUsers = await db.select().from(users).orderBy(desc(users.createdAt));
+      res.json(allUsers);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/admin/posts", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated() || req.user!.role !== 'master_admin') {
+      return res.status(403).send("Forbidden");
+    }
+
+    try {
+      const allPosts = await db.select().from(posts).orderBy(desc(posts.createdAt));
+      res.json(allPosts);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
+  // ANNOUNCEMENTS (for university admins)
+  // ========================================================================
+
+  app.get("/api/announcements", async (req: Request, res: Response) => {
+    try {
+      const allAnnouncements = await db
+        .select({
+          id: announcements.id,
+          authorId: announcements.authorId,
+          title: announcements.title,
+          content: announcements.content,
+          university: announcements.university,
+          isPinned: announcements.isPinned,
+          createdAt: announcements.createdAt,
+          updatedAt: announcements.updatedAt,
+          author: users,
+        })
+        .from(announcements)
+        .leftJoin(users, eq(announcements.authorId, users.id))
+        .orderBy(desc(announcements.isPinned), desc(announcements.createdAt));
+
+      res.json(allAnnouncements);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/announcements", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated() || req.user!.role !== 'university_admin') {
+      return res.status(403).send("Forbidden");
+    }
+
+    try {
+      const validatedData = insertAnnouncementSchema.parse({
+        ...req.body,
+        authorId: req.user!.id,
+      });
+
+      const [newAnnouncement] = await db.insert(announcements).values(validatedData).returning();
+      res.json(newAnnouncement);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
 
   const httpServer = createServer(app);
-
   return httpServer;
 }
