@@ -32,9 +32,9 @@ import {
 } from "@shared/schema";
 import OpenAI from "openai";
 
-const openai = new OpenAI({
+const openai = process.env.OPENAI_API_KEY ? new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-});
+}) : null;
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -421,6 +421,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!message || typeof message !== 'string') {
         return res.status(400).json({ error: "Message is required" });
+      }
+
+      if (!openai) {
+        return res.status(503).json({ error: "AI CareerBot is not available. Please configure the OpenAI API key." });
       }
 
       const systemPrompt = `You are an AI career advisor for university students. You provide personalized career guidance, skill recommendations, resume tips, interview preparation advice, and learning path suggestions. You are helpful, encouraging, and knowledgeable about various career paths and industries.
