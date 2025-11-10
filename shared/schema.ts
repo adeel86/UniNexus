@@ -33,17 +33,20 @@ export const sessions = pgTable(
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  firebaseUid: varchar("firebase_uid").unique().notNull(),
   email: varchar("email").unique(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
+  displayName: varchar("display_name"),
   profileImageUrl: varchar("profile_image_url"),
-  role: varchar("role", { length: 50 }).notNull().default('student'), // student, teacher, university_admin, industry_partner, master_admin
+  role: varchar("role", { length: 50 }).notNull().default('student'), // student, teacher, university_admin, industry_professional, master_admin
   bio: text("bio"),
   university: varchar("university"),
   major: varchar("major"),
   graduationYear: integer("graduation_year"),
-  companyName: varchar("company_name"), // for industry partners
-  position: varchar("position"), // for industry partners
+  company: varchar("company"), // for industry professionals
+  position: varchar("position"), // for industry professionals
+  interests: text("interests").array().default(sql`ARRAY[]::text[]`),
   engagementScore: integer("engagement_score").notNull().default(0),
   problemSolverScore: integer("problem_solver_score").notNull().default(0),
   endorsementScore: integer("endorsement_score").notNull().default(0),

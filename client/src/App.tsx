@@ -3,10 +3,12 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useAuth } from "@/hooks/useAuth";
+import { AuthProvider, useAuth } from "@/lib/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { CareerBot } from "@/components/CareerBot";
 import Landing from "@/pages/Landing";
+import Login from "@/pages/Login";
+import Register from "@/pages/Register";
 import StudentHome from "@/pages/StudentHome";
 import TeacherDashboard from "@/pages/TeacherDashboard";
 import UniversityDashboard from "@/pages/UniversityDashboard";
@@ -17,36 +19,38 @@ import Profile from "@/pages/Profile";
 import NotFound from "@/pages/not-found";
 
 function Router() {
-  const { isAuthenticated, isLoading, user } = useAuth();
+  const { currentUser, userData, loading } = useAuth();
 
-  if (isLoading) {
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-pink-50 to-blue-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-500 via-pink-500 to-blue-500">
         <div className="text-center">
-          <div className="h-16 w-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading UniNexus...</p>
+          <div className="h-16 w-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-white font-medium">Loading UniNexus...</p>
         </div>
       </div>
     );
   }
 
-  if (!isAuthenticated) {
+  if (!currentUser || !userData) {
     return (
       <Switch>
         <Route path="/" component={Landing} />
-        <Route component={Landing} />
+        <Route path="/login" component={Login} />
+        <Route path="/register" component={Register} />
+        <Route component={Login} />
       </Switch>
     );
   }
 
   // Determine home page based on role
   const getHomePage = () => {
-    switch (user?.role) {
+    switch (userData.role) {
       case 'teacher':
         return TeacherDashboard;
       case 'university_admin':
         return UniversityDashboard;
-      case 'industry_partner':
+      case 'industry_professional':
         return IndustryDashboard;
       case 'master_admin':
         return MasterAdminDashboard;
@@ -76,7 +80,7 @@ function Router() {
       </Switch>
       
       {/* Career Bot - Only for students */}
-      {user?.role === 'student' && <CareerBot />}
+      {userData.role === 'student' && <CareerBot />}
     </div>
   );
 }
@@ -85,8 +89,10 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Router />
+        <AuthProvider>
+          <Toaster />
+          <Router />
+        </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

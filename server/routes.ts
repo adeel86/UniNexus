@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { eq, desc, sql, and, or, like } from "drizzle-orm";
 import { db } from "./db";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, verifyToken, isAuthenticated, type AuthRequest } from "./firebaseAuth";
 import {
   users,
   posts,
@@ -44,11 +44,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // AUTH ENDPOINTS
   // ========================================================================
 
-  app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
+  app.post("/api/auth/register", verifyToken, async (req: AuthRequest, res: Response) => {
     try {
-      const userId = req.user.claims.sub;
-      const user = await storage.getUser(userId);
+      if (!req.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const { email, displayName, role, university, major, company, position, bio } = req.body;
+      
+      const [firstName, ...lastNameParts] = displayName.split(' ');
+      const lastName = lastNameParts.join(' ');
+
+      const user = await storage.createUserFromFirebase(req.user.id, {
+        email,
+        displayName,
+        firstName,
+        lastName,
+        role: role || 'student',
+        university: university || null,
+        major: major || null,
+        company: company || null,
+        position: position || null,
+        bio: bio || null,
+      });
+
       res.json(user);
+    } catch (error) {
+      console.error("Error creating user:", error);
+      res.status(500).json({ message: "Failed to create user profile" });
+    }
+  });
+
+  app.get("/api/auth/user", isAuthenticated, async (req: AuthRequest, res: Response) => {
+    try {
+      res.json(req.user);
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
