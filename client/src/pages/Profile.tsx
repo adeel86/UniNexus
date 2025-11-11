@@ -8,7 +8,7 @@ import { BadgeIcon } from "@/components/BadgeIcon";
 import { Award, TrendingUp, Zap, Trophy } from "lucide-react";
 
 export default function Profile() {
-  const { user } = useAuth();
+  const { userData: user } = useAuth();
 
   const { data: userBadges = [] } = useQuery<(UserBadge & { badge: BadgeType })[]>({
     queryKey: ["/api/user-badges", user?.id],

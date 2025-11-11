@@ -20,12 +20,22 @@ type PostWithAuthor = Post & {
 };
 
 export default function StudentHome() {
-  const { user } = useAuth();
+  const { userData: user } = useAuth();
   const [createPostOpen, setCreatePostOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [interestFilter, setInterestFilter] = useState(false);
 
   const { data: posts = [], isLoading } = useQuery<PostWithAuthor[]>({
-    queryKey: ["/api/posts", selectedCategory],
+    queryKey: ["/api/posts", selectedCategory, interestFilter ? 'interests' : 'all', user?.id],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        category: selectedCategory,
+        ...(interestFilter && user?.id ? { filterByInterests: 'true', userId: user.id } : {})
+      });
+      const response = await fetch(`/api/posts?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch posts');
+      return response.json();
+    },
   });
 
   const { data: userBadges = [] } = useQuery<(UserBadge & { badge: Badge })[]>({
@@ -74,7 +84,7 @@ export default function StudentHome() {
           </Card>
 
           {/* Category Filter */}
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex gap-2 flex-wrap items-center">
             {categories.map((cat) => {
               const Icon = cat.icon;
               return (
@@ -91,6 +101,18 @@ export default function StudentHome() {
                 </Button>
               );
             })}
+            {user?.interests && user.interests.length > 0 && (
+              <Button
+                variant={interestFilter ? "default" : "outline"}
+                size="sm"
+                onClick={() => setInterestFilter(!interestFilter)}
+                className="gap-2 ml-auto"
+                data-testid="filter-interests"
+              >
+                <Sparkles className="h-4 w-4" />
+                {interestFilter ? "Showing My Interests" : "Filter by Interests"}
+              </Button>
+            )}
           </div>
 
           {/* Create Post Button */}
@@ -166,7 +188,7 @@ export default function StudentHome() {
               {userBadges.length > 6 && (
                 <Link href="/profile">
                   <a data-testid="link-view-all-badges">
-                    <Button variant="link" className="w-full mt-4">
+                    <Button variant="ghost" className="w-full mt-4">
                       View All {userBadges.length} Badges
                     </Button>
                   </a>
@@ -194,7 +216,7 @@ export default function StudentHome() {
               </div>
               <Link href="/challenges">
                 <a data-testid="link-view-challenges">
-                  <Button variant="link" className="w-full mt-4">
+                  <Button variant="ghost" className="w-full mt-4">
                     View All Challenges
                   </Button>
                 </a>

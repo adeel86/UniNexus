@@ -32,7 +32,6 @@ export default function Leaderboard() {
       {students.map((student, index) => {
         const score = student[scoreKey] || 0;
         const isTopThree = index < 3;
-        const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : null;
         
         return (
           <Card
@@ -50,7 +49,10 @@ export default function Leaderboard() {
                   ${index === 2 ? 'text-amber-700' : ''}
                 `}
               >
-                {medal || `#${index + 1}`}
+                {index === 0 ? <Trophy className="h-6 w-6 text-yellow-600" /> : 
+                 index === 1 ? <Award className="h-6 w-6 text-gray-500" /> :
+                 index === 2 ? <Award className="h-6 w-6 text-amber-700" /> :
+                 `#${index + 1}`}
               </div>
 
               <UserAvatar user={student} size="md" />

@@ -89,7 +89,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
 
   app.get("/api/posts", async (req: Request, res: Response) => {
-    const { category } = req.query;
+    const { category, filterByInterests, userId } = req.query;
     
     try {
       let query = db
@@ -114,11 +114,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
         query = query.where(eq(posts.category, category as string));
       }
 
-      const postsData = await query;
+      let postsData = await query;
+
+      // Interest-based filtering
+      if (filterByInterests === 'true' && userId) {
+        const [currentUser] = await db.select().from(users).where(eq(users.id, userId as string)).limit(1);
+        if (currentUser && currentUser.interests && currentUser.interests.length > 0) {
+          // Filter posts that have tags matching user interests
+          const userInterests = currentUser.interests;
+          postsData = postsData.filter(post => {
+            if (!post.tags || post.tags.length === 0) return false;
+            return post.tags.some(tag => 
+              userInterests.some(interest => 
+                tag.toLowerCase().includes(interest.toLowerCase()) ||
+                interest.toLowerCase().includes(tag.toLowerCase())
+              )
+            );
+          });
+        }
+      }
+
+      const postsDataArray = postsData;
 
       // Fetch comments and reactions for each post
       const postsWithDetails = await Promise.all(
-        postsData.map(async (post) => {
+        postsDataArray.map(async (post) => {
           const postComments = await db
             .select({
               id: comments.id,

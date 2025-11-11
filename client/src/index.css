@@ -352,4 +352,89 @@
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
   }
+
+  /* Gen Z Neon Gradient Utilities */
+  .gradient-genz {
+    background: linear-gradient(135deg, #a855f7 0%, #3b82f6 50%, #ec4899 100%);
+  }
+
+  .gradient-genz-purple {
+    background: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+  }
+
+  .gradient-genz-blue {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  }
+
+  .gradient-genz-pink {
+    background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, #a855f7 0%, #3b82f6 50%, #ec4899 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .neon-glow {
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.3), 0 0 40px rgba(168, 85, 247, 0.1);
+  }
+
+  .neon-glow-blue {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3), 0 0 40px rgba(59, 130, 246, 0.1);
+  }
+
+  .neon-glow-pink {
+    box-shadow: 0 0 20px rgba(236, 72, 153, 0.3), 0 0 40px rgba(236, 72, 153, 0.1);
+  }
+
+  /* Smooth animations */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideIn {
+    from {
+      transform: translateX(-20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.8;
+    }
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.5s ease-out forwards;
+  }
+
+  .animate-slide-in {
+    animation: slideIn 0.4s ease-out forwards;
+  }
+
+  .animate-pulse-slow {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+
+  /* Smooth transitions for all interactive elements */
+  button, a, .hover-elevate {
+    transition: all 0.2s ease-in-out;
+  }
 }
