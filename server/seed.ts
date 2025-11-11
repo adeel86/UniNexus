@@ -148,8 +148,14 @@ async function seedDatabase() {
   ];
 
   console.log("Inserting users...");
-  const insertedUsers = await db.insert(users).values(mockUsers).onConflictDoNothing().returning();
-  console.log(`Inserted ${insertedUsers.length} users`);
+  let insertedUsers = await db.insert(users).values(mockUsers).onConflictDoNothing().returning();
+  
+  // If users already exist, fetch them
+  if (insertedUsers.length === 0) {
+    console.log("Users already exist, fetching existing users...");
+    insertedUsers = await db.select().from(users);
+  }
+  console.log(`Using ${insertedUsers.length} users`);
 
   const mockBadges = [
     {
@@ -211,8 +217,14 @@ async function seedDatabase() {
   ];
 
   console.log("Inserting badges...");
-  const insertedBadges = await db.insert(badges).values(mockBadges).onConflictDoNothing().returning();
-  console.log(`Inserted ${insertedBadges.length} badges`);
+  let insertedBadges = await db.insert(badges).values(mockBadges).onConflictDoNothing().returning();
+  
+  // If badges already exist, fetch them
+  if (insertedBadges.length === 0) {
+    console.log("Badges already exist, fetching existing badges...");
+    insertedBadges = await db.select().from(badges);
+  }
+  console.log(`Using ${insertedBadges.length} badges`);
 
   if (insertedUsers.length > 0 && insertedBadges.length > 0) {
     const userBadgeAssignments = [
@@ -244,8 +256,14 @@ async function seedDatabase() {
   ];
 
   console.log("Inserting skills...");
-  const insertedSkills = await db.insert(skills).values(mockSkills).onConflictDoNothing().returning();
-  console.log(`Inserted ${insertedSkills.length} skills`);
+  let insertedSkills = await db.insert(skills).values(mockSkills).onConflictDoNothing().returning();
+  
+  // If skills already exist, fetch them
+  if (insertedSkills.length === 0) {
+    console.log("Skills already exist, fetching existing skills...");
+    insertedSkills = await db.select().from(skills);
+  }
+  console.log(`Using ${insertedSkills.length} skills`);
 
   if (insertedUsers.length > 0 && insertedSkills.length > 0) {
     const userSkillAssignments = [
@@ -304,8 +322,14 @@ async function seedDatabase() {
   ];
 
   console.log("Inserting posts...");
-  const insertedPosts = await db.insert(posts).values(mockPosts).onConflictDoNothing().returning();
-  console.log(`Inserted ${insertedPosts.length} posts`);
+  let insertedPosts = await db.insert(posts).values(mockPosts).onConflictDoNothing().returning();
+  
+  // If posts already exist, fetch them
+  if (insertedPosts.length === 0) {
+    console.log("Posts already exist, fetching existing posts...");
+    insertedPosts = await db.select().from(posts).limit(5);
+  }
+  console.log(`Using ${insertedPosts.length} posts`);
 
   if (insertedPosts.length > 0) {
     const mockComments = [
