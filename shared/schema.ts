@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import { relations } from 'drizzle-orm';
 import {
   index,
+  uniqueIndex,
   jsonb,
   pgTable,
   timestamp,
@@ -356,6 +357,7 @@ export const courseDiscussions = pgTable("course_discussions", {
   isQuestion: boolean("is_question").notNull().default(true),
   isResolved: boolean("is_resolved").notNull().default(false),
   replyCount: integer("reply_count").notNull().default(0),
+  upvoteCount: integer("upvote_count").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -370,11 +372,13 @@ export const courseDiscussionsRelations = relations(courseDiscussions, ({ one, m
     references: [users.id],
   }),
   replies: many(discussionReplies),
+  upvotes: many(discussionUpvotes),
 }));
 
 export const insertCourseDiscussionSchema = createInsertSchema(courseDiscussions).omit({
   id: true,
   replyCount: true,
+  upvoteCount: true,
   createdAt: true,
   updatedAt: true,
 });
@@ -391,10 +395,11 @@ export const discussionReplies = pgTable("discussion_replies", {
   discussionId: varchar("discussion_id").notNull().references(() => courseDiscussions.id, { onDelete: 'cascade' }),
   authorId: varchar("author_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   content: text("content").notNull(),
+  upvoteCount: integer("upvote_count").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-export const discussionRepliesRelations = relations(discussionReplies, ({ one }) => ({
+export const discussionRepliesRelations = relations(discussionReplies, ({ one, many }) => ({
   discussion: one(courseDiscussions, {
     fields: [discussionReplies.discussionId],
     references: [courseDiscussions.id],
@@ -403,9 +408,55 @@ export const discussionRepliesRelations = relations(discussionReplies, ({ one })
     fields: [discussionReplies.authorId],
     references: [users.id],
   }),
+  upvotes: many(discussionUpvotes),
 }));
 
+export const insertDiscussionReplySchema = createInsertSchema(discussionReplies).omit({
+  id: true,
+  upvoteCount: true,
+  createdAt: true,
+});
+
 export type DiscussionReply = typeof discussionReplies.$inferSelect;
+export type InsertDiscussionReply = z.infer<typeof insertDiscussionReplySchema>;
+
+// ============================================================================
+// DISCUSSION UPVOTES
+// ============================================================================
+
+export const discussionUpvotes = pgTable("discussion_upvotes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  discussionId: varchar("discussion_id").references(() => courseDiscussions.id, { onDelete: 'cascade' }),
+  replyId: varchar("reply_id").references(() => discussionReplies.id, { onDelete: 'cascade' }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("unique_upvote_user_discussion").on(table.userId, table.discussionId).where(sql`${table.discussionId} IS NOT NULL`),
+  uniqueIndex("unique_upvote_user_reply").on(table.userId, table.replyId).where(sql`${table.replyId} IS NOT NULL`),
+]);
+
+export const discussionUpvotesRelations = relations(discussionUpvotes, ({ one }) => ({
+  discussion: one(courseDiscussions, {
+    fields: [discussionUpvotes.discussionId],
+    references: [courseDiscussions.id],
+  }),
+  reply: one(discussionReplies, {
+    fields: [discussionUpvotes.replyId],
+    references: [discussionReplies.id],
+  }),
+  user: one(users, {
+    fields: [discussionUpvotes.userId],
+    references: [users.id],
+  }),
+}));
+
+export const insertDiscussionUpvoteSchema = createInsertSchema(discussionUpvotes).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type DiscussionUpvote = typeof discussionUpvotes.$inferSelect;
+export type InsertDiscussionUpvote = z.infer<typeof insertDiscussionUpvoteSchema>;
 
 // ============================================================================
 // CHALLENGES

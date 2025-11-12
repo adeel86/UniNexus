@@ -29,6 +29,7 @@ import {
   insertChallengeSchema,
   insertAnnouncementSchema,
   insertCourseDiscussionSchema,
+  insertDiscussionReplySchema,
 } from "@shared/schema";
 import OpenAI from "openai";
 
@@ -391,6 +392,164 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .orderBy(desc(users.engagementScore));
 
       res.json(students);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
+  // COURSE FORUMS & DISCUSSIONS ENDPOINTS
+  // ========================================================================
+
+  // Get all courses
+  app.get("/api/courses", async (req: Request, res: Response) => {
+    try {
+      const allCourses = await storage.getCourses();
+      res.json(allCourses);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get discussions for a course with author info
+  app.get("/api/courses/:courseId/discussions", async (req: Request, res: Response) => {
+    try {
+      const discussionsData = await db
+        .select({
+          discussion: courseDiscussions,
+          author: users,
+        })
+        .from(courseDiscussions)
+        .leftJoin(users, eq(courseDiscussions.authorId, users.id))
+        .where(eq(courseDiscussions.courseId, req.params.courseId))
+        .orderBy(desc(courseDiscussions.upvoteCount), desc(courseDiscussions.createdAt))
+        .limit(50); // Pagination limit
+
+      res.json(discussionsData);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create a new discussion
+  app.post("/api/discussions", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const validatedData = insertCourseDiscussionSchema.parse({
+        ...req.body,
+        authorId: req.user!.id,
+      });
+
+      const newDiscussion = await storage.createDiscussion(validatedData);
+      
+      // Update engagement score
+      await db
+        .update(users)
+        .set({ engagementScore: sql`${users.engagementScore} + 5` })
+        .where(eq(users.id, req.user!.id));
+
+      res.json(newDiscussion);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get discussion with replies and author info
+  app.get("/api/discussions/:discussionId/replies", async (req: Request, res: Response) => {
+    try {
+      const repliesData = await db
+        .select({
+          reply: discussionReplies,
+          author: users,
+        })
+        .from(discussionReplies)
+        .leftJoin(users, eq(discussionReplies.authorId, users.id))
+        .where(eq(discussionReplies.discussionId, req.params.discussionId))
+        .orderBy(desc(discussionReplies.upvoteCount), desc(discussionReplies.createdAt))
+        .limit(100); // Pagination limit
+
+      res.json(repliesData);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create a reply
+  app.post("/api/replies", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const validatedData = insertDiscussionReplySchema.parse({
+        ...req.body,
+        authorId: req.user!.id,
+      });
+
+      const newReply = await storage.createReply(validatedData);
+      
+      // Update engagement score
+      await db
+        .update(users)
+        .set({ engagementScore: sql`${users.engagementScore} + 3` })
+        .where(eq(users.id, req.user!.id));
+
+      // Get the discussion to notify the author
+      const [discussion] = await db
+        .select()
+        .from(courseDiscussions)
+        .where(eq(courseDiscussions.id, validatedData.discussionId));
+
+      if (discussion && discussion.authorId !== req.user!.id) {
+        await db.insert(notifications).values({
+          userId: discussion.authorId,
+          type: "comment",
+          title: "New Reply",
+          message: `${req.user!.firstName} ${req.user!.lastName} replied to your discussion`,
+          link: `/forums/${discussion.courseId}/${discussion.id}`,
+        });
+      }
+
+      res.json(newReply);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Toggle upvote on discussion
+  app.post("/api/discussions/:discussionId/upvote", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const upvoted = await storage.toggleDiscussionUpvote(
+        req.user!.id,
+        req.params.discussionId
+      );
+
+      res.json({ upvoted });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Toggle upvote on reply
+  app.post("/api/replies/:replyId/upvote", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const upvoted = await storage.toggleReplyUpvote(
+        req.user!.id,
+        req.params.replyId
+      );
+
+      res.json({ upvoted });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

@@ -1,0 +1,100 @@
+
+
+
+Build a modern, Gen Z–focused mobile and web app called UniNexus — a social, learning, and engagement platform for students, teachers, universities, industries, and master admins.
+If any of the following features are missing from the current app, plan and implement them. Ensure that the sign-up and login flow uses Firebase Authentication with role selection. Populate all mock pages with realistic dummy data for demonstration.
+
+Core Features
+	1	Multi-role Authentication System
+	◦	Roles: Student, Teacher, University, Industry, and Master Admin.
+	◦	Each role should access a customised interface and dashboard.
+	2	Student Social Feed
+	◦	Posts (text and images), comments, and reactions.
+	◦	Interest-based filtering to personalise the feed.
+	3	Gamified Student Profiles
+	◦	Show badges, skill tags, engagement scores, and an achievement timeline.
+	4	AI-Powered Capabilities
+	◦	Suggest posts based on interests and trending topics.
+	◦	Include an AI career guidance chatbot.
+	◦	Apply AI-based moderation for safe and inclusive content.
+	5	Teacher Dashboard
+	◦	View students, endorse skills, and analyse engagement insights.
+	6	University Admin Panel
+	◦	Display engagement metrics, retention rates, and allow announcements.
+	7	Course Discussion Forums
+	◦	Threaded Q&A with peer interactions and upvotes.
+	8	Leaderboard System
+	◦	Rank students based on engagement, problem-solving, and skill endorsements.
+	9	Real-Time Notifications
+	◦	Trigger for comments, reactions, endorsements, and badge unlocks.
+	10	Vibrant Gen Z Interface
+	◦	Neon gradient theme (purple–blue–pink).
+	◦	Smooth animations, modern cards, and energetic visual style.
+	◦	Optimised for mobile experience and quick interactions.
+
+App Behaviour & Experience
+	•	Provide mock data for all dashboards, profiles, posts, and analytics to create an engaging demo experience.
+	•	Each role’s interface should reflect its goals — students focus on collaboration, teachers on mentorship, universities on oversight, and industry partners on innovation and opportunities.
+	•	AI elements should enhance creativity, learning, and community growth rather than replace human interaction.
+	•	Maintain a positive, safe, and motivating tone across the platform — professional but youthful.
+	•	Ensure inclusivity and accessibility are reflected throughout design and content.
+
+End Goal: Deliver a cohesive, fully populated app concept that demonstrates all listed features in an interactive, visually striking prototype suitable for Gen Z learners and educators.
+
+
+
+Replit’s Todo List:
+
+
+
+
+
+Set up project and add necessary tools - implemented
+
+Create setup files for app functions - implemented
+
+Manage user login status for app - implemented
+
+Build pages for sign-in and sign-up - implemented
+
+Update server to check login tokens - implemented
+
+Save user details after signing up - implemented
+
+Update app sections to use new login - implemented
+
+Filter student posts by interests - implemented
+
+Add game-like student profiles with rewards - implemented
+
+Build system for ranking user activity - implemented
+
+Apply bright, modern user interface design - implemented
+
+Show student achievements over time - To be implemented 
+
+Show student growth for admins - To be implemented 
+
+Suggest posts using AI - To be implemented 
+
+Use AI to check content - To be implemented 
+
+Create realistic sample data including login credentials - To be implemented 
+
+Add smooth visual effects - To be implemented 
+
+Test user sign-in and access - To be implemented 
+
+Test all features and responsiveness - To be implemented 
+
+Create teacher view of student progress - To be implemented 
+
+Build admin panel for university features - To be implemented 
+
+Create forums for course questions and answers - To be implemented 
+
+Add AI suggestions and career advice bot - To be implemented 
+
+Provide real-time updates for user activity - To be implemented 
+
+
