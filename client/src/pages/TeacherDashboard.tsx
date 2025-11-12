@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { TrendingUp, Award, Users, Target } from "lucide-react";
+import { TrendingUp, Award, Users, Target, Plus } from "lucide-react";
 import { useState } from "react";
+import { CreatePostModal } from "@/components/CreatePostModal";
+import { SuggestedPosts } from "@/components/SuggestedPosts";
 import {
   Dialog,
   DialogContent,
@@ -35,6 +37,12 @@ export default function TeacherDashboard() {
   const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
   const [selectedSkill, setSelectedSkill] = useState("");
   const [endorsementComment, setEndorsementComment] = useState("");
+  const [createPostOpen, setCreatePostOpen] = useState(false);
+  const [postInitialValues, setPostInitialValues] = useState<{ content: string; category: string; tags: string }>({
+    content: "",
+    category: "academic",
+    tags: ""
+  });
 
   const { data: students = [] } = useQuery<User[]>({
     queryKey: ["/api/students"],
@@ -215,6 +223,27 @@ export default function TeacherDashboard() {
 
         {/* Top Performers and Analytics */}
         <div className="space-y-6">
+          {/* Share Content Button */}
+          <Button
+            onClick={() => {
+              setPostInitialValues({ content: "", category: "academic", tags: "" });
+              setCreatePostOpen(true);
+            }}
+            className="w-full"
+            data-testid="button-create-post"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Share Educational Content
+          </Button>
+
+          {/* AI Post Suggestions */}
+          <SuggestedPosts
+            onSelectSuggestion={(content, category, tags) => {
+              setPostInitialValues({ content, category, tags: tags.join(", ") });
+              setCreatePostOpen(true);
+            }}
+          />
+
           {/* Engagement Distribution */}
           <Card className="p-6">
             <h3 className="font-heading font-semibold text-lg mb-4">
@@ -364,6 +393,15 @@ export default function TeacherDashboard() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Create Post Modal */}
+      <CreatePostModal
+        open={createPostOpen}
+        onOpenChange={setCreatePostOpen}
+        initialContent={postInitialValues.content}
+        initialCategory={postInitialValues.category}
+        initialTags={postInitialValues.tags}
+      />
     </div>
   );
 }
