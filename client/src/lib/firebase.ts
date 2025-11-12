@@ -1,11 +1,13 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 
+const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID || 'demo-project';
+
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'demo-api-key',
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'demo.firebaseapp.com',
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'demo-project',
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'demo.appspot.com',
+  authDomain: `${projectId}.firebaseapp.com`,
+  projectId: projectId,
+  storageBucket: `${projectId}.firebasestorage.app`,
   messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '123456789',
   appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:123456789:web:abcdef',
 };
@@ -17,8 +19,9 @@ try {
   const app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   googleProvider = new GoogleAuthProvider();
+  console.log('Firebase initialized successfully with project:', projectId);
 } catch (error) {
-  console.warn('Firebase initialization failed. Using fallback auth.');
+  console.warn('Firebase initialization failed. Using fallback auth.', error);
 }
 
 export { auth, googleProvider };
