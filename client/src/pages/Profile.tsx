@@ -7,9 +7,25 @@ import type { UserBadge, Badge as BadgeType, Endorsement, Skill, User } from "@s
 import { BadgeIcon } from "@/components/BadgeIcon";
 import { AchievementTimeline } from "@/components/AchievementTimeline";
 import { Award, TrendingUp, Zap, Trophy, Clock } from "lucide-react";
+import { useLocation } from "wouter";
 
 export default function Profile() {
-  const { userData: user } = useAuth();
+  const { userData: currentUser } = useAuth();
+  const [location] = useLocation();
+  
+  // Get userId from query params if viewing another user's profile
+  const params = new URLSearchParams(location.split('?')[1] || '');
+  const viewingUserId = params.get('userId');
+  const isViewingOwnProfile = !viewingUserId || viewingUserId === currentUser?.id;
+  
+  // Fetch viewed user data if viewing someone else's profile
+  const { data: viewedUser } = useQuery<User>({
+    queryKey: ["/api/users", viewingUserId],
+    enabled: !!viewingUserId && !isViewingOwnProfile,
+  });
+  
+  // Use currentUser if viewing own profile, otherwise use viewedUser
+  const user = isViewingOwnProfile ? currentUser : viewedUser;
 
   const { data: userBadges = [] } = useQuery<(UserBadge & { badge: BadgeType })[]>({
     queryKey: ["/api/user-badges", user?.id],

@@ -6,8 +6,10 @@ import { Users, FileText, Shield, TrendingUp, AlertTriangle, CheckCircle } from 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/UserAvatar";
+import { useLocation } from "wouter";
 
 export default function MasterAdminDashboard() {
+  const [, navigate] = useLocation();
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/admin/users"],
   });
@@ -134,8 +136,13 @@ export default function MasterAdminDashboard() {
                     <Badge variant="secondary" className="capitalize">
                       {user.role.replace('_', ' ')}
                     </Badge>
-                    <Button size="sm" variant="outline" data-testid={`button-manage-${user.id}`}>
-                      Manage
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => navigate(`/profile?userId=${user.id}`)}
+                      data-testid={`button-view-profile-${user.id}`}
+                    >
+                      View Profile
                     </Button>
                   </div>
                 </div>

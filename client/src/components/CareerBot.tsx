@@ -13,19 +13,20 @@ interface Message {
 }
 
 export function CareerBot() {
-  const { user } = useAuth();
+  const { userData } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: `Hi ${user?.firstName || 'there'}! 👋 I'm your AI CareerBot. I can help you with:\n\n• Career advice and guidance\n• Skill gap analysis\n• Resume tips\n• Interview preparation\n• Learning path recommendations\n\nWhat would you like to know?`
+      content: `Hi ${userData?.firstName || 'there'}! 👋 I'm your AI CareerBot. I can help you with:\n\n• Career advice and guidance\n• Skill gap analysis\n• Resume tips\n• Interview preparation\n• Learning path recommendations\n\nWhat would you like to know?`
     }
   ]);
   const [input, setInput] = useState("");
 
   const chatMutation = useMutation({
     mutationFn: async (userMessage: string) => {
-      return apiRequest<{ message: string }>("POST", "/api/careerbot/chat", { message: userMessage });
+      const response = await apiRequest("POST", "/api/careerbot/chat", { message: userMessage });
+      return await response.json() as { message: string };
     },
     onSuccess: (data) => {
       setMessages(prev => [...prev, { role: 'assistant', content: data.message }]);

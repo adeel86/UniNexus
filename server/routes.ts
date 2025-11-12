@@ -481,6 +481,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get user by ID (for viewing other users' profiles)
+  app.get("/api/users/:userId", async (req: Request, res: Response) => {
+    try {
+      const { userId } = req.params;
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      res.json(user);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ========================================================================
   // COURSE FORUMS & DISCUSSIONS ENDPOINTS
   // ========================================================================

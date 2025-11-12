@@ -24,10 +24,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 
 export default function TeacherDashboard() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [, navigate] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [endorseModalOpen, setEndorseModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
@@ -180,14 +182,24 @@ export default function TeacherDashboard() {
                         </Badge>
                       </div>
                     </div>
-                    <Button
-                      size="sm"
-                      onClick={() => handleEndorseClick(student)}
-                      data-testid={`button-endorse-${student.id}`}
-                    >
-                      <Award className="mr-2 h-4 w-4" />
-                      Endorse
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => navigate(`/profile?userId=${student.id}`)}
+                        data-testid={`button-view-profile-${student.id}`}
+                      >
+                        View Profile
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => handleEndorseClick(student)}
+                        data-testid={`button-endorse-${student.id}`}
+                      >
+                        <Award className="mr-2 h-4 w-4" />
+                        Endorse
+                      </Button>
+                    </div>
                   </div>
                 </Card>
               ))}
