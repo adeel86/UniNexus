@@ -56,6 +56,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (response.ok) {
           const data = await response.json();
           setUserData(data);
+          // Set stub currentUser for demo accounts to maintain consistent auth state
+          setCurrentUser({
+            uid: data.firebaseUid || data.id,
+            email: data.email,
+            displayName: `${data.firstName} ${data.lastName}`,
+          } as User);
           return;
         } else {
           // Dev token might be expired
@@ -73,7 +79,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       }
     }
     
-    // Firebase authentication
+    // Firebase authentication - check if auth is initialized
+    if (!auth) {
+      setUserData(null);
+      return;
+    }
+    
     const user = auth.currentUser;
     if (!user) {
       setUserData(null);
