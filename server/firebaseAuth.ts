@@ -56,6 +56,108 @@ declare global {
 
 export async function setupAuth(app: Express): Promise<void> {
   console.log("Firebase authentication middleware ready");
+
+  // Attach a non-fatal authentication middleware that attempts to
+  // populate `req.user` when an Authorization header is present.
+  // This middleware will NOT send responses on auth failure — it only
+  // sets `req.user` when valid so route handlers can use `req.isAuthenticated()`.
+  app.use(async (req: any, _res, next) => {
+    // default helper
+    req.isAuthenticated = () => !!req.user;
+
+    const authHeader = req.headers?.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return next();
+    }
+
+    const token = authHeader.split('Bearer ')[1];
+
+    try {
+      // Development JWT authentication bypass (non-fatal)
+      if (!firebaseAdmin && DEV_AUTH_ENABLED && token.startsWith('dev-')) {
+        const devToken = token.substring(4);
+        if (!DEV_JWT_SECRET) {
+          console.error('DEV_JWT_SECRET missing while DEV_AUTH_ENABLED is true');
+          return next();
+        }
+        try {
+          const decoded = jwt.verify(devToken, DEV_JWT_SECRET) as { firebaseUid: string; email: string };
+          const user = await storage.getUserByFirebaseUid(decoded.firebaseUid);
+          if (user) {
+            req.user = {
+              id: user.id,
+              email: user.email || '',
+              role: user.role,
+              firstName: user.firstName || '',
+              lastName: user.lastName || '',
+              major: user.major || undefined,
+              university: user.university || undefined,
+              company: user.company || undefined,
+              bio: user.bio || undefined,
+              avatarUrl: user.profileImageUrl || undefined,
+              engagementScore: user.engagementScore,
+              problemSolverScore: user.problemSolverScore,
+              endorsementScore: user.endorsementScore,
+            };
+          }
+        } catch (e) {
+          console.error('Non-fatal dev token verification failed:', e);
+        }
+
+        req.isAuthenticated = () => !!req.user;
+        return next();
+      }
+
+      // Production Firebase verification (non-fatal)
+      if (!firebaseAdmin) {
+        return next();
+      }
+
+      try {
+        const decodedToken = await admin.auth().verifyIdToken(token);
+        const user = await storage.getUserByFirebaseUid(decodedToken.uid);
+
+        if (user) {
+          req.user = {
+            id: user.id,
+            email: user.email || '',
+            role: user.role,
+            firstName: user.firstName || '',
+            lastName: user.lastName || '',
+            major: user.major || undefined,
+            university: user.university || undefined,
+            company: user.company || undefined,
+            bio: user.bio || undefined,
+            avatarUrl: user.profileImageUrl || undefined,
+            engagementScore: user.engagementScore,
+            problemSolverScore: user.problemSolverScore,
+            endorsementScore: user.endorsementScore,
+          };
+        } else {
+          // minimal info from token
+          req.user = {
+            id: decodedToken.uid,
+            email: decodedToken.email || '',
+            role: 'student',
+            firstName: '',
+            lastName: '',
+            engagementScore: 0,
+            problemSolverScore: 0,
+            endorsementScore: 0,
+          };
+        }
+
+        req.isAuthenticated = () => !!req.user;
+      } catch (e) {
+        console.error('Non-fatal Firebase token verification failed:', e);
+      }
+
+      return next();
+    } catch (error) {
+      console.error('Auth middleware error:', error);
+      return next();
+    }
+  });
 }
 
 export const verifyToken = async (
