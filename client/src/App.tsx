@@ -79,8 +79,8 @@ function Router() {
         <Route component={NotFound} />
       </Switch>
       
-      {/* Career Bot - Only for students */}
-      {userData.role === 'student' && <CareerBot />}
+      {/* AI Assistant - Available for all authenticated users */}
+      <CareerBot />
     </div>
   );
 }

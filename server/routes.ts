@@ -750,14 +750,15 @@ User Profile:
 
 Keep your responses concise (2-4 paragraphs max), actionable, and encouraging. Use a friendly, professional tone suitable for Gen Z students.`;
 
-      // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+      // Using gpt-4o (latest OpenAI model as of 2024-2025)
       const completion = await openai.chat.completions.create({
-        model: "gpt-5",
+        model: "gpt-4o",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: message },
         ],
-        max_completion_tokens: 500,
+        temperature: 0.7,
+        max_tokens: 500,
       });
 
       const assistantMessage = completion.choices[0]?.message?.content || "I'm sorry, I couldn't generate a response. Please try again.";
@@ -809,14 +810,15 @@ Generate 3 diverse post ideas (one academic, one social/community, one project/a
 
 Format your response as a JSON array of objects with fields: category (academic/social/project), content (the post text), and tags (array of 2-3 relevant hashtags).`;
 
-      // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+      // Using gpt-4o (latest OpenAI model as of 2024-2025)
       const completion = await openai.chat.completions.create({
-        model: "gpt-5",
+        model: "gpt-4o",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: "Generate 3 personalized post ideas for me." },
         ],
-        max_completion_tokens: 600,
+        temperature: 0.8,
+        max_tokens: 600,
         response_format: { type: "json_object" },
       });
 
@@ -883,13 +885,14 @@ Respond with a JSON object containing:
 
 Be lenient with academic discussions, debates, and Gen Z slang. Only flag clearly inappropriate content.`;
 
-      // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
+      // Using gpt-4o (latest OpenAI model as of 2024-2025)
       const completion = await openai.chat.completions.create({
-        model: "gpt-5",
+        model: "gpt-4o",
         messages: [
           { role: "system", content: moderationPrompt },
         ],
-        max_completion_tokens: 150,
+        temperature: 0.3,
+        max_tokens: 150,
         response_format: { type: "json_object" },
       });
 

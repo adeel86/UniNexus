@@ -12,13 +12,43 @@ interface Message {
   content: string;
 }
 
+// Role-specific assistant configuration
+const getRoleConfig = (role: string, firstName: string) => {
+  const configs: Record<string, { title: string; greeting: string }> = {
+    student: {
+      title: 'AI CareerBot',
+      greeting: `Hi ${firstName}! 👋 I'm your AI CareerBot. I can help you with:\n\n• Career advice and guidance\n• Skill gap analysis\n• Resume tips\n• Interview preparation\n• Learning path recommendations\n\nWhat would you like to know?`
+    },
+    teacher: {
+      title: 'AI Teaching Assistant',
+      greeting: `Hi ${firstName}! 👋 I'm your AI Teaching Assistant. I can help you with:\n\n• Course content ideas\n• Teaching strategies\n• Student engagement tips\n• Assessment design\n• Professional development\n\nHow can I assist you today?`
+    },
+    university_admin: {
+      title: 'AI Admin Assistant',
+      greeting: `Hi ${firstName}! 👋 I'm your AI Admin Assistant. I can help you with:\n\n• University management insights\n• Student engagement analytics\n• Program development ideas\n• Policy recommendations\n• Strategic planning\n\nWhat would you like to discuss?`
+    },
+    industry_professional: {
+      title: 'AI Industry Advisor',
+      greeting: `Hi ${firstName}! 👋 I'm your AI Industry Advisor. I can help you with:\n\n• Talent acquisition strategies\n• Industry trends and insights\n• Collaboration opportunities\n• Mentorship guidance\n• Professional networking\n\nHow can I help you?`
+    },
+    master_admin: {
+      title: 'AI Platform Assistant',
+      greeting: `Hi ${firstName}! 👋 I'm your AI Platform Assistant. I can help you with:\n\n• Platform analytics\n• User engagement strategies\n• Content moderation insights\n• System optimization\n• Strategic recommendations\n\nWhat would you like to explore?`
+    }
+  };
+  
+  return configs[role] || configs.student;
+};
+
 export function CareerBot() {
   const { userData } = useAuth();
+  const roleConfig = getRoleConfig(userData?.role || 'student', userData?.firstName || 'there');
+  
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: `Hi ${userData?.firstName || 'there'}! 👋 I'm your AI CareerBot. I can help you with:\n\n• Career advice and guidance\n• Skill gap analysis\n• Resume tips\n• Interview preparation\n• Learning path recommendations\n\nWhat would you like to know?`
+      content: roleConfig.greeting
     }
   ]);
   const [input, setInput] = useState("");
@@ -61,7 +91,7 @@ export function CareerBot() {
       <div className="p-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-t-lg flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Sparkles className="h-5 w-5" />
-          <span className="font-heading font-semibold">AI CareerBot</span>
+          <span className="font-heading font-semibold">{roleConfig.title}</span>
         </div>
         <Button
           variant="ghost"
