@@ -72,6 +72,14 @@ export default function TeacherDashboard() {
     .sort((a, b) => (b.engagementScore || 0) - (a.engagementScore || 0))
     .slice(0, 5);
 
+  // Calculate engagement distribution
+  const engagementRanges = {
+    excellent: students.filter(s => (s.engagementScore || 0) >= 1000).length,
+    good: students.filter(s => (s.engagementScore || 0) >= 500 && (s.engagementScore || 0) < 1000).length,
+    average: students.filter(s => (s.engagementScore || 0) >= 100 && (s.engagementScore || 0) < 500).length,
+    needsHelp: students.filter(s => (s.engagementScore || 0) < 100).length,
+  };
+
   const handleEndorseClick = (student: User) => {
     setSelectedStudent(student);
     setEndorseModalOpen(true);
@@ -193,8 +201,65 @@ export default function TeacherDashboard() {
           </Card>
         </div>
 
-        {/* Top Performers */}
+        {/* Top Performers and Analytics */}
         <div className="space-y-6">
+          {/* Engagement Distribution */}
+          <Card className="p-6">
+            <h3 className="font-heading font-semibold text-lg mb-4">
+              Engagement Distribution
+            </h3>
+            <div className="space-y-3">
+              <div>
+                <div className="flex items-center justify-between text-sm mb-1">
+                  <span className="text-muted-foreground">Excellent (1000+)</span>
+                  <span className="font-semibold">{engagementRanges.excellent}</span>
+                </div>
+                <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-green-500 to-green-600" 
+                    style={{ width: `${(engagementRanges.excellent / students.length) * 100}%` }}
+                  />
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between text-sm mb-1">
+                  <span className="text-muted-foreground">Good (500-999)</span>
+                  <span className="font-semibold">{engagementRanges.good}</span>
+                </div>
+                <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-blue-500 to-blue-600" 
+                    style={{ width: `${(engagementRanges.good / students.length) * 100}%` }}
+                  />
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between text-sm mb-1">
+                  <span className="text-muted-foreground">Average (100-499)</span>
+                  <span className="font-semibold">{engagementRanges.average}</span>
+                </div>
+                <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-yellow-500 to-yellow-600" 
+                    style={{ width: `${(engagementRanges.average / students.length) * 100}%` }}
+                  />
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between text-sm mb-1">
+                  <span className="text-muted-foreground">Needs Help (&lt;100)</span>
+                  <span className="font-semibold">{engagementRanges.needsHelp}</span>
+                </div>
+                <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-red-500 to-red-600" 
+                    style={{ width: `${(engagementRanges.needsHelp / students.length) * 100}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </Card>
+
           <Card className="p-6">
             <h3 className="font-heading font-semibold text-lg mb-4">
               Top Performers
