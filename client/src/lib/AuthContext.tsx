@@ -108,7 +108,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return () => {}; // No Firebase listener needed for dev auth
     }
     
-    // Firebase authentication
+    // Firebase authentication - only if auth is initialized
+    if (!auth) {
+      console.warn('Firebase auth not initialized');
+      setLoading(false);
+      return () => {};
+    }
+    
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {
@@ -168,6 +174,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
     
     // Regular Firebase authentication for non-demo accounts
+    if (!auth) {
+      throw new Error('Firebase authentication is not configured');
+    }
     await signInWithEmailAndPassword(auth, email, password);
     await refreshUserData();
   };
@@ -179,6 +188,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     role: string,
     additionalData: any
   ) => {
+    if (!auth) {
+      throw new Error('Firebase authentication is not configured');
+    }
+    
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(userCredential.user, { displayName });
 
@@ -205,6 +218,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const signInWithGoogle = async () => {
+    if (!auth || !googleProvider) {
+      throw new Error('Firebase authentication is not configured');
+    }
+    
     const result = await signInWithPopup(auth, googleProvider);
     const user = result.user;
     
