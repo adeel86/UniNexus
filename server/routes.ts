@@ -169,6 +169,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Logout endpoint - works for all authentication modes (Firebase and dev auth)
+  app.post("/api/auth/logout", async (req: Request, res: Response) => {
+    try {
+      // This endpoint is mainly for client-side confirmation
+      // Token invalidation happens on the client by removing localStorage/session storage
+      // and on the server via middleware that validates tokens on each request
+      
+      // Log logout event
+      const authHeader = req.headers.authorization;
+      const token = authHeader?.split('Bearer ')[1];
+      if (token) {
+        console.log(`User logout: ${token.substring(0, 20)}...`);
+      }
+      
+      // Return success response
+      res.json({ 
+        message: "Logged out successfully",
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error("Error during logout:", error);
+      res.status(500).json({ message: "Logout failed" });
+    }
+  });
+
+  // Legacy logout endpoint for backwards compatibility
+  app.get("/api/logout", async (req: Request, res: Response) => {
+    try {
+      // Redirect to home page with a message (for backwards compatibility)
+      // Modern clients should use the POST /api/auth/logout endpoint
+      console.log("User accessed legacy logout endpoint");
+      res.redirect('/');
+    } catch (error) {
+      console.error("Error during logout:", error);
+      res.status(500).json({ message: "Logout failed" });
+    }
+  });
+
   // ========================================================================
   // POSTS ENDPOINTS
   // ========================================================================

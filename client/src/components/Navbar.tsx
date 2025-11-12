@@ -20,7 +20,7 @@ interface NavbarProps {
 }
 
 export function Navbar({ onMenuClick }: NavbarProps) {
-  const { user } = useAuth();
+  const { userData: user, signOut } = useAuth();
   const [, setLocation] = useLocation();
 
   const { data: notifications = [] } = useQuery<Notification[]>({
@@ -137,7 +137,10 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  onClick={() => window.location.href = '/api/logout'}
+                  onClick={async () => {
+                    await signOut();
+                    setLocation('/');
+                  }}
                   className="text-destructive focus:text-destructive"
                   data-testid="button-logout"
                 >
