@@ -32,10 +32,24 @@ import {
   insertDiscussionReplySchema,
 } from "@shared/schema";
 import OpenAI from "openai";
+import jwt from "jsonwebtoken";
 
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 }) : null;
+
+const DEV_AUTH_ENABLED = process.env.DEV_AUTH_ENABLED === 'true';
+const DEV_JWT_SECRET = process.env.DEV_JWT_SECRET;
+const DEMO_PASSWORD = "demo123"; // Fixed password for demo accounts
+
+// Allowlist of demo account emails that can use dev-login
+const DEMO_ACCOUNT_ALLOWLIST = [
+  'demo.student@uninexus.app',
+  'demo.teacher@uninexus.app',
+  'demo.university@uninexus.app',
+  'demo.industry@uninexus.app',
+  'demo.admin@uninexus.app',
+];
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -44,6 +58,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
   // AUTH ENDPOINTS
   // ========================================================================
+
+  // Development login endpoint (only available when Firebase is not configured)
+  app.post("/api/auth/dev-login", async (req: Request, res: Response) => {
+    if (!DEV_AUTH_ENABLED || !DEV_JWT_SECRET) {
+      return res.status(503).json({ message: "Development authentication not available" });
+    }
+
+    try {
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+
+      // Security: Only allow demo accounts from the allowlist
+      if (!DEMO_ACCOUNT_ALLOWLIST.includes(email)) {
+        console.warn(`Dev login attempt blocked for non-demo email: ${email}`);
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      // Validate password (all demo accounts use the same password)
+      if (password !== DEMO_PASSWORD) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      // Look up user by email
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+
+      if (!user) {
+        console.warn(`Dev login failed: User not found for email ${email}`);
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      // Issue dev JWT with short expiration (24 hours)
+      const token = jwt.sign(
+        {
+          firebaseUid: user.firebaseUid,
+          email: user.email,
+          iat: Math.floor(Date.now() / 1000),
+          exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 hours
+        },
+        DEV_JWT_SECRET
+      );
+
+      console.log(`Dev login successful: ${user.email} (role: ${user.role})`);
+
+      res.json({
+        token: `dev-${token}`, // Prefix to identify as dev token
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          displayName: user.displayName,
+          role: user.role,
+          university: user.university,
+          major: user.major,
+          company: user.company,
+          profileImageUrl: user.profileImageUrl,
+        },
+      });
+    } catch (error) {
+      console.error("Dev login error:", error);
+      res.status(500).json({ message: "Failed to authenticate" });
+    }
+  });
 
   app.post("/api/auth/register", verifyToken, async (req: AuthRequest, res: Response) => {
     try {
