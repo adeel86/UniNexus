@@ -18,9 +18,12 @@ export default function Profile() {
   const viewingUserId = params.get('userId');
   const isViewingOwnProfile = !viewingUserId || viewingUserId === currentUser?.id;
   
+  // Determine which user ID to use for queries
+  const targetUserId = viewingUserId || currentUser?.id;
+  
   // Fetch viewed user data if viewing someone else's profile
-  const { data: viewedUser } = useQuery<User>({
-    queryKey: ["/api/users", viewingUserId],
+  const { data: viewedUser, isLoading: userLoading } = useQuery<User>({
+    queryKey: [`/api/users/${viewingUserId}`],
     enabled: !!viewingUserId && !isViewingOwnProfile,
   });
   
@@ -28,17 +31,26 @@ export default function Profile() {
   const user = isViewingOwnProfile ? currentUser : viewedUser;
 
   const { data: userBadges = [] } = useQuery<(UserBadge & { badge: BadgeType })[]>({
-    queryKey: ["/api/user-badges", user?.id],
-    enabled: !!user,
+    queryKey: [`/api/user-badges/${targetUserId}`],
+    enabled: !!targetUserId,
   });
 
   const { data: endorsements = [] } = useQuery<(Endorsement & { endorser: User, skill?: Skill })[]>({
-    queryKey: ["/api/endorsements", user?.id],
-    enabled: !!user,
+    queryKey: [`/api/endorsements/${targetUserId}`],
+    enabled: !!targetUserId,
   });
 
-  if (!user) {
-    return null;
+  if (userLoading || !user) {
+    return (
+      <div className="container mx-auto px-4 py-6 max-w-5xl">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading profile...</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
