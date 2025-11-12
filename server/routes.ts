@@ -674,6 +674,137 @@ Keep your responses concise (2-4 paragraphs max), actionable, and encouraging. U
   });
 
   // ========================================================================
+  // AI POST SUGGESTIONS ENDPOINT
+  // ========================================================================
+
+  app.get("/api/ai/suggest-posts", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      if (!openai) {
+        return res.status(503).json({ error: "AI post suggestions are not available. Please configure the OpenAI API key." });
+      }
+
+      const userInterests = (req.user as any).interests || [];
+      const interestsText = userInterests.length > 0 ? userInterests.join(', ') : 'general academic topics';
+
+      const systemPrompt = `You are a creative content generator for a Gen Z student social platform. Generate 3 engaging post ideas that would resonate with university students. The posts should be inspiring, educational, or thought-provoking.
+
+User Profile:
+- Name: ${req.user!.firstName} ${req.user!.lastName}
+- Major: ${req.user!.major || "Not specified"}
+- Interests: ${interestsText}
+
+Generate 3 diverse post ideas (one academic, one social/community, one project/achievement related) that would be interesting to this user. Each post should be:
+- Engaging and relevant to Gen Z students
+- 2-3 sentences long
+- Include a call-to-action or question to encourage discussion
+- Appropriate for a university social platform
+
+Format your response as a JSON array of objects with fields: category (academic/social/project), content (the post text), and tags (array of 2-3 relevant hashtags).`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: "Generate 3 personalized post ideas for me." },
+        ],
+        temperature: 0.8,
+        max_tokens: 600,
+        response_format: { type: "json_object" },
+      });
+
+      const responseText = completion.choices[0]?.message?.content || '{"posts":[]}';
+      let parsed;
+      
+      try {
+        parsed = JSON.parse(responseText);
+      } catch (error) {
+        console.error("Failed to parse AI response:", error);
+        return res.json({ posts: [] });
+      }
+
+      // Ensure the response has a posts array
+      const posts = Array.isArray(parsed.posts) ? parsed.posts : [];
+      
+      res.json({ posts });
+    } catch (error: any) {
+      console.error("AI post suggestions error:", error);
+      res.status(500).json({ error: "Failed to generate post suggestions" });
+    }
+  });
+
+  // ========================================================================
+  // AI CONTENT MODERATION ENDPOINT
+  // ========================================================================
+
+  app.post("/api/ai/moderate-content", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { content } = req.body;
+
+      if (!content || typeof content !== 'string') {
+        return res.status(400).json({ error: "Content is required" });
+      }
+
+      if (!openai) {
+        // If OpenAI is not available, default to allowing the content
+        return res.json({ 
+          approved: true, 
+          reason: "Moderation unavailable",
+          confidence: 0 
+        });
+      }
+
+      const moderationPrompt = `You are a content moderator for a university social platform. Analyze the following content and determine if it's appropriate. Content should be rejected if it contains:
+- Hate speech or discrimination
+- Harassment or bullying
+- Explicit sexual content
+- Violence or threats
+- Spam or scams
+- Misinformation that could be harmful
+
+Content to moderate:
+"${content}"
+
+Respond with a JSON object containing:
+- approved (boolean): true if content is appropriate, false otherwise
+- reason (string): brief explanation (max 50 words)
+- confidence (number): 0-1 confidence score
+
+Be lenient with academic discussions, debates, and Gen Z slang. Only flag clearly inappropriate content.`;
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: moderationPrompt },
+        ],
+        temperature: 0.3,
+        max_tokens: 150,
+        response_format: { type: "json_object" },
+      });
+
+      const responseText = completion.choices[0]?.message?.content || "{}";
+      const moderation = JSON.parse(responseText);
+
+      res.json(moderation);
+    } catch (error: any) {
+      console.error("Content moderation error:", error);
+      // Default to approving if moderation fails
+      res.json({ 
+        approved: true, 
+        reason: "Moderation check failed, defaulting to approval",
+        confidence: 0 
+      });
+    }
+  });
+
+  // ========================================================================
   // ADMIN ENDPOINTS
   // ========================================================================
 

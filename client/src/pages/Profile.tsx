@@ -5,7 +5,8 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import type { UserBadge, Badge as BadgeType, Endorsement, Skill, User } from "@shared/schema";
 import { BadgeIcon } from "@/components/BadgeIcon";
-import { Award, TrendingUp, Zap, Trophy } from "lucide-react";
+import { AchievementTimeline } from "@/components/AchievementTimeline";
+import { Award, TrendingUp, Zap, Trophy, Clock } from "lucide-react";
 
 export default function Profile() {
   const { userData: user } = useAuth();
@@ -146,6 +147,19 @@ export default function Profile() {
           )}
         </Card>
       </div>
+
+      {/* Achievement Timeline */}
+      <Card className="p-6">
+        <h2 className="font-heading text-xl font-semibold mb-6 flex items-center gap-2">
+          <Clock className="h-5 w-5 text-blue-600" />
+          Achievement Timeline
+        </h2>
+        <AchievementTimeline 
+          userBadges={userBadges}
+          endorsements={endorsements}
+          engagementScore={user.engagementScore || 0}
+        />
+      </Card>
     </div>
   );
 }

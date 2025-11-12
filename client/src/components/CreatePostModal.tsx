@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -24,17 +24,61 @@ import { ImagePlus } from "lucide-react";
 interface CreatePostModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialContent?: string;
+  initialCategory?: string;
+  initialTags?: string;
 }
 
-export function CreatePostModal({ open, onOpenChange }: CreatePostModalProps) {
+export function CreatePostModal({ 
+  open, 
+  onOpenChange,
+  initialContent = "",
+  initialCategory = "social",
+  initialTags = ""
+}: CreatePostModalProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [content, setContent] = useState("");
-  const [category, setCategory] = useState("social");
-  const [tags, setTags] = useState("");
+  const [content, setContent] = useState(initialContent);
+  const [category, setCategory] = useState(initialCategory);
+  const [tags, setTags] = useState(initialTags);
+
+  useEffect(() => {
+    if (open) {
+      setContent(initialContent);
+      setCategory(initialCategory);
+      setTags(initialTags);
+    }
+  }, [open, initialContent, initialCategory, initialTags]);
 
   const createPostMutation = useMutation({
     mutationFn: async () => {
+      // First moderate the content
+      try {
+        const moderationResponse = await fetch("/api/ai/moderate-content", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ content }),
+        });
+
+        if (!moderationResponse.ok) {
+          throw new Error("Content moderation service is unavailable. Please try again later.");
+        }
+
+        const moderation = await moderationResponse.json() as { approved: boolean; reason: string; confidence: number };
+        
+        if (!moderation.approved) {
+          throw new Error(moderation.reason || "Your post contains content that doesn't meet our community guidelines.");
+        }
+      } catch (error) {
+        // If moderation service is unavailable, fail safe and block the post
+        if (error instanceof Error) {
+          throw error;
+        }
+        throw new Error("Failed to verify content safety. Please try again.");
+      }
+
+      // If moderation passes, create the post
       return apiRequest("POST", "/api/posts", {
         content,
         category,

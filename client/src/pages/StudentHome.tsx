@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { Post, User, Comment, Reaction, UserBadge, Badge, Challenge } from "@shared/schema";
 import { PostCard } from "@/components/PostCard";
 import { CreatePostModal } from "@/components/CreatePostModal";
+import { SuggestedPosts } from "@/components/SuggestedPosts";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -24,6 +25,11 @@ export default function StudentHome() {
   const [createPostOpen, setCreatePostOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [interestFilter, setInterestFilter] = useState(false);
+  const [postInitialValues, setPostInitialValues] = useState<{ content: string; category: string; tags: string }>({ 
+    content: "", 
+    category: "social", 
+    tags: "" 
+  });
 
   const { data: posts = [], isLoading } = useQuery<PostWithAuthor[]>({
     queryKey: ["/api/posts", selectedCategory, interestFilter ? 'interests' : 'all', user?.id],
@@ -174,6 +180,18 @@ export default function StudentHome() {
             </div>
           </Card>
 
+          {/* AI Post Suggestions */}
+          <SuggestedPosts 
+            onSelectSuggestion={(content, category, tags) => {
+              setPostInitialValues({
+                content,
+                category,
+                tags: tags.join(", ")
+              });
+              setCreatePostOpen(true);
+            }} 
+          />
+
           {/* Recent Badges */}
           {userBadges.length > 0 && (
             <Card className="p-6">
@@ -226,7 +244,13 @@ export default function StudentHome() {
         </div>
       </div>
 
-      <CreatePostModal open={createPostOpen} onOpenChange={setCreatePostOpen} />
+      <CreatePostModal 
+        open={createPostOpen} 
+        onOpenChange={setCreatePostOpen}
+        initialContent={postInitialValues.content}
+        initialCategory={postInitialValues.category}
+        initialTags={postInitialValues.tags}
+      />
     </div>
   );
 }
