@@ -10,23 +10,64 @@ let firebaseAdmin: admin.app.App | null = null;
 const DEV_AUTH_ENABLED = process.env.DEV_AUTH_ENABLED === 'true';
 const DEV_JWT_SECRET = process.env.DEV_JWT_SECRET;
 
-try {
-  const serviceAccount = require("../serviceAccountKey.json");
-  firebaseAdmin = admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-  });
-  console.log("Firebase Admin initialized successfully");
-} catch (error) {
-  console.warn("Firebase Admin SDK not configured. Using fallback auth for development.");
-  if (DEV_AUTH_ENABLED) {
-    if (!DEV_JWT_SECRET) {
-      console.error("CRITICAL: DEV_JWT_SECRET must be set when development auth is enabled!");
-      console.error("Set the environment variable DEV_JWT_SECRET to a secure random string.");
-      process.exit(1);
+// Try to initialize Firebase Admin SDK from service account
+async function initializeFirebaseAdmin() {
+  try {
+    // Try to import service account JSON from project root (serviceAccountKey.json)
+    // or from env path (VITE_FIREBASE_SERVICE_ACCOUNT_PATH - for backwards compatibility)
+    let serviceAccountPath = new URL("../serviceAccountKey.json", import.meta.url);
+    
+    // If env var is set, try that path first
+    if (process.env.VITE_FIREBASE_SERVICE_ACCOUNT_PATH) {
+      const envPath = new URL(`../${process.env.VITE_FIREBASE_SERVICE_ACCOUNT_PATH}`, import.meta.url);
+      serviceAccountPath = envPath;
     }
-    console.log("Development authentication bypass enabled");
+    
+    const serviceAccount = await import(serviceAccountPath.pathname, { with: { type: "json" } }).then(m => m.default);
+    
+    // Validate that this is a service account (not web SDK credentials)
+    if (!serviceAccount.private_key || !serviceAccount.client_email) {
+      console.warn("Service account file exists but is not a valid Firebase Admin service account.");
+      console.warn("Expected fields: private_key, client_email, project_id");
+      console.warn("Got fields:", Object.keys(serviceAccount).join(", "));
+      return false;
+    }
+    
+    firebaseAdmin = admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
+    });
+    console.log("✓ Firebase Admin SDK initialized successfully");
+    return true;
+  } catch (error: any) {
+    const errorMsg = error?.message || String(error);
+    if (!errorMsg.includes("ENOENT") && !errorMsg.includes("Cannot find")) {
+      console.warn("Firebase Admin SDK initialization failed:", errorMsg);
+    }
+    return false;
   }
 }
+
+// Initialize on startup
+initializeFirebaseAdmin().then(success => {
+  if (!success) {
+    console.warn("Firebase Admin SDK not configured. Using fallback authentication for development.");
+    if (DEV_AUTH_ENABLED) {
+      if (!DEV_JWT_SECRET) {
+        console.error("CRITICAL: DEV_JWT_SECRET must be set when development auth is enabled!");
+        console.error("Set the environment variable DEV_JWT_SECRET to a secure random string.");
+        process.exit(1);
+      }
+      console.log("✓ Development authentication bypass enabled (DEV_AUTH_ENABLED=true)");
+    }
+  }
+}).catch(err => {
+  console.error("Fatal error during Firebase Admin initialization:", err);
+  if (DEV_AUTH_ENABLED) {
+    console.log("Continuing with development authentication...");
+  } else {
+    process.exit(1);
+  }
+});
 
 export interface AuthRequest extends Request {
   user?: {
