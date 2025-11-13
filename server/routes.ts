@@ -1397,6 +1397,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get challenge milestones for a user
+  app.get("/api/users/:userId/challenge-milestones", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const userId = req.params.userId;
+      
+      const participations = await db
+        .select({
+          id: challengeParticipants.id,
+          challengeId: challengeParticipants.challengeId,
+          userId: challengeParticipants.userId,
+          submissionUrl: challengeParticipants.submissionUrl,
+          submittedAt: challengeParticipants.submittedAt,
+          rank: challengeParticipants.rank,
+          joinedAt: challengeParticipants.joinedAt,
+          challenge: challenges,
+        })
+        .from(challengeParticipants)
+        .leftJoin(challenges, eq(challengeParticipants.challengeId, challenges.id))
+        .where(eq(challengeParticipants.userId, userId))
+        .orderBy(desc(challengeParticipants.joinedAt));
+
+      const milestones = participations.map((p) => {
+        let status = 'joined';
+        let placement = null;
+        
+        if (p.rank && p.rank <= 3) {
+          status = 'winner';
+          placement = p.rank === 1 ? '1st Place' : p.rank === 2 ? '2nd Place' : '3rd Place';
+        } else if (p.submittedAt) {
+          status = 'submitted';
+        }
+
+        return {
+          ...p,
+          participationStatus: status,
+          placement,
+        };
+      });
+
+      const activeCount = milestones.filter(m => m.challenge?.status === 'active').length;
+      const completedCount = milestones.filter(m => m.challenge?.status === 'completed').length;
+      const winsCount = milestones.filter(m => m.placement).length;
+      const upcomingDeadlines = milestones
+        .filter(m => m.challenge?.status === 'active' && m.challenge?.endDate)
+        .slice(0, 3);
+
+      res.json({
+        milestones: milestones.slice(0, 10),
+        stats: {
+          activeCount,
+          completedCount,
+          winsCount,
+        },
+        upcomingDeadlines,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get challenges for global map
+  app.get("/api/challenges/map", async (req: Request, res: Response) => {
+    try {
+      const challengesData = await db
+        .select()
+        .from(challenges)
+        .orderBy(desc(challenges.createdAt));
+
+      const universityCounts: Record<string, { active: number; upcoming: number; completed: number; total: number; challenges: typeof challengesData }> = {};
+
+      challengesData.forEach((challenge) => {
+        const university = challenge.hostUniversity || 'Global';
+        if (!universityCounts[university]) {
+          universityCounts[university] = { active: 0, upcoming: 0, completed: 0, total: 0, challenges: [] };
+        }
+        universityCounts[university].total++;
+        universityCounts[university].challenges.push(challenge);
+        
+        if (challenge.status === 'active') universityCounts[university].active++;
+        else if (challenge.status === 'upcoming') universityCounts[university].upcoming++;
+        else if (challenge.status === 'completed') universityCounts[university].completed++;
+      });
+
+      res.json({
+        challenges: challengesData,
+        universityCounts,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ========================================================================
   // NOTIFICATIONS ENDPOINT
   // ========================================================================

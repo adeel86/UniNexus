@@ -16,6 +16,7 @@ import IndustryDashboard from "@/pages/IndustryDashboard";
 import MasterAdminDashboard from "@/pages/MasterAdminDashboard";
 import Leaderboard from "@/pages/Leaderboard";
 import Challenges from "@/pages/Challenges";
+import GlobalChallengeMap from "@/pages/GlobalChallengeMap";
 import Profile from "@/pages/Profile";
 import CourseDetail from "@/pages/CourseDetail";
 import VerifyCertificate from "@/pages/VerifyCertificate";
@@ -73,6 +74,7 @@ function Router() {
         <Route path="/" component={HomePage} />
         <Route path="/leaderboard" component={Leaderboard} />
         <Route path="/challenges" component={Challenges} />
+        <Route path="/challenges/map" component={GlobalChallengeMap} />
         <Route path="/profile" component={Profile} />
         <Route path="/courses/:courseId" component={CourseDetail} />
         

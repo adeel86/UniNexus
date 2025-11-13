@@ -5,6 +5,7 @@ import { PostCard } from "@/components/PostCard";
 import { CreatePostModal } from "@/components/CreatePostModal";
 import { SuggestedPosts } from "@/components/SuggestedPosts";
 import { RankTierBadge } from "@/components/RankTierBadge";
+import { ChallengeMilestonesCard } from "@/components/ChallengeMilestonesCard";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -193,6 +194,9 @@ export default function StudentHome() {
               </Link>
             </div>
           </Card>
+
+          {/* Challenge Journey */}
+          {user?.id && <ChallengeMilestonesCard userId={user.id} />}
 
           {/* AI Post Suggestions */}
           <SuggestedPosts 

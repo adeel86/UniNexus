@@ -512,6 +512,12 @@ export const challenges = pgTable("challenges", {
   endDate: timestamp("end_date"),
   participantCount: integer("participant_count").notNull().default(0),
   status: varchar("status", { length: 20 }).notNull().default('upcoming'), // upcoming, active, completed
+  hostUniversity: varchar("host_university"),
+  campus: varchar("campus"),
+  city: varchar("city"),
+  country: varchar("country"),
+  latitude: varchar("latitude"),
+  longitude: varchar("longitude"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

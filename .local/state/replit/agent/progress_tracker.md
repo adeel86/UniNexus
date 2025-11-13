@@ -447,3 +447,83 @@ All demo accounts use password: `demo123`
 - Project showcase links challenge work to verifiable credentials
 - Privacy controls ensure student consent for feedback sharing
 - Multi-role authorization protects sensitive talent data
+
+## Student-First Design & Market Strategy - Added November 13, 2025 🎯
+
+### ✅ Enhanced Gamified Progress Journey
+[x] Created ChallengeMilestonesCard component for StudentHome dashboard:
+  - Three-column stats display: Active Challenges, Completed Challenges, Wins
+  - Upcoming deadlines section showing next 3 active challenge deadlines
+  - Recent milestones list with visual indicators (Trophy, Target, Rocket icons)
+  - Status-based display: Winner (with placement), Submitted, or Joined
+  - Call-to-action buttons: "View All" challenges and "Global Map"
+  - Empty state with CTA to browse challenges for new users
+  - All stats tagged with data-testid for testing
+
+[x] Backend API endpoint `/api/users/:userId/challenge-milestones`:
+  - Returns milestones array with derived participationStatus and placement
+  - Calculates stats: activeCount, completedCount, winsCount
+  - Provides upcomingDeadlines for active challenges
+  - Joins challengeParticipants with challenges table
+  - Status logic: rank ≤3 = winner, submittedAt = submitted, else joined
+
+### ✅ Global Challenge Map
+[x] Created GlobalChallengeMap page at `/challenges/map`:
+  - University filter sidebar listing all universities with challenge counts
+  - Status filter tabs: All, Active, Upcoming, Completed
+  - Challenge cards showing title, description, university, category, deadline, participants
+  - Per-university stats: Active, Upcoming, Completed counts in gradient cards
+  - Interactive filtering: Click university → filter challenges
+  - Responsive layout with proper overflow handling
+  - Empty states for no challenges or no filtered results
+
+[x] Backend API endpoint `/api/challenges/map`:
+  - Returns all challenges with full details
+  - Aggregates universityCounts object with challenge distribution
+  - Per-university breakdown: active, upcoming, completed, total counts
+  - Groups by hostUniversity (defaults to 'Global' if not set)
+
+[x] Database schema enhancements:
+  - Added location metadata to challenges table:
+    * hostUniversity (varchar, nullable)
+    * campus (varchar, nullable)
+    * city (varchar, nullable)
+    * country (varchar, nullable)
+    * latitude (varchar, nullable)
+    * longitude (varchar, nullable)
+  - Schema pushed successfully with `npm run db:push --force`
+
+### ✅ Personal AI Companion (CareerBot)
+[x] Already fully implemented (no changes needed):
+  - Combines study planning, CV advice, employability insights
+  - Integrates recruiter feedback for personalized guidance
+  - Provides job market insights and skill gap analysis
+  - Offers learning path recommendations
+  - Available as single chat interface across all pages
+
+### ✅ Integration & Navigation
+[x] ChallengeMilestonesCard integrated into StudentHome right sidebar
+[x] GlobalChallengeMap route registered at `/challenges/map`
+[x] Navigation links added: "Global Map" button in milestones card
+[x] All interactive elements have proper data-testid attributes
+
+### ✅ Bug Fixes & Quality Assurance
+[x] Fixed critical React Query key bug in ChallengeMilestonesCard
+  - Changed from array key `["/api/users", userId, "challenge-milestones"]`
+  - To template literal `[`/api/users/${userId}/challenge-milestones`]`
+  - Ensures correct API endpoint is hit by default fetcher
+[x] Architect review PASSED with approval for all features
+[x] Workflow restarted successfully with all changes applied
+
+**Status:** ✅ Student-First Design features fully implemented and operational
+**Architect Review:** PASSED - All features working correctly after query key fix
+**Ready For:** User testing, automated regression tests, and richer seed data
+
+### Student-First Design Architecture Notes
+- Challenge journey prominently featured in student dashboard
+- Global map enables discovery of challenges across universities
+- Visual hierarchy emphasizes engagement metrics and wins
+- Gen Z-friendly gradient design with vibrant stat cards
+- Empty states encourage action with clear CTAs
+- Future enhancement: Add geographic visualization with react-simple-maps
+- Future enhancement: Automated regression tests for milestones and map filters
