@@ -3,10 +3,11 @@ import { Card } from "@/components/ui/card";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { useQuery } from "@tanstack/react-query";
-import type { UserBadge, Badge as BadgeType, Endorsement, Skill, User } from "@shared/schema";
+import type { UserBadge, Badge as BadgeType, Endorsement, Skill, User, Certification } from "@shared/schema";
 import { BadgeIcon } from "@/components/BadgeIcon";
 import { AchievementTimeline } from "@/components/AchievementTimeline";
-import { Award, TrendingUp, Zap, Trophy, Clock } from "lucide-react";
+import { CertificateShowcase } from "@/components/CertificateShowcase";
+import { Award, TrendingUp, Zap, Trophy, Clock, Shield } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function Profile() {
@@ -37,6 +38,11 @@ export default function Profile() {
 
   const { data: endorsements = [] } = useQuery<(Endorsement & { endorser: User, skill?: Skill })[]>({
     queryKey: [`/api/endorsements/${targetUserId}`],
+    enabled: !!targetUserId,
+  });
+
+  const { data: certifications = [] } = useQuery<Certification[]>({
+    queryKey: [`/api/certifications/user/${targetUserId}`],
     enabled: !!targetUserId,
   });
 
@@ -177,7 +183,7 @@ export default function Profile() {
       </div>
 
       {/* Achievement Timeline */}
-      <Card className="p-6">
+      <Card className="p-6 mt-6">
         <h2 className="font-heading text-xl font-semibold mb-6 flex items-center gap-2">
           <Clock className="h-5 w-5 text-blue-600" />
           Achievement Timeline
@@ -188,6 +194,15 @@ export default function Profile() {
           engagementScore={user.engagementScore || 0}
         />
       </Card>
+
+      {/* Digital Certificates (NFT-Style) */}
+      <div className="mt-6">
+        <h2 className="font-heading text-2xl font-semibold mb-4 flex items-center gap-2">
+          <Shield className="h-6 w-6 text-purple-600" />
+          Digital Certificates ({certifications.length})
+        </h2>
+        <CertificateShowcase certifications={certifications} />
+      </div>
     </div>
   );
 }

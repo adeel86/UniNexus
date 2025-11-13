@@ -67,6 +67,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   enrollments: many(courseEnrollments),
   challengeParticipations: many(challengeParticipants),
   notifications: many(notifications),
+  certifications: many(certifications),
 }));
 
 export type User = typeof users.$inferSelect;
@@ -575,3 +576,45 @@ export const insertAnnouncementSchema = createInsertSchema(announcements).omit({
 
 export type Announcement = typeof announcements.$inferSelect;
 export type InsertAnnouncement = z.infer<typeof insertAnnouncementSchema>;
+
+// ============================================================================
+// CERTIFICATIONS (NFT-Style Digital Certificates)
+// ============================================================================
+
+export const certifications = pgTable("certifications", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  type: varchar("type", { length: 50 }).notNull(), // course_completion, project, skill_endorsement, achievement, custom
+  title: varchar("title", { length: 200 }).notNull(),
+  description: text("description").notNull(),
+  issuerName: varchar("issuer_name", { length: 200 }).notNull(), // UniNexus, University name, or teacher name
+  issuerId: varchar("issuer_id").references(() => users.id, { onDelete: 'set null' }),
+  verificationHash: varchar("verification_hash", { length: 64 }).notNull().unique(), // SHA-256 hash for verification
+  metadata: jsonb("metadata"), // Additional data like course code, project link, skills, etc.
+  imageUrl: varchar("image_url"), // Certificate design/badge image
+  isPublic: boolean("is_public").notNull().default(true), // Whether it can be publicly verified
+  issuedAt: timestamp("issued_at").defaultNow(),
+  expiresAt: timestamp("expires_at"), // Optional expiration date
+});
+
+export const certificationsRelations = relations(certifications, ({ one }) => ({
+  user: one(users, {
+    fields: [certifications.userId],
+    references: [users.id],
+  }),
+  issuer: one(users, {
+    fields: [certifications.issuerId],
+    references: [users.id],
+  }),
+}));
+
+export const insertCertificationSchema = createInsertSchema(certifications).omit({
+  id: true,
+  verificationHash: true, // Generated server-side
+  issuedAt: true,
+  issuerId: true, // Always set server-side from authenticated user
+  issuerName: true, // Always set server-side from authenticated user's name
+});
+
+export type Certification = typeof certifications.$inferSelect;
+export type InsertCertification = z.infer<typeof insertCertificationSchema>;

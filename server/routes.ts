@@ -22,6 +22,7 @@ import {
   challengeParticipants,
   notifications,
   announcements,
+  certifications,
   insertPostSchema,
   insertCommentSchema,
   insertReactionSchema,
@@ -30,6 +31,7 @@ import {
   insertAnnouncementSchema,
   insertCourseDiscussionSchema,
   insertDiscussionReplySchema,
+  insertCertificationSchema,
 } from "@shared/schema";
 import OpenAI from "openai";
 import jwt from "jsonwebtoken";
@@ -427,6 +429,219 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ========================================================================
+  // CERTIFICATIONS ENDPOINTS (NFT-Style Digital Certificates)
+  // ========================================================================
+
+  // Get user certifications
+  app.get("/api/certifications/user/:userId", async (req: Request, res: Response) => {
+    try {
+      const userCertifications = await db
+        .select({
+          id: certifications.id,
+          userId: certifications.userId,
+          type: certifications.type,
+          title: certifications.title,
+          description: certifications.description,
+          issuerName: certifications.issuerName,
+          issuerId: certifications.issuerId,
+          verificationHash: certifications.verificationHash,
+          metadata: certifications.metadata,
+          imageUrl: certifications.imageUrl,
+          isPublic: certifications.isPublic,
+          issuedAt: certifications.issuedAt,
+          expiresAt: certifications.expiresAt,
+          issuer: users,
+        })
+        .from(certifications)
+        .leftJoin(users, eq(certifications.issuerId, users.id))
+        .where(eq(certifications.userId, req.params.userId))
+        .orderBy(desc(certifications.issuedAt));
+
+      res.json(userCertifications);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Issue a new certification
+  app.post("/api/certifications", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    // Only teachers, university admins, and master admins can issue certificates
+    const authorizedRoles = ['teacher', 'university_admin', 'master_admin'];
+    if (!authorizedRoles.includes(req.user!.role)) {
+      return res.status(403).json({ 
+        error: "Forbidden: Only teachers and administrators can issue certificates" 
+      });
+    }
+
+    try {
+      const validatedData = insertCertificationSchema.parse(req.body);
+
+      // Set issuer name from authenticated user (cannot be spoofed)
+      const issuerName = `${req.user!.firstName} ${req.user!.lastName}`;
+
+      // Generate verification hash using crypto
+      const crypto = await import('crypto');
+      const hashData = JSON.stringify({
+        ...validatedData,
+        timestamp: Date.now(),
+        issuerId: req.user!.id,
+        issuerName,
+      });
+      const verificationHash = crypto.createHash('sha256').update(hashData).digest('hex');
+
+      const [newCertification] = await db
+        .insert(certifications)
+        .values({
+          ...validatedData,
+          issuerId: req.user!.id,
+          issuerName,
+          verificationHash,
+        })
+        .returning();
+
+      // Create notification
+      await db.insert(notifications).values({
+        userId: validatedData.userId,
+        type: "achievement",
+        title: "New Certificate Earned!",
+        message: `You've earned a certificate: ${validatedData.title}`,
+        link: "/profile",
+      });
+
+      // Fetch complete certification with issuer and user data
+      // Use a second query to get issuer information
+      const [recipient] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, newCertification.userId))
+        .limit(1);
+
+      const [issuer] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, newCertification.issuerId!))
+        .limit(1);
+
+      // Construct complete certification with user and issuer data
+      const completeCertification = {
+        ...newCertification,
+        user: recipient,
+        issuer: issuer ? {
+          id: issuer.id,
+          firstName: issuer.firstName,
+          lastName: issuer.lastName,
+        } : null,
+      };
+
+      res.json(completeCertification);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Verify certification by hash (public endpoint)
+  app.get("/api/certifications/verify/:hash", async (req: Request, res: Response) => {
+    try {
+      const certification = await db
+        .select({
+          id: certifications.id,
+          userId: certifications.userId,
+          type: certifications.type,
+          title: certifications.title,
+          description: certifications.description,
+          issuerName: certifications.issuerName,
+          issuerId: certifications.issuerId,
+          verificationHash: certifications.verificationHash,
+          metadata: certifications.metadata,
+          imageUrl: certifications.imageUrl,
+          issuedAt: certifications.issuedAt,
+          expiresAt: certifications.expiresAt,
+          user: users,
+          issuer: {
+            firstName: sql<string>`issuer.first_name`,
+            lastName: sql<string>`issuer.last_name`,
+            email: sql<string>`issuer.email`,
+          },
+        })
+        .from(certifications)
+        .leftJoin(users, eq(certifications.userId, users.id))
+        .leftJoin(
+          sql`${users} as issuer`,
+          eq(certifications.issuerId, sql`issuer.id`)
+        )
+        .where(
+          and(
+            eq(certifications.verificationHash, req.params.hash),
+            eq(certifications.isPublic, true)
+          )
+        )
+        .limit(1);
+
+      if (certification.length === 0) {
+        return res.status(404).json({ error: "Certificate not found or not public" });
+      }
+
+      // Check if expired
+      const cert = certification[0];
+      if (cert.expiresAt && new Date(cert.expiresAt) < new Date()) {
+        return res.status(400).json({ error: "Certificate has expired", certification: cert });
+      }
+
+      res.json({ valid: true, certification: cert });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get specific certification (for export)
+  app.get("/api/certifications/:id", async (req: Request, res: Response) => {
+    try {
+      const [certification] = await db
+        .select({
+          id: certifications.id,
+          userId: certifications.userId,
+          type: certifications.type,
+          title: certifications.title,
+          description: certifications.description,
+          issuerName: certifications.issuerName,
+          issuerId: certifications.issuerId,
+          verificationHash: certifications.verificationHash,
+          metadata: certifications.metadata,
+          imageUrl: certifications.imageUrl,
+          isPublic: certifications.isPublic,
+          issuedAt: certifications.issuedAt,
+          expiresAt: certifications.expiresAt,
+          user: users,
+          issuer: {
+            id: sql<string>`issuer.id`,
+            firstName: sql<string>`issuer.first_name`,
+            lastName: sql<string>`issuer.last_name`,
+          },
+        })
+        .from(certifications)
+        .leftJoin(users, eq(certifications.userId, users.id))
+        .leftJoin(
+          sql`${users} as issuer`,
+          eq(certifications.issuerId, sql`issuer.id`)
+        )
+        .where(eq(certifications.id, req.params.id))
+        .limit(1);
+
+      if (!certification) {
+        return res.status(404).json({ error: "Certificate not found" });
+      }
+
+      res.json(certification);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
   // SKILLS & ENDORSEMENTS
   // ========================================================================
 
@@ -777,16 +992,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(503).json({ error: "AI CareerBot is not available. Please configure the OpenAI API key." });
       }
 
-      const systemPrompt = `You are an AI career advisor for university students. You provide personalized career guidance, skill recommendations, resume tips, interview preparation advice, and learning path suggestions. You are helpful, encouraging, and knowledgeable about various career paths and industries.
+      // Get user's skills for skill gap analysis
+      const userSkillsData = await db
+        .select({
+          skill: skills,
+          level: userSkills.level,
+        })
+        .from(userSkills)
+        .leftJoin(skills, eq(userSkills.skillId, skills.id))
+        .where(eq(userSkills.userId, req.user!.id));
+
+      const skillsList = userSkillsData.map(s => `${s.skill?.name} (${s.level})`).join(', ') || 'None listed';
+      const userInterests = (req.user as any).interests?.join(', ') || 'Not specified';
+
+      const systemPrompt = `You are an AI Career Companion for university students on UniNexus. You provide comprehensive, personalized career guidance including:
+
+1. **Job Market Insights**: Current trends, in-demand skills, emerging industries
+2. **CV/Resume Enhancement**: Specific suggestions for improving professional profiles
+3. **Skill Gap Analysis**: Identify missing skills for target careers
+4. **Learning Path Recommendations**: Courses, projects, and communities to join
+5. **Career Planning**: Strategic advice for employability and professional growth
 
 User Profile:
 - Name: ${req.user!.firstName} ${req.user!.lastName}
 - Major: ${req.user!.major || "Not specified"}
 - University: ${req.user!.university || "Not specified"}
-- Engagement Score: ${req.user!.engagementScore}
-- Problem Solver Score: ${req.user!.problemSolverScore}
+- Interests: ${userInterests}
+- Current Skills: ${skillsList}
+- Engagement Score: ${req.user!.engagementScore} (indicates platform activity level)
+- Problem Solver Score: ${req.user!.problemSolverScore} (indicates problem-solving abilities)
+- Endorsement Score: ${req.user!.endorsementScore} (indicates peer recognition)
 
-Keep your responses concise (2-4 paragraphs max), actionable, and encouraging. Use a friendly, professional tone suitable for Gen Z students.`;
+Guidelines:
+- Provide actionable, specific advice tailored to their profile
+- When discussing careers, mention current job market trends (2024-2025)
+- For resume/CV questions, give concrete examples and formatting tips
+- For skill gaps, suggest specific resources (courses, certifications, projects)
+- Recommend relevant online communities, platforms, or networking opportunities
+- Use an encouraging, professional tone suitable for Gen Z professionals
+- Keep responses concise (2-4 paragraphs) but information-rich
+- Include metrics or data when discussing job markets when relevant
+
+Example responses:
+- For "What skills should I learn?": Analyze their major, current skills, and suggest 3-5 specific in-demand skills with learning resources
+- For "Help with my resume": Provide specific sections to improve, formatting tips, and action words to use
+- For "Job market for X field": Discuss current trends, salary ranges, growth projections, and required skills
+- For "Career advice": Provide strategic roadmap based on their current position and goals`;
 
       // Using gpt-4o (latest OpenAI model as of 2024-2025)
       const completion = await openai.chat.completions.create({
@@ -796,7 +1047,7 @@ Keep your responses concise (2-4 paragraphs max), actionable, and encouraging. U
           { role: "user", content: message },
         ],
         temperature: 0.7,
-        max_tokens: 500,
+        max_tokens: 800, // Increased for more detailed responses
       });
 
       const assistantMessage = completion.choices[0]?.message?.content || "I'm sorry, I couldn't generate a response. Please try again.";
