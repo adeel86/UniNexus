@@ -25,6 +25,7 @@ import {
   notifications,
   announcements,
   certifications,
+  recruiterFeedback,
   insertPostSchema,
   insertCommentSchema,
   insertReactionSchema,
@@ -35,6 +36,7 @@ import {
   insertDiscussionReplySchema,
   insertCourseMilestoneSchema,
   insertCertificationSchema,
+  insertRecruiterFeedbackSchema,
 } from "@shared/schema";
 import OpenAI from "openai";
 import jwt from "jsonwebtoken";
@@ -641,6 +643,185 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json(certification);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
+  // RECRUITER FEEDBACK (Industry Professional Feedback on Students)
+  // ========================================================================
+
+  // Get all feedback for a student (used by CareerBot and student profiles)
+  app.get("/api/recruiter-feedback/student/:studentId", async (req: Request, res: Response) => {
+    try {
+      const { studentId } = req.params;
+      
+      const feedback = await db
+        .select({
+          id: recruiterFeedback.id,
+          recruiterId: recruiterFeedback.recruiterId,
+          studentId: recruiterFeedback.studentId,
+          rating: recruiterFeedback.rating,
+          category: recruiterFeedback.category,
+          feedback: recruiterFeedback.feedback,
+          context: recruiterFeedback.context,
+          challengeId: recruiterFeedback.challengeId,
+          isPublic: recruiterFeedback.isPublic,
+          createdAt: recruiterFeedback.createdAt,
+          recruiter: {
+            id: users.id,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            company: users.company,
+            position: users.position,
+          },
+        })
+        .from(recruiterFeedback)
+        .leftJoin(users, eq(recruiterFeedback.recruiterId, users.id))
+        .where(eq(recruiterFeedback.studentId, studentId))
+        .orderBy(desc(recruiterFeedback.createdAt));
+
+      res.json(feedback);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Submit recruiter feedback (industry professionals only)
+  app.post("/api/recruiter-feedback", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    // Only industry professionals can submit recruiter feedback
+    if (req.user!.role !== 'industry_professional') {
+      return res.status(403).json({ 
+        error: "Forbidden: Only industry professionals can submit recruiter feedback" 
+      });
+    }
+
+    try {
+      const validatedData = insertRecruiterFeedbackSchema.parse({
+        ...req.body,
+        recruiterId: req.user!.id,
+      });
+
+      const [newFeedback] = await db
+        .insert(recruiterFeedback)
+        .values(validatedData)
+        .returning();
+
+      // If feedback is public, send notification to student
+      if (newFeedback.isPublic) {
+        await db.insert(notifications).values({
+          userId: newFeedback.studentId,
+          type: 'recruiter_feedback',
+          title: 'New Recruiter Feedback',
+          message: `${req.user!.company || 'A recruiter'} has left feedback on your ${newFeedback.category} skills`,
+          link: `/profile?userId=${newFeedback.studentId}`,
+        });
+      }
+
+      res.json(newFeedback);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Get aggregated feedback insights for a student (for CareerBot integration)
+  app.get("/api/recruiter-feedback/insights/:studentId", async (req: Request, res: Response) => {
+    try {
+      const { studentId } = req.params;
+      
+      // Get all feedback for analysis
+      const allFeedback = await db
+        .select()
+        .from(recruiterFeedback)
+        .where(eq(recruiterFeedback.studentId, studentId));
+
+      // Calculate aggregated insights
+      const totalFeedback = allFeedback.length;
+      const avgRating = totalFeedback > 0 
+        ? allFeedback.reduce((sum, f) => sum + f.rating, 0) / totalFeedback 
+        : 0;
+
+      // Group by category
+      const categoryBreakdown = allFeedback.reduce((acc, f) => {
+        if (!acc[f.category]) {
+          acc[f.category] = { count: 0, totalRating: 0, feedback: [] };
+        }
+        acc[f.category].count += 1;
+        acc[f.category].totalRating += f.rating;
+        acc[f.category].feedback.push({
+          rating: f.rating,
+          feedback: f.feedback,
+          context: f.context,
+          createdAt: f.createdAt,
+        });
+        return acc;
+      }, {} as Record<string, { count: number; totalRating: number; feedback: any[] }>);
+
+      // Calculate average by category
+      const categoryInsights = Object.entries(categoryBreakdown).map(([category, data]) => ({
+        category,
+        count: data.count,
+        avgRating: data.totalRating / data.count,
+        recentFeedback: data.feedback.slice(0, 3), // Last 3 pieces of feedback
+      }));
+
+      // Get common themes from feedback text
+      const allFeedbackText = allFeedback.map(f => f.feedback);
+
+      res.json({
+        totalFeedback,
+        avgRating: Math.round(avgRating * 10) / 10,
+        categoryInsights,
+        allFeedbackText, // For AI analysis
+        strengths: categoryInsights.filter(c => c.avgRating >= 4).map(c => c.category),
+        improvementAreas: categoryInsights.filter(c => c.avgRating < 3).map(c => c.category),
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get talent insights for industry recruiters (view feedback they've given)
+  app.get("/api/recruiter-feedback/my-feedback", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    if (req.user!.role !== 'industry_professional') {
+      return res.status(403).json({ error: "Forbidden: Only industry professionals can access this endpoint" });
+    }
+
+    try {
+      const myFeedback = await db
+        .select({
+          id: recruiterFeedback.id,
+          studentId: recruiterFeedback.studentId,
+          rating: recruiterFeedback.rating,
+          category: recruiterFeedback.category,
+          feedback: recruiterFeedback.feedback,
+          context: recruiterFeedback.context,
+          challengeId: recruiterFeedback.challengeId,
+          createdAt: recruiterFeedback.createdAt,
+          student: {
+            id: users.id,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            major: users.major,
+            university: users.university,
+            engagementScore: users.engagementScore,
+          },
+        })
+        .from(recruiterFeedback)
+        .leftJoin(users, eq(recruiterFeedback.studentId, users.id))
+        .where(eq(recruiterFeedback.recruiterId, req.user!.id))
+        .orderBy(desc(recruiterFeedback.createdAt));
+
+      res.json(myFeedback);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -1272,6 +1453,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const skillsList = userSkillsData.map(s => `${s.skill?.name} (${s.level})`).join(', ') || 'None listed';
       const userInterests = (req.user as any).interests?.join(', ') || 'Not specified';
 
+      // Get recruiter feedback for enhanced career guidance
+      const recruiterFeedbackData = await db
+        .select({
+          rating: recruiterFeedback.rating,
+          category: recruiterFeedback.category,
+          feedback: recruiterFeedback.feedback,
+          context: recruiterFeedback.context,
+          recruiterCompany: users.company,
+          createdAt: recruiterFeedback.createdAt,
+        })
+        .from(recruiterFeedback)
+        .leftJoin(users, eq(recruiterFeedback.recruiterId, users.id))
+        .where(and(
+          eq(recruiterFeedback.studentId, req.user!.id),
+          eq(recruiterFeedback.isPublic, true) // Only public feedback
+        ))
+        .orderBy(desc(recruiterFeedback.createdAt))
+        .limit(10);
+
+      // Aggregate recruiter feedback insights
+      let recruiterInsights = '';
+      if (recruiterFeedbackData.length > 0) {
+        const avgRating = recruiterFeedbackData.reduce((sum, f) => sum + f.rating, 0) / recruiterFeedbackData.length;
+        const strengths = recruiterFeedbackData.filter(f => f.rating >= 4).map(f => f.category);
+        const improvementAreas = recruiterFeedbackData.filter(f => f.rating <= 2).map(f => f.category);
+        
+        recruiterInsights = `\n\nIndustry Professional Feedback (${recruiterFeedbackData.length} reviews, avg: ${avgRating.toFixed(1)}/5):
+- Strengths noted by recruiters: ${strengths.join(', ') || 'None yet'}
+- Areas for improvement: ${improvementAreas.join(', ') || 'None yet'}
+- Recent feedback highlights: ${recruiterFeedbackData.slice(0, 3).map(f => `"${f.feedback.substring(0, 100)}..." (${f.category}, ${f.rating}/5 from ${f.recruiterCompany || 'industry partner'})`).join('; ')}`;
+      }
+
       const systemPrompt = `You are an AI Career Companion for university students on UniNexus. You provide comprehensive, personalized career guidance including:
 
 1. **Job Market Insights**: Current trends, in-demand skills, emerging industries
@@ -1279,6 +1492,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 3. **Skill Gap Analysis**: Identify missing skills for target careers
 4. **Learning Path Recommendations**: Courses, projects, and communities to join
 5. **Career Planning**: Strategic advice for employability and professional growth
+6. **Industry Feedback Integration**: Leverage real recruiter feedback to provide highly personalized guidance
 
 User Profile:
 - Name: ${req.user!.firstName} ${req.user!.lastName}
@@ -1288,7 +1502,7 @@ User Profile:
 - Current Skills: ${skillsList}
 - Engagement Score: ${req.user!.engagementScore} (indicates platform activity level)
 - Problem Solver Score: ${req.user!.problemSolverScore} (indicates problem-solving abilities)
-- Endorsement Score: ${req.user!.endorsementScore} (indicates peer recognition)
+- Endorsement Score: ${req.user!.endorsementScore} (indicates peer recognition)${recruiterInsights}
 
 Guidelines:
 - Provide actionable, specific advice tailored to their profile
@@ -1299,12 +1513,14 @@ Guidelines:
 - Use an encouraging, professional tone suitable for Gen Z professionals
 - Keep responses concise (2-4 paragraphs) but information-rich
 - Include metrics or data when discussing job markets when relevant
+- **IMPORTANT**: If recruiter feedback is available, incorporate it into your advice - validate their strengths and provide targeted suggestions for improvement areas
+- Reference specific recruiter feedback when relevant to the user's question
 
 Example responses:
-- For "What skills should I learn?": Analyze their major, current skills, and suggest 3-5 specific in-demand skills with learning resources
-- For "Help with my resume": Provide specific sections to improve, formatting tips, and action words to use
-- For "Job market for X field": Discuss current trends, salary ranges, growth projections, and required skills
-- For "Career advice": Provide strategic roadmap based on their current position and goals`;
+- For "What skills should I learn?": Analyze their major, current skills, recruiter feedback, and suggest 3-5 specific in-demand skills with learning resources
+- For "Help with my resume": Provide specific sections to improve, formatting tips, action words, and leverage recruiter feedback on strengths to highlight
+- For "Job market for X field": Discuss current trends, salary ranges, growth projections, required skills, and how their recruiter feedback aligns with industry needs
+- For "Career advice": Provide strategic roadmap based on their current position, goals, and recruiter-validated strengths/improvement areas`;
 
       // Using gpt-4o (latest OpenAI model as of 2024-2025)
       const completion = await openai.chat.completions.create({
@@ -1741,6 +1957,41 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         problemSolverDelta: 15,
       });
 
+      // Get challenge details for certificate
+      const [challenge] = await db
+        .select()
+        .from(challenges)
+        .where(eq(challenges.id, challengeId))
+        .limit(1);
+
+      if (challenge) {
+        // Automatically issue participation certificate
+        const certificateId = `cert-${req.user!.id}-${challengeId}-${Date.now()}`;
+        await db.insert(certifications).values({
+          id: certificateId,
+          userId: req.user!.id,
+          title: `${challenge.title} - Participation`,
+          description: `Successfully participated and submitted a solution for the ${challenge.title} challenge`,
+          issuedBy: challenge.organizerId,
+          issuedDate: new Date(),
+          type: 'challenge',
+          metadata: {
+            challengeId: challenge.id,
+            challengeTitle: challenge.title,
+            submissionUrl,
+            certificateType: 'participation',
+          },
+        });
+
+        await db.insert(notifications).values({
+          userId: req.user!.id,
+          type: 'achievement',
+          title: 'Certificate Earned!',
+          message: `You've earned a participation certificate for ${challenge.title}!`,
+          link: '/certificates',
+        });
+      }
+
       await db.insert(notifications).values({
         userId: req.user!.id,
         type: 'challenge',
@@ -1827,6 +2078,38 @@ Make it personalized, constructive, and actionable. Use a professional but encou
       await applyPointDelta(participant.userId, {
         challengeDelta: points,
       });
+
+      // Issue winner certificate for top 3 finishers
+      if (rank <= 3) {
+        const rankLabels = ['1st Place', '2nd Place', '3rd Place'];
+        const certificateId = `cert-${participant.userId}-${challenge.id}-winner-${Date.now()}`;
+        
+        await db.insert(certifications).values({
+          id: certificateId,
+          userId: participant.userId,
+          title: `${challenge.title} - ${rankLabels[rank - 1]}`,
+          description: `Achieved ${rankLabels[rank - 1]} in the ${challenge.title} challenge, demonstrating exceptional skills and problem-solving abilities`,
+          issuedBy: challenge.organizerId,
+          issuedDate: new Date(),
+          type: 'challenge',
+          metadata: {
+            challengeId: challenge.id,
+            challengeTitle: challenge.title,
+            rank,
+            totalParticipants: challenge.participantCount,
+            points,
+            certificateType: 'winner',
+          },
+        });
+
+        await db.insert(notifications).values({
+          userId: participant.userId,
+          type: 'achievement',
+          title: 'Winner Certificate Earned!',
+          message: `Congratulations! You've earned a ${rankLabels[rank - 1]} certificate for ${challenge.title}!`,
+          link: '/certificates',
+        });
+      }
 
       // Send notification
       await db.insert(notifications).values({

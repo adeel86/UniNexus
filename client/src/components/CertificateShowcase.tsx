@@ -1,4 +1,4 @@
-import { Award, Calendar, Shield, ExternalLink, Download, Share2 } from "lucide-react";
+import { Award, Calendar, Shield, ExternalLink, Download, Share2, Trophy, Link as LinkIcon } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ const typeColors = {
   project: "from-purple-500 to-pink-500",
   skill_endorsement: "from-green-500 to-emerald-500",
   achievement: "from-yellow-500 to-orange-500",
+  challenge: "from-purple-600 to-pink-600",
   custom: "from-gray-500 to-slate-500",
 };
 
@@ -24,8 +25,20 @@ const typeLabels = {
   project: "Project",
   skill_endorsement: "Skill Endorsement",
   achievement: "Achievement",
+  challenge: "Challenge",
   custom: "Custom",
 };
+
+// Type for challenge certificate metadata
+interface ChallengeMetadata {
+  challengeId?: string;
+  challengeTitle?: string;
+  submissionUrl?: string;
+  certificateType?: 'participation' | 'winner';
+  rank?: number;
+  totalParticipants?: number;
+  points?: number;
+}
 
 export function CertificateShowcase({ certifications }: CertificateShowcaseProps) {
   const [selectedCertificate, setSelectedCertificate] = useState<Certification | null>(null);
@@ -47,6 +60,7 @@ export function CertificateShowcase({ certifications }: CertificateShowcaseProps
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {certifications.map((cert) => {
           const isExpired = cert.expiresAt && new Date(cert.expiresAt) < new Date();
+          const metadata = cert.metadata as ChallengeMetadata | null;
           
           return (
             <Card
@@ -82,9 +96,19 @@ export function CertificateShowcase({ certifications }: CertificateShowcaseProps
               {/* Certificate info */}
               <div className="space-y-3">
                 <div>
-                  <Badge variant="outline" className="mb-2">
-                    {typeLabels[cert.type as keyof typeof typeLabels] || cert.type}
-                  </Badge>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant="outline">
+                      {typeLabels[cert.type as keyof typeof typeLabels] || cert.type}
+                    </Badge>
+                    {cert.type === 'challenge' && metadata && (
+                      <Badge variant="secondary" className="text-xs">
+                        <Trophy className="h-3 w-3 mr-1" />
+                        {metadata.certificateType === 'winner' 
+                          ? `Rank ${metadata.rank}` 
+                          : 'Participant'}
+                      </Badge>
+                    )}
+                  </div>
                   <h3 className="font-heading font-semibold text-lg line-clamp-2">
                     {cert.title}
                   </h3>
@@ -92,6 +116,25 @@ export function CertificateShowcase({ certifications }: CertificateShowcaseProps
                     {cert.description}
                   </p>
                 </div>
+
+                {/* Challenge submission link for project showcase */}
+                {cert.type === 'challenge' && metadata?.submissionUrl && (
+                  <div className="p-3 bg-muted/50 rounded-md">
+                    <div className="flex items-center gap-2 mb-1">
+                      <LinkIcon className="h-4 w-4 text-primary" />
+                      <span className="text-xs font-medium">Project Submission</span>
+                    </div>
+                    <a
+                      href={metadata.submissionUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary hover:underline truncate block"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {metadata.submissionUrl}
+                    </a>
+                  </div>
+                )}
 
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center gap-2 text-muted-foreground">
@@ -106,6 +149,12 @@ export function CertificateShowcase({ certifications }: CertificateShowcaseProps
                         : "Date not specified"}
                     </span>
                   </div>
+                  {cert.type === 'challenge' && metadata?.points && (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Trophy className="h-4 w-4" />
+                      <span>{metadata.points} points earned</span>
+                    </div>
+                  )}
                 </div>
 
                 {isExpired && (

@@ -655,3 +655,47 @@ export const insertCertificationSchema = createInsertSchema(certifications).omit
 
 export type Certification = typeof certifications.$inferSelect;
 export type InsertCertification = z.infer<typeof insertCertificationSchema>;
+
+// ============================================================================
+// RECRUITER FEEDBACK (Industry Professional Feedback on Students)
+// ============================================================================
+
+export const recruiterFeedback = pgTable("recruiter_feedback", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  recruiterId: varchar("recruiter_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  studentId: varchar("student_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  rating: integer("rating").notNull(), // 1-5 scale
+  category: varchar("category", { length: 50 }).notNull(), // technical_skills, soft_skills, leadership, communication, teamwork
+  feedback: text("feedback").notNull(),
+  context: varchar("context"), // challenge, interview, project_review, general
+  challengeId: varchar("challenge_id").references(() => challenges.id, { onDelete: 'set null' }),
+  isPublic: boolean("is_public").notNull().default(false), // Whether student can see this feedback
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const recruiterFeedbackRelations = relations(recruiterFeedback, ({ one }) => ({
+  recruiter: one(users, {
+    fields: [recruiterFeedback.recruiterId],
+    references: [users.id],
+    relationName: "recruiter_feedback_given",
+  }),
+  student: one(users, {
+    fields: [recruiterFeedback.studentId],
+    references: [users.id],
+    relationName: "recruiter_feedback_received",
+  }),
+  challenge: one(challenges, {
+    fields: [recruiterFeedback.challengeId],
+    references: [challenges.id],
+  }),
+}));
+
+export const insertRecruiterFeedbackSchema = createInsertSchema(recruiterFeedback).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type RecruiterFeedback = typeof recruiterFeedback.$inferSelect;
+export type InsertRecruiterFeedback = z.infer<typeof insertRecruiterFeedbackSchema>;
