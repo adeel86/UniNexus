@@ -8,6 +8,15 @@ The application provides a social feed for students to share posts and engage wi
 
 ## Recent Changes (November 2025)
 
+### Teacher Validation & Academic Endorsement Features
+Implemented comprehensive teacher tools for student validation and career development:
+- **Digital Certificate Issuance**: Teachers can issue NFT-style certificates directly from the Teacher Dashboard with customizable type, title, description, metadata (JSON), image URL, and expiration date
+- **AI Career Feedback Loop**: New GET endpoint `/api/ai/career-summary/:userId` that generates comprehensive career progression summaries using OpenAI GPT-4o-mini
+- **Career Insights Modal**: Teachers can view AI-generated employability assessments including strengths analysis, skill gap identification, employability ratings, and recommended next steps
+- **Data Aggregation**: Career summaries analyze student profiles, skills, endorsements, badges, certifications, and engagement metrics
+- **Authorization**: Teacher, university admin, and master admin roles can access career insights for academic advising
+- **Error Handling**: Safe JSON parsing with user-friendly validation messages for certificate metadata
+
 ### AI-Based Ranking and Recognition System
 Implemented comprehensive rank tier system with gamification and challenge-based recognition:
 - **Rank Tiers**: Bronze (<1000 pts), Silver (1000-2999 pts), Gold (3000-6999 pts), Platinum (7000+ pts)

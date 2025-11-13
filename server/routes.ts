@@ -1203,6 +1203,149 @@ Be lenient with academic discussions, debates, and Gen Z slang. Only flag clearl
   });
 
   // ========================================================================
+  // AI CAREER PROGRESSION SUMMARY ENDPOINT
+  // ========================================================================
+
+  app.get("/api/ai/career-summary/:userId", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    // Only teachers, university admins, and master admins can view career summaries
+    const authorizedRoles = ['teacher', 'university_admin', 'master_admin'];
+    if (!authorizedRoles.includes(req.user!.role)) {
+      return res.status(403).json({ 
+        error: "Forbidden: Only teachers and administrators can view career summaries" 
+      });
+    }
+
+    try {
+      if (!openai) {
+        return res.status(503).json({ 
+          error: "AI career summaries are not available. Please configure the OpenAI API key.",
+          summary: "Career summary feature requires OpenAI API configuration."
+        });
+      }
+
+      const { userId } = req.params;
+
+      // Fetch student data
+      const [student] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!student) {
+        return res.status(404).json({ error: "Student not found" });
+      }
+
+      // Fetch student's skills
+      const studentSkills = await db
+        .select({
+          skill: skills,
+        })
+        .from(userSkills)
+        .leftJoin(skills, eq(userSkills.skillId, skills.id))
+        .where(eq(userSkills.userId, userId));
+
+      // Fetch student's endorsements
+      const studentEndorsements = await db
+        .select({
+          skill: skills,
+          endorser: users,
+          comment: endorsements.comment,
+        })
+        .from(endorsements)
+        .leftJoin(skills, eq(endorsements.skillId, skills.id))
+        .leftJoin(users, eq(endorsements.endorserId, users.id))
+        .where(eq(endorsements.endorsedUserId, userId));
+
+      // Fetch student's badges
+      const studentBadges = await db
+        .select({
+          badge: badges,
+        })
+        .from(userBadges)
+        .leftJoin(badges, eq(userBadges.badgeId, badges.id))
+        .where(eq(userBadges.userId, userId));
+
+      // Fetch student's certifications
+      const studentCertifications = await db
+        .select()
+        .from(certifications)
+        .where(eq(certifications.userId, userId));
+
+      // Build context for AI
+      const skillsList = studentSkills.map(s => s.skill?.name).filter(Boolean).join(', ') || 'No skills listed';
+      const endorsementsList = studentEndorsements.length > 0 
+        ? studentEndorsements.map(e => `${e.skill?.name || 'General'}: ${e.comment || 'Endorsed by ' + e.endorser?.firstName}`).join('; ')
+        : 'No endorsements yet';
+      const badgesList = studentBadges.map(b => b.badge?.name).filter(Boolean).join(', ') || 'No badges earned';
+      const certificationsList = studentCertifications.map(c => c.title).join(', ') || 'No certificates earned';
+
+      const systemPrompt = `You are a career counselor and academic advisor for university students. Generate a comprehensive career progression summary that teachers can use for employability discussions with students.
+
+Student Profile:
+- Name: ${student.firstName} ${student.lastName}
+- Major: ${student.major || "Not specified"}
+- University: ${student.university || "Not specified"}
+- Graduation Year: ${student.graduationYear || "Not specified"}
+- Bio: ${student.bio || "No bio provided"}
+- Interests: ${student.interests?.join(', ') || "Not specified"}
+
+Engagement Metrics:
+- Engagement Score: ${student.engagementScore} points
+- Problem Solver Score: ${student.problemSolverScore} points
+- Endorsement Score: ${student.endorsementScore} points
+- Challenge Points: ${student.challengePoints} points
+- Rank Tier: ${student.rankTier}
+- Streak: ${student.streak} days
+
+Skills: ${skillsList}
+Endorsements: ${endorsementsList}
+Badges: ${badgesList}
+Certificates: ${certificationsList}
+
+Generate a career progression summary with the following sections:
+1. **Strengths & Expertise** (2-3 sentences highlighting their strongest areas based on metrics, skills, and endorsements)
+2. **Skill Gap Analysis** (identify 2-3 skills they should develop for their career goals, considering their major and current skills)
+3. **Employability Assessment** (rate their career readiness on a scale and explain the rating)
+4. **Recommended Next Steps** (3-4 actionable recommendations for courses, projects, or experiences to improve employability)
+
+Make it personalized, constructive, and actionable. Use a professional but encouraging tone suitable for sharing with the student during career counseling sessions.`;
+
+      // Using gpt-4o-mini for cost efficiency
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Generate a career progression summary for ${student.firstName} ${student.lastName}.` },
+        ],
+        temperature: 0.7,
+        max_tokens: 1000,
+      });
+
+      const summary = completion.choices[0]?.message?.content || "Unable to generate career summary at this time.";
+
+      res.json({ 
+        summary,
+        student: {
+          id: student.id,
+          firstName: student.firstName,
+          lastName: student.lastName,
+          major: student.major,
+          university: student.university,
+          rankTier: student.rankTier,
+        }
+      });
+    } catch (error: any) {
+      console.error("Career summary error:", error);
+      res.status(500).json({ error: "Failed to generate career summary" });
+    }
+  });
+
+  // ========================================================================
   // CHALLENGES ENDPOINTS
   // ========================================================================
 

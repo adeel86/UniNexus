@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { TrendingUp, Award, Users, Target, Plus } from "lucide-react";
+import { TrendingUp, Award, Users, Target, Plus, Shield, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { CreatePostModal } from "@/components/CreatePostModal";
 import { SuggestedPosts } from "@/components/SuggestedPosts";
@@ -27,6 +27,7 @@ import { Label } from "@/components/ui/label";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function TeacherDashboard() {
   const { toast } = useToast();
@@ -34,6 +35,8 @@ export default function TeacherDashboard() {
   const [, navigate] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [endorseModalOpen, setEndorseModalOpen] = useState(false);
+  const [certificateModalOpen, setCertificateModalOpen] = useState(false);
+  const [careerInsightsModalOpen, setCareerInsightsModalOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<User | null>(null);
   const [selectedSkill, setSelectedSkill] = useState("");
   const [endorsementComment, setEndorsementComment] = useState("");
@@ -43,6 +46,14 @@ export default function TeacherDashboard() {
     category: "academic",
     tags: ""
   });
+
+  // Certificate form state
+  const [certType, setCertType] = useState<string>("skill_endorsement");
+  const [certTitle, setCertTitle] = useState("");
+  const [certDescription, setCertDescription] = useState("");
+  const [certMetadata, setCertMetadata] = useState("");
+  const [certImageUrl, setCertImageUrl] = useState("");
+  const [certExpiresAt, setCertExpiresAt] = useState("");
 
   const { data: students = [] } = useQuery<User[]>({
     queryKey: ["/api/students"],
@@ -69,6 +80,62 @@ export default function TeacherDashboard() {
     },
   });
 
+  const certificateMutation = useMutation({
+    mutationFn: async () => {
+      let metadata;
+      if (certMetadata.trim()) {
+        try {
+          metadata = JSON.parse(certMetadata);
+        } catch (error) {
+          throw new Error("Invalid JSON in metadata field. Please check the format.");
+        }
+      }
+      
+      return apiRequest("POST", "/api/certifications", {
+        userId: selectedStudent?.id,
+        type: certType,
+        title: certTitle,
+        description: certDescription,
+        metadata,
+        imageUrl: certImageUrl || undefined,
+        expiresAt: certExpiresAt || undefined,
+        isPublic: true,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/certifications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/students"] });
+      toast({ 
+        title: "Certificate issued successfully!",
+        description: `NFT-style certificate issued to ${selectedStudent?.firstName} ${selectedStudent?.lastName}`
+      });
+      setCertificateModalOpen(false);
+      setCertType("skill_endorsement");
+      setCertTitle("");
+      setCertDescription("");
+      setCertMetadata("");
+      setCertImageUrl("");
+      setCertExpiresAt("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to issue certificate",
+        description: error.message || "Please check the form and try again",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Career insights query
+  const { data: careerInsights, isLoading: careerInsightsLoading } = useQuery<{
+    summary: string;
+    student: { id: string; firstName: string; lastName: string; major?: string; university?: string; rankTier: string };
+  }>({
+    queryKey: [`/api/ai/career-summary/${selectedStudent?.id}`],
+    enabled: careerInsightsModalOpen && !!selectedStudent?.id,
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+  });
+
   const filteredStudents = students.filter((student) => {
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -93,6 +160,16 @@ export default function TeacherDashboard() {
   const handleEndorseClick = (student: User) => {
     setSelectedStudent(student);
     setEndorseModalOpen(true);
+  };
+
+  const handleIssueCertificateClick = (student: User) => {
+    setSelectedStudent(student);
+    setCertificateModalOpen(true);
+  };
+
+  const handleCareerInsightsClick = (student: User) => {
+    setSelectedStudent(student);
+    setCareerInsightsModalOpen(true);
   };
 
   return (
@@ -190,7 +267,7 @@ export default function TeacherDashboard() {
                         </Badge>
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       <Button
                         size="sm"
                         variant="outline"
@@ -206,6 +283,24 @@ export default function TeacherDashboard() {
                       >
                         <Award className="mr-2 h-4 w-4" />
                         Endorse
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => handleIssueCertificateClick(student)}
+                        data-testid={`button-issue-certificate-${student.id}`}
+                      >
+                        <Shield className="mr-2 h-4 w-4" />
+                        Certificate
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => handleCareerInsightsClick(student)}
+                        data-testid={`button-career-insights-${student.id}`}
+                      >
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Career Insights
                       </Button>
                     </div>
                   </div>
@@ -390,6 +485,188 @@ export default function TeacherDashboard() {
                 {endorseMutation.isPending ? "Sending..." : "Send Endorsement"}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Certificate Issuance Modal */}
+      <Dialog open={certificateModalOpen} onOpenChange={setCertificateModalOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-2xl">
+              <Shield className="inline-block mr-2 h-6 w-6" />
+              Issue Digital Certificate to {selectedStudent?.firstName} {selectedStudent?.lastName}
+            </DialogTitle>
+          </DialogHeader>
+
+          <ScrollArea className="max-h-[60vh]">
+            <div className="space-y-4 pr-4">
+              <div>
+                <Label htmlFor="cert-type">Certificate Type</Label>
+                <Select value={certType} onValueChange={setCertType}>
+                  <SelectTrigger id="cert-type" data-testid="select-cert-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="course_completion">Course Completion</SelectItem>
+                    <SelectItem value="project">Project Achievement</SelectItem>
+                    <SelectItem value="skill_endorsement">Skill Endorsement</SelectItem>
+                    <SelectItem value="achievement">Special Achievement</SelectItem>
+                    <SelectItem value="custom">Custom Certificate</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="cert-title">Title *</Label>
+                <Input
+                  id="cert-title"
+                  placeholder="e.g., Advanced Web Development Certificate"
+                  value={certTitle}
+                  onChange={(e) => setCertTitle(e.target.value)}
+                  data-testid="input-cert-title"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="cert-description">Description *</Label>
+                <Textarea
+                  id="cert-description"
+                  placeholder="Describe the achievement or completion criteria..."
+                  value={certDescription}
+                  onChange={(e) => setCertDescription(e.target.value)}
+                  className="min-h-[100px]"
+                  data-testid="textarea-cert-description"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="cert-metadata">Metadata (JSON, Optional)</Label>
+                <Textarea
+                  id="cert-metadata"
+                  placeholder='{"courseCode": "CS101", "grade": "A", "credits": 3}'
+                  value={certMetadata}
+                  onChange={(e) => setCertMetadata(e.target.value)}
+                  className="min-h-[60px] font-mono text-sm"
+                  data-testid="textarea-cert-metadata"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Optional JSON data for additional certificate details
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="cert-image-url">Badge Image URL (Optional)</Label>
+                <Input
+                  id="cert-image-url"
+                  placeholder="https://example.com/badge.png"
+                  value={certImageUrl}
+                  onChange={(e) => setCertImageUrl(e.target.value)}
+                  data-testid="input-cert-image-url"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="cert-expires-at">Expiration Date (Optional)</Label>
+                <Input
+                  id="cert-expires-at"
+                  type="date"
+                  value={certExpiresAt}
+                  onChange={(e) => setCertExpiresAt(e.target.value)}
+                  data-testid="input-cert-expires-at"
+                />
+              </div>
+
+              <div className="bg-muted/50 p-3 rounded-md">
+                <p className="text-sm text-muted-foreground">
+                  <Shield className="inline-block mr-1 h-4 w-4" />
+                  This certificate will be automatically verified with a SHA-256 hash and minted as an NFT-style digital credential.
+                </p>
+              </div>
+            </div>
+          </ScrollArea>
+
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button
+              variant="outline"
+              onClick={() => setCertificateModalOpen(false)}
+              data-testid="button-cancel-certificate"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => certificateMutation.mutate()}
+              disabled={!certTitle.trim() || !certDescription.trim() || certificateMutation.isPending}
+              data-testid="button-submit-certificate"
+            >
+              {certificateMutation.isPending ? "Issuing..." : "Issue Certificate"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Career Insights Modal */}
+      <Dialog open={careerInsightsModalOpen} onOpenChange={setCareerInsightsModalOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-2xl">
+              <Sparkles className="inline-block mr-2 h-6 w-6" />
+              AI Career Insights: {selectedStudent?.firstName} {selectedStudent?.lastName}
+            </DialogTitle>
+          </DialogHeader>
+
+          {careerInsightsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="h-12 w-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                <p className="text-muted-foreground">Generating career insights...</p>
+              </div>
+            </div>
+          ) : careerInsights ? (
+            <ScrollArea className="max-h-[60vh]">
+              <div className="space-y-4 pr-4">
+                <div className="bg-muted/30 p-4 rounded-md">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Badge variant="secondary" className="text-sm">
+                      {careerInsights.student.major || "Major not specified"}
+                    </Badge>
+                    <Badge variant="secondary" className="text-sm">
+                      {careerInsights.student.university || "University not specified"}
+                    </Badge>
+                    <Badge className="text-sm capitalize">
+                      {careerInsights.student.rankTier} Tier
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="prose prose-sm max-w-none dark:prose-invert">
+                  <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                    {careerInsights.summary}
+                  </div>
+                </div>
+
+                <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-md">
+                  <p className="text-sm text-blue-700 dark:text-blue-300">
+                    <Sparkles className="inline-block mr-1 h-4 w-4" />
+                    This AI-generated summary can help guide your employability discussions with {selectedStudent?.firstName}.
+                  </p>
+                </div>
+              </div>
+            </ScrollArea>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              Failed to generate career insights. Please try again.
+            </div>
+          )}
+
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button
+              variant="outline"
+              onClick={() => setCareerInsightsModalOpen(false)}
+              data-testid="button-close-career-insights"
+            >
+              Close
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
