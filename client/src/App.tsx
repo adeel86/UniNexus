@@ -15,6 +15,7 @@ import UniversityDashboard from "@/pages/UniversityDashboard";
 import IndustryDashboard from "@/pages/IndustryDashboard";
 import MasterAdminDashboard from "@/pages/MasterAdminDashboard";
 import Leaderboard from "@/pages/Leaderboard";
+import Challenges from "@/pages/Challenges";
 import Profile from "@/pages/Profile";
 import NotFound from "@/pages/not-found";
 
@@ -67,6 +68,7 @@ function Router() {
       <Switch>
         <Route path="/" component={HomePage} />
         <Route path="/leaderboard" component={Leaderboard} />
+        <Route path="/challenges" component={Challenges} />
         <Route path="/profile" component={Profile} />
         
         {/* Role-specific routes */}

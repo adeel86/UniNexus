@@ -950,6 +950,207 @@ Be lenient with academic discussions, debates, and Gen Z slang. Only flag clearl
   });
 
   // ========================================================================
+  // CHALLENGES ENDPOINTS
+  // ========================================================================
+
+  app.get("/api/challenges", async (req: Request, res: Response) => {
+    try {
+      const allChallenges = await db
+        .select({
+          id: challenges.id,
+          title: challenges.title,
+          description: challenges.description,
+          organizerId: challenges.organizerId,
+          category: challenges.category,
+          difficulty: challenges.difficulty,
+          prizes: challenges.prizes,
+          startDate: challenges.startDate,
+          endDate: challenges.endDate,
+          participantCount: challenges.participantCount,
+          status: challenges.status,
+          createdAt: challenges.createdAt,
+          organizer: users,
+        })
+        .from(challenges)
+        .leftJoin(users, eq(challenges.organizerId, users.id))
+        .orderBy(desc(challenges.createdAt));
+
+      res.json(allChallenges);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/challenges/:challengeId/join", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { challengeId } = req.params;
+
+      const [existingParticipant] = await db
+        .select()
+        .from(challengeParticipants)
+        .where(
+          and(
+            eq(challengeParticipants.challengeId, challengeId),
+            eq(challengeParticipants.userId, req.user!.id)
+          )
+        )
+        .limit(1);
+
+      if (existingParticipant) {
+        return res.status(400).json({ error: "Already joined this challenge" });
+      }
+
+      const [participant] = await db.insert(challengeParticipants).values({
+        challengeId,
+        userId: req.user!.id,
+      }).returning();
+
+      await db
+        .update(challenges)
+        .set({
+          participantCount: sql`${challenges.participantCount} + 1`,
+        })
+        .where(eq(challenges.id, challengeId));
+
+      await db
+        .update(users)
+        .set({
+          engagementScore: sql`${users.engagementScore} + 10`,
+        })
+        .where(eq(users.id, req.user!.id));
+
+      await db.insert(notifications).values({
+        userId: req.user!.id,
+        type: 'challenge',
+        title: 'Challenge Joined!',
+        message: 'You have successfully joined a new challenge. Good luck!',
+        link: '/challenges',
+      });
+
+      res.json(participant);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/challenges/:challengeId/submit", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { challengeId } = req.params;
+      const { submissionUrl } = req.body;
+
+      if (!submissionUrl) {
+        return res.status(400).json({ error: "Submission URL is required" });
+      }
+
+      const [participant] = await db
+        .select()
+        .from(challengeParticipants)
+        .where(
+          and(
+            eq(challengeParticipants.challengeId, challengeId),
+            eq(challengeParticipants.userId, req.user!.id)
+          )
+        )
+        .limit(1);
+
+      if (!participant) {
+        return res.status(400).json({ error: "You must join the challenge before submitting" });
+      }
+
+      const [updatedParticipant] = await db
+        .update(challengeParticipants)
+        .set({
+          submissionUrl,
+          submittedAt: new Date(),
+        })
+        .where(eq(challengeParticipants.id, participant.id))
+        .returning();
+
+      await db
+        .update(users)
+        .set({
+          engagementScore: sql`${users.engagementScore} + 20`,
+          problemSolverScore: sql`${users.problemSolverScore} + 15`,
+        })
+        .where(eq(users.id, req.user!.id));
+
+      await db.insert(notifications).values({
+        userId: req.user!.id,
+        type: 'challenge',
+        title: 'Submission Received!',
+        message: 'Your challenge submission has been recorded successfully.',
+        link: '/challenges',
+      });
+
+      res.json(updatedParticipant);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/challenges/:challengeId/participants", async (req: Request, res: Response) => {
+    try {
+      const { challengeId } = req.params;
+
+      const participants = await db
+        .select({
+          id: challengeParticipants.id,
+          challengeId: challengeParticipants.challengeId,
+          userId: challengeParticipants.userId,
+          submissionUrl: challengeParticipants.submissionUrl,
+          submittedAt: challengeParticipants.submittedAt,
+          rank: challengeParticipants.rank,
+          joinedAt: challengeParticipants.joinedAt,
+          user: users,
+        })
+        .from(challengeParticipants)
+        .leftJoin(users, eq(challengeParticipants.userId, users.id))
+        .where(eq(challengeParticipants.challengeId, challengeId))
+        .orderBy(desc(challengeParticipants.submittedAt));
+
+      res.json(participants);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/challenges/my-participations", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const myParticipations = await db
+        .select({
+          id: challengeParticipants.id,
+          challengeId: challengeParticipants.challengeId,
+          userId: challengeParticipants.userId,
+          submissionUrl: challengeParticipants.submissionUrl,
+          submittedAt: challengeParticipants.submittedAt,
+          rank: challengeParticipants.rank,
+          joinedAt: challengeParticipants.joinedAt,
+          challenge: challenges,
+        })
+        .from(challengeParticipants)
+        .leftJoin(challenges, eq(challengeParticipants.challengeId, challenges.id))
+        .where(eq(challengeParticipants.userId, req.user!.id))
+        .orderBy(desc(challengeParticipants.joinedAt));
+
+      res.json(myParticipations);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
   // ADMIN ENDPOINTS
   // ========================================================================
 

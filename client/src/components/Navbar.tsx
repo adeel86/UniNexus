@@ -2,7 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "./UserAvatar";
-import { Bell, LogOut, Menu } from "lucide-react";
+import { Bell, LogOut, Menu, Trophy, Target } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,7 +21,7 @@ interface NavbarProps {
 
 export function Navbar({ onMenuClick }: NavbarProps) {
   const { userData: user, signOut } = useAuth();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
 
   const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey: ["/api/notifications"],
@@ -38,11 +38,13 @@ export function Navbar({ onMenuClick }: NavbarProps) {
     master_admin: "Master Admin",
   };
 
+  const isStudent = user?.role === 'student';
+
   return (
     <nav className="sticky top-0 z-50 border-b bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 text-white backdrop-blur-sm">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         {/* Left: Logo & Menu */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-5">
           {onMenuClick && (
             <Button
               variant="ghost"
@@ -62,6 +64,38 @@ export function Navbar({ onMenuClick }: NavbarProps) {
               <span className="font-heading font-bold text-xl hidden sm:inline">UniNexus</span>
             </a>
           </Link>
+
+          {/* Navigation Links for Students */}
+          {isStudent && (
+            <div className="hidden md:flex items-center gap-2">
+              <Link href="/leaderboard">
+                <a>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={`text-white hover:bg-white/20 gap-2 ${location === '/leaderboard' ? 'bg-white/20' : ''}`}
+                    data-testid="nav-link-leaderboard"
+                  >
+                    <Trophy className="h-4 w-4" />
+                    <span>Leaderboard</span>
+                  </Button>
+                </a>
+              </Link>
+              <Link href="/challenges">
+                <a>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={`text-white hover:bg-white/20 gap-2 ${location === '/challenges' ? 'bg-white/20' : ''}`}
+                    data-testid="nav-link-challenges"
+                  >
+                    <Target className="h-4 w-4" />
+                    <span>Challenges</span>
+                  </Button>
+                </a>
+              </Link>
+            </div>
+          )}
         </div>
 
         {/* Right: User Menu */}
