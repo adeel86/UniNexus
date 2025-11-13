@@ -4,6 +4,7 @@ import type { Post, User, Comment, Reaction, UserBadge, Badge, Challenge } from 
 import { PostCard } from "@/components/PostCard";
 import { CreatePostModal } from "@/components/CreatePostModal";
 import { SuggestedPosts } from "@/components/SuggestedPosts";
+import { RankTierBadge } from "@/components/RankTierBadge";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -73,7 +74,16 @@ export default function StudentHome() {
             <p className="text-purple-100 mb-4">
               You're on a {user?.streak || 0} day streak! Keep it going.
             </p>
-            <div className="flex gap-3">
+            
+            <div className="mb-4">
+              <RankTierBadge 
+                rankTier={user?.rankTier as 'bronze' | 'silver' | 'gold' | 'platinum' || 'bronze'} 
+                totalPoints={user?.totalPoints || 0}
+                showProgress={true}
+              />
+            </div>
+
+            <div className="flex gap-3 flex-wrap">
               <div className="bg-white/20 backdrop-blur rounded-lg px-4 py-2">
                 <div className="text-2xl font-bold">{user?.engagementScore || 0}</div>
                 <div className="text-xs text-purple-100">Engagement</div>
@@ -85,6 +95,10 @@ export default function StudentHome() {
               <div className="bg-white/20 backdrop-blur rounded-lg px-4 py-2">
                 <div className="text-2xl font-bold">{userBadges.length}</div>
                 <div className="text-xs text-purple-100">Badges</div>
+              </div>
+              <div className="bg-white/20 backdrop-blur rounded-lg px-4 py-2">
+                <div className="text-2xl font-bold">{user?.challengePoints || 0}</div>
+                <div className="text-xs text-purple-100">Challenge Pts</div>
               </div>
             </div>
           </Card>

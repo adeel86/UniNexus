@@ -6,6 +6,16 @@ UniNexus is a vibrant, Gen Z-focused social learning and engagement platform tha
 
 The application provides a social feed for students to share posts and engage with content, gamified profiles with badges and achievement timelines, AI-powered career guidance through a chatbot, course discussion forums, leaderboards, and real-time notifications. The platform emphasizes mobile-first design with neon gradient aesthetics (purple-blue-pink) and smooth animations tailored to Gen Z preferences.
 
+## Recent Changes (November 2025)
+
+### AI-Based Ranking and Recognition System
+Implemented comprehensive rank tier system with gamification and challenge-based recognition:
+- **Rank Tiers**: Bronze (<1000 pts), Silver (1000-2999 pts), Gold (3000-6999 pts), Platinum (7000+ pts)
+- **Point Sources**: Engagement score, problem solver score, endorsements, and challenge points
+- **Challenge Points**: Dynamic scoring based on placement (1st: 500pts, 2nd: 300pts, 3rd: 200pts, top 10%: 150pts, top 25%: 100pts, participation: 50pts)
+- **Concurrency Safety**: Atomic SQL updates for points and rank tiers to prevent race conditions and lost updates
+- **UI Components**: RankTierBadge component with badge and icon variants integrated into Profile, StudentHome, and Leaderboard pages
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.

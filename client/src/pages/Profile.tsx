@@ -7,6 +7,7 @@ import type { UserBadge, Badge as BadgeType, Endorsement, Skill, User, Certifica
 import { BadgeIcon } from "@/components/BadgeIcon";
 import { AchievementTimeline } from "@/components/AchievementTimeline";
 import { CertificateShowcase } from "@/components/CertificateShowcase";
+import { RankTierBadge } from "@/components/RankTierBadge";
 import { Award, TrendingUp, Zap, Trophy, Clock, Shield } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -78,6 +79,15 @@ export default function Profile() {
             {user.bio && (
               <p className="text-white/90 mt-4">{user.bio}</p>
             )}
+            
+            {/* Rank Tier Badge */}
+            <div className="mt-4">
+              <RankTierBadge 
+                rankTier={user.rankTier as 'bronze' | 'silver' | 'gold' | 'platinum'} 
+                totalPoints={user.totalPoints || 0}
+                size="lg"
+              />
+            </div>
           </div>
         </div>
 

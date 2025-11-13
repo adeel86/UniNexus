@@ -35,6 +35,8 @@ import {
 } from "@shared/schema";
 import OpenAI from "openai";
 import jwt from "jsonwebtoken";
+import { applyPointDelta, recalculateUserRank } from "./pointsHelper";
+import { calculateChallengePoints } from "./rankTiers";
 
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -1325,13 +1327,11 @@ Be lenient with academic discussions, debates, and Gen Z slang. Only flag clearl
         .where(eq(challengeParticipants.id, participant.id))
         .returning();
 
-      await db
-        .update(users)
-        .set({
-          engagementScore: sql`${users.engagementScore} + 20`,
-          problemSolverScore: sql`${users.problemSolverScore} + 15`,
-        })
-        .where(eq(users.id, req.user!.id));
+      // Award points for submission using the new helper
+      await applyPointDelta(req.user!.id, {
+        engagementDelta: 20,
+        problemSolverDelta: 15,
+      });
 
       await db.insert(notifications).values({
         userId: req.user!.id,
@@ -1368,6 +1368,100 @@ Be lenient with academic discussions, debates, and Gen Z slang. Only flag clearl
         .orderBy(desc(challengeParticipants.submittedAt));
 
       res.json(participants);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Award challenge points when ranks are assigned
+  app.post("/api/challenges/:participantId/award-rank-points", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { participantId } = req.params;
+      const { rank } = req.body;
+
+      if (!rank || typeof rank !== 'number') {
+        return res.status(400).json({ error: "Valid rank is required" });
+      }
+
+      const [participant] = await db
+        .select()
+        .from(challengeParticipants)
+        .where(eq(challengeParticipants.id, participantId))
+        .limit(1);
+
+      if (!participant) {
+        return res.status(404).json({ error: "Participant not found" });
+      }
+
+      // Get challenge to calculate participant count
+      const [challenge] = await db
+        .select()
+        .from(challenges)
+        .where(eq(challenges.id, participant.challengeId))
+        .limit(1);
+
+      if (!challenge) {
+        return res.status(404).json({ error: "Challenge not found" });
+      }
+
+      // Update participant rank
+      await db
+        .update(challengeParticipants)
+        .set({ rank })
+        .where(eq(challengeParticipants.id, participantId));
+
+      // Calculate and award challenge points
+      const points = calculateChallengePoints(rank, challenge.participantCount);
+      await applyPointDelta(participant.userId, {
+        challengeDelta: points,
+      });
+
+      // Send notification
+      await db.insert(notifications).values({
+        userId: participant.userId,
+        type: 'challenge',
+        title: 'Challenge Rank Awarded!',
+        message: `You ranked #${rank} and earned ${points} challenge points!`,
+        link: '/challenges',
+      });
+
+      res.json({ success: true, points, rank });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Recalculate user rank tier (admin/cron endpoint)
+  app.post("/api/users/:userId/recalculate-rank", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { userId } = req.params;
+      
+      // Only allow admins or the user themselves
+      if (req.user!.role !== 'master_admin' && req.user!.id !== userId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+
+      await recalculateUserRank(userId);
+
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      res.json({ 
+        success: true, 
+        totalPoints: user?.totalPoints,
+        rankTier: user?.rankTier 
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

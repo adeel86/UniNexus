@@ -51,6 +51,9 @@ export const users = pgTable("users", {
   engagementScore: integer("engagement_score").notNull().default(0),
   problemSolverScore: integer("problem_solver_score").notNull().default(0),
   endorsementScore: integer("endorsement_score").notNull().default(0),
+  challengePoints: integer("challenge_points").notNull().default(0),
+  totalPoints: integer("total_points").notNull().default(0),
+  rankTier: varchar("rank_tier", { length: 20 }).notNull().default('bronze'), // bronze, silver, gold, platinum
   streak: integer("streak").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

@@ -18,6 +18,7 @@ import {
   notifications,
   announcements,
 } from "@shared/schema";
+import { calculateTotalPoints, getRankTier } from "./rankTiers";
 
 async function seedDatabase() {
   console.log("Starting database seed...");
@@ -40,6 +41,9 @@ async function seedDatabase() {
       engagementScore: 500,
       problemSolverScore: 300,
       endorsementScore: 25,
+      challengePoints: 0,
+      totalPoints: 825,
+      rankTier: "bronze" as const,
       streak: 7,
     },
     {
@@ -57,6 +61,9 @@ async function seedDatabase() {
       engagementScore: 200,
       problemSolverScore: 0,
       endorsementScore: 0,
+      challengePoints: 0,
+      totalPoints: 200,
+      rankTier: "bronze" as const,
       streak: 5,
     },
     {
@@ -74,6 +81,9 @@ async function seedDatabase() {
       engagementScore: 0,
       problemSolverScore: 0,
       endorsementScore: 0,
+      challengePoints: 0,
+      totalPoints: 0,
+      rankTier: "bronze" as const,
       streak: 0,
     },
     {
@@ -91,6 +101,9 @@ async function seedDatabase() {
       engagementScore: 0,
       problemSolverScore: 0,
       endorsementScore: 0,
+      challengePoints: 0,
+      totalPoints: 0,
+      rankTier: "bronze" as const,
       streak: 0,
     },
     {
@@ -108,6 +121,9 @@ async function seedDatabase() {
       engagementScore: 0,
       problemSolverScore: 0,
       endorsementScore: 0,
+      challengePoints: 0,
+      totalPoints: 0,
+      rankTier: "bronze" as const,
       streak: 0,
     },
     // Regular Mock Users
@@ -127,6 +143,9 @@ async function seedDatabase() {
       engagementScore: 1250,
       problemSolverScore: 890,
       endorsementScore: 45,
+      challengePoints: 200,
+      totalPoints: 2385,
+      rankTier: "silver" as const,
       streak: 12,
     },
     {
@@ -145,6 +164,9 @@ async function seedDatabase() {
       engagementScore: 2100,
       problemSolverScore: 560,
       endorsementScore: 62,
+      challengePoints: 500,
+      totalPoints: 3222,
+      rankTier: "gold" as const,
       streak: 25,
     },
     {
@@ -163,6 +185,9 @@ async function seedDatabase() {
       engagementScore: 1800,
       problemSolverScore: 1050,
       endorsementScore: 38,
+      challengePoints: 150,
+      totalPoints: 3038,
+      rankTier: "gold" as const,
       streak: 18,
     },
     {

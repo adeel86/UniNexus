@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { User } from "@shared/schema";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
+import { RankTierBadge, RankTierIcon } from "@/components/RankTierBadge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trophy, TrendingUp, Award, Zap } from "lucide-react";
 
@@ -63,6 +64,13 @@ export default function Leaderboard() {
                 </div>
                 <div className="text-sm text-muted-foreground">
                   {student.major || 'No major specified'}
+                </div>
+                <div className="mt-2">
+                  <RankTierBadge 
+                    rankTier={student.rankTier as 'bronze' | 'silver' | 'gold' | 'platinum' || 'bronze'}
+                    totalPoints={student.totalPoints || 0}
+                    size="sm"
+                  />
                 </div>
               </div>
 
