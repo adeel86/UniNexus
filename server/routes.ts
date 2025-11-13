@@ -18,6 +18,8 @@ import {
   courseEnrollments,
   courseDiscussions,
   discussionReplies,
+  discussionUpvotes,
+  courseMilestones,
   challenges,
   challengeParticipants,
   notifications,
@@ -31,6 +33,7 @@ import {
   insertAnnouncementSchema,
   insertCourseDiscussionSchema,
   insertDiscussionReplySchema,
+  insertCourseMilestoneSchema,
   insertCertificationSchema,
 } from "@shared/schema";
 import OpenAI from "openai";
@@ -757,6 +760,209 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ========================================================================
+  // COURSE BADGE AWARDING LOGIC
+  // ========================================================================
+
+  /**
+   * Check and award course-related badges to a student based on their activity in a course
+   * Milestone types:
+   * - first_discussion: Posted first discussion in a course
+   * - five_helpful_answers: Provided 5 answers with 3+ upvotes each
+   * - resolved_three_questions: Helped resolve 3 questions
+   * - active_contributor: 10+ discussions or replies in a course
+   */
+  async function checkAndAwardCourseBadges(userId: string, courseId: string) {
+    try {
+      // Define course-specific badges (these should exist in the badges table)
+      const courseBadgeTypes = {
+        first_discussion: "Discussion Starter",
+        five_helpful_answers: "Helpful Contributor",
+        resolved_three_questions: "Problem Solver",
+        active_contributor: "Active Learner",
+      };
+
+      // Check milestone: first_discussion
+      const [discussionCount] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(courseDiscussions)
+        .where(and(
+          eq(courseDiscussions.authorId, userId),
+          eq(courseDiscussions.courseId, courseId)
+        ));
+      
+      if (Number(discussionCount.count) === 1) {
+        // Award first discussion milestone
+        await db.insert(courseMilestones).values({
+          studentId: userId,
+          courseId,
+          milestoneType: 'first_discussion',
+        }).onConflictDoNothing();
+
+        // Award badge if it doesn't exist
+        const [badgeData] = await db.select().from(badges).where(eq(badges.name, courseBadgeTypes.first_discussion)).limit(1);
+        if (badgeData) {
+          await db.insert(userBadges).values({
+            userId,
+            badgeId: badgeData.id,
+          }).onConflictDoNothing();
+
+          // Create notification
+          await db.insert(notifications).values({
+            userId,
+            type: 'badge_earned',
+            title: 'New Badge Earned!',
+            message: `You earned the "${badgeData.name}" badge for posting your first discussion!`,
+            link: `/profile?userId=${userId}`,
+          }).onConflictDoNothing();
+        }
+      }
+
+      // Check milestone: five_helpful_answers (replies with 3+ upvotes)
+      const [helpfulRepliesResult] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(discussionReplies)
+        .innerJoin(courseDiscussions, eq(discussionReplies.discussionId, courseDiscussions.id))
+        .where(and(
+          eq(discussionReplies.authorId, userId),
+          eq(courseDiscussions.courseId, courseId),
+          sql`${discussionReplies.upvoteCount} >= 3`
+        ));
+      
+      if (Number(helpfulRepliesResult.count) >= 5) {
+        const [existingMilestone] = await db
+          .select()
+          .from(courseMilestones)
+          .where(and(
+            eq(courseMilestones.studentId, userId),
+            eq(courseMilestones.courseId, courseId),
+            eq(courseMilestones.milestoneType, 'five_helpful_answers')
+          ));
+        
+        if (!existingMilestone) {
+          await db.insert(courseMilestones).values({
+            studentId: userId,
+            courseId,
+            milestoneType: 'five_helpful_answers',
+          }).onConflictDoNothing();
+
+          const [badgeData] = await db.select().from(badges).where(eq(badges.name, courseBadgeTypes.five_helpful_answers)).limit(1);
+          if (badgeData) {
+            await db.insert(userBadges).values({
+              userId,
+              badgeId: badgeData.id,
+            }).onConflictDoNothing();
+
+            await db.insert(notifications).values({
+              userId,
+              type: 'badge_earned',
+              title: 'New Badge Earned!',
+              message: `You earned the "${badgeData.name}" badge for providing 5 helpful answers!`,
+              link: `/profile?userId=${userId}`,
+            }).onConflictDoNothing();
+          }
+        }
+      }
+
+      // Check milestone: resolved_three_questions
+      const [resolvedQuestionsResult] = await db
+        .select({ count: sql<number>`count(distinct ${courseDiscussions.id})` })
+        .from(discussionReplies)
+        .innerJoin(courseDiscussions, eq(discussionReplies.discussionId, courseDiscussions.id))
+        .where(and(
+          eq(discussionReplies.authorId, userId),
+          eq(courseDiscussions.courseId, courseId),
+          eq(courseDiscussions.isResolved, true)
+        ));
+      
+      if (Number(resolvedQuestionsResult.count) >= 3) {
+        const [existingMilestone] = await db
+          .select()
+          .from(courseMilestones)
+          .where(and(
+            eq(courseMilestones.studentId, userId),
+            eq(courseMilestones.courseId, courseId),
+            eq(courseMilestones.milestoneType, 'resolved_three_questions')
+          ));
+        
+        if (!existingMilestone) {
+          await db.insert(courseMilestones).values({
+            studentId: userId,
+            courseId,
+            milestoneType: 'resolved_three_questions',
+          }).onConflictDoNothing();
+
+          const [badgeData] = await db.select().from(badges).where(eq(badges.name, courseBadgeTypes.resolved_three_questions)).limit(1);
+          if (badgeData) {
+            await db.insert(userBadges).values({
+              userId,
+              badgeId: badgeData.id,
+            }).onConflictDoNothing();
+
+            await db.insert(notifications).values({
+              userId,
+              type: 'badge_earned',
+              title: 'New Badge Earned!',
+              message: `You earned the "${badgeData.name}" badge for helping resolve 3 questions!`,
+              link: `/profile?userId=${userId}`,
+            }).onConflictDoNothing();
+          }
+        }
+      }
+
+      // Check milestone: active_contributor (10+ discussions/replies)
+      const discussionsAndRepliesResult = await db.execute(sql`
+        SELECT COUNT(*) as count FROM (
+          SELECT id FROM ${courseDiscussions} WHERE ${courseDiscussions.authorId} = ${userId} AND ${courseDiscussions.courseId} = ${courseId}
+          UNION ALL
+          SELECT ${discussionReplies.id} FROM ${discussionReplies}
+          INNER JOIN ${courseDiscussions} ON ${discussionReplies.discussionId} = ${courseDiscussions.id}
+          WHERE ${discussionReplies.authorId} = ${userId} AND ${courseDiscussions.courseId} = ${courseId}
+        ) as combined
+      `);
+      
+      const totalActivity = Number((discussionsAndRepliesResult.rows[0] as any)?.count || 0);
+      
+      if (totalActivity >= 10) {
+        const [existingMilestone] = await db
+          .select()
+          .from(courseMilestones)
+          .where(and(
+            eq(courseMilestones.studentId, userId),
+            eq(courseMilestones.courseId, courseId),
+            eq(courseMilestones.milestoneType, 'active_contributor')
+          ));
+        
+        if (!existingMilestone) {
+          await db.insert(courseMilestones).values({
+            studentId: userId,
+            courseId,
+            milestoneType: 'active_contributor',
+          }).onConflictDoNothing();
+
+          const [badgeData] = await db.select().from(badges).where(eq(badges.name, courseBadgeTypes.active_contributor)).limit(1);
+          if (badgeData) {
+            await db.insert(userBadges).values({
+              userId,
+              badgeId: badgeData.id,
+            }).onConflictDoNothing();
+
+            await db.insert(notifications).values({
+              userId,
+              type: 'badge_earned',
+              title: 'New Badge Earned!',
+              message: `You earned the "${badgeData.name}" badge for being an active contributor!`,
+              link: `/profile?userId=${userId}`,
+            }).onConflictDoNothing();
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error checking course badges:', error);
+      // Don't throw error - badge awarding is not critical to the operation
+    }
+  }
+
+  // ========================================================================
   // COURSE FORUMS & DISCUSSIONS ENDPOINTS
   // ========================================================================
 
@@ -765,6 +971,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const allCourses = await storage.getCourses();
       res.json(allCourses);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get detailed course information including instructor, enrollments, discussions
+  app.get("/api/courses/:id", async (req: Request, res: Response) => {
+    try {
+      const courseId = req.params.id;
+      
+      // Get course with instructor
+      const courseData = await db
+        .select({
+          course: courses,
+          instructor: users,
+        })
+        .from(courses)
+        .leftJoin(users, eq(courses.instructorId, users.id))
+        .where(eq(courses.id, courseId))
+        .limit(1);
+      
+      if (courseData.length === 0) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+
+      // Get enrolled students count
+      const enrolledStudentsResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(courseEnrollments)
+        .where(eq(courseEnrollments.courseId, courseId));
+      
+      const enrolledCount = Number(enrolledStudentsResult[0]?.count || 0);
+
+      // Get top discussions (limited to 5)
+      const topDiscussions = await db
+        .select({
+          discussion: courseDiscussions,
+          author: users,
+        })
+        .from(courseDiscussions)
+        .leftJoin(users, eq(courseDiscussions.authorId, users.id))
+        .where(eq(courseDiscussions.courseId, courseId))
+        .orderBy(desc(courseDiscussions.upvoteCount), desc(courseDiscussions.createdAt))
+        .limit(5);
+
+      res.json({
+        ...courseData[0].course,
+        instructor: courseData[0].instructor,
+        enrolledCount,
+        topDiscussions,
+      });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -809,6 +1066,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .update(users)
         .set({ engagementScore: sql`${users.engagementScore} + 5` })
         .where(eq(users.id, req.user!.id));
+
+      // Check and award course badges
+      await checkAndAwardCourseBadges(req.user!.id, validatedData.courseId);
 
       res.json(newDiscussion);
     } catch (error: any) {
@@ -870,6 +1130,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           message: `${req.user!.firstName} ${req.user!.lastName} replied to your discussion`,
           link: `/forums/${discussion.courseId}/${discussion.id}`,
         });
+      }
+
+      // Check and award course badges
+      if (discussion) {
+        await checkAndAwardCourseBadges(req.user!.id, discussion.courseId);
       }
 
       res.json(newReply);

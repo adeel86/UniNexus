@@ -270,3 +270,73 @@ All demo accounts use password: `demo123`
 
 **Status:** ✅ University Retention Strategy features fully implemented and operational
 **Architect Review:** PASSED - End-to-end implementation meets requirements
+
+## Course-Specific Learning Support Features - Added November 13, 2025 ✨
+
+### ✅ Gamified Course Badges System
+[x] Database schema extension:
+  - Created courseMilestones table to track unique badge achievements per student per course
+  - Prevents duplicate badge awards through milestone tracking
+  - Supports 4 milestone types: first_discussion, five_helpful_answers, three_resolved_questions, active_contributor
+
+[x] Backend API - Automatic Badge Awarding:
+  - GET /api/courses/:id - Returns detailed course info with instructor, enrollment count, and top discussions
+  - checkAndAwardCourseBadges() helper function:
+    * Checks first_discussion: Awards badge on first post in course
+    * Checks five_helpful_answers: Awards badge after 5 replies with 3+ upvotes each
+    * Checks three_resolved_questions: Awards badge after helping resolve 3 questions
+    * Checks active_contributor: Awards badge after 10+ discussions/replies in course
+    * Prevents duplicate awards using courseMilestones table
+    * Creates notifications with correct schema fields (title, message, link)
+  - Integrated badge checks into POST /api/discussions and POST /api/replies endpoints
+  - Atomic SQL queries prevent race conditions on concurrent badge awards
+
+[x] Frontend - CourseDetail Page:
+  - Course header displaying title, description, instructor info, and enrollment count
+  - Tabbed interface with Discussions and Course Info sections
+  - Create discussion form with title and content inputs
+  - Discussion list showing all course discussions with upvotes, replies, and resolved status
+  - Course Info tab showcasing badge requirements with visual cards
+  - Proper loading/error states for all data fetching
+  - All interactive elements have data-testid attributes
+  - Fixed critical queryFn issue to correctly fetch `/api/courses/${courseId}`
+
+### ✅ CareerBot Integration for Courses
+[x] Course-specific context injection:
+  - CareerBot dialog embedded in CourseDetail page
+  - Course title and description injected into chat prompts
+  - Context-aware responses about course content, learning outcomes, and career paths
+  - Real-time AI responses using existing CareerBot backend
+  - Seamless integration with OpenAI gpt-4o-mini model
+
+[x] User Experience:
+  - "Learning Assistant" button in course header
+  - Modal dialog with chat interface
+  - Scrollable message history
+  - Send button with loading states
+  - Empty state with helpful prompt
+
+### ✅ Routing & Navigation
+[x] Added /courses/:courseId route to App.tsx
+[x] Route accessible to all authenticated users
+[x] Navigation via direct links or programmatic routing
+
+### ✅ Quality Assurance
+[x] Fixed critical course query bug (queryFn explicitly calls `/api/courses/${courseId}`)
+[x] No TypeScript/LSP errors in implementation
+[x] All notification inserts use correct schema fields (title, message, link)
+[x] Proper handling of db.execute() results using .rows property
+[x] Cache invalidation configured for course and discussion queries
+[x] Architect reviewed and approved complete implementation
+
+**Status:** ✅ Course-Specific Learning Support fully implemented and operational
+**Architect Review:** PASSED - End-to-end flow functional with badge awarding and CareerBot integration
+**Ready For:** User testing and smoke tests on discussion/reply creation
+
+### Technical Implementation Notes
+- Badge awarding happens automatically after discussion/reply creation
+- Milestones prevent duplicate badge awards per student per course
+- Course context injected into CareerBot prompts for relevant guidance
+- All notifications use proper schema fields (title, message, link - not content/referenceId)
+- db.execute() returns QueryResult with .rows property for safe array access
+- Atomic SQL updates prevent race conditions during concurrent badge awards

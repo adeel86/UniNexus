@@ -17,6 +17,7 @@ import MasterAdminDashboard from "@/pages/MasterAdminDashboard";
 import Leaderboard from "@/pages/Leaderboard";
 import Challenges from "@/pages/Challenges";
 import Profile from "@/pages/Profile";
+import CourseDetail from "@/pages/CourseDetail";
 import VerifyCertificate from "@/pages/VerifyCertificate";
 import NotFound from "@/pages/not-found";
 
@@ -73,6 +74,7 @@ function Router() {
         <Route path="/leaderboard" component={Leaderboard} />
         <Route path="/challenges" component={Challenges} />
         <Route path="/profile" component={Profile} />
+        <Route path="/courses/:courseId" component={CourseDetail} />
         
         {/* Public verification route */}
         <Route path="/verify/:hash" component={VerifyCertificate} />
