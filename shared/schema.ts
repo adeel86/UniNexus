@@ -590,6 +590,53 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
 export type Notification = typeof notifications.$inferSelect;
 
 // ============================================================================
+// AI INTERACTION EVENTS (for ethics oversight)
+// ============================================================================
+
+export const aiInteractionEvents = pgTable("ai_interaction_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  type: varchar("type", { length: 50 }).notNull(), // careerbot, content_moderation, post_suggestion
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'set null' }),
+  metadata: text("metadata", { mode: 'json' }), // JSONB for efficient filtering
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("ai_events_type_created_idx").on(table.type, table.createdAt),
+  index("ai_events_user_idx").on(table.userId),
+]);
+
+export const insertAIInteractionEventSchema = createInsertSchema(aiInteractionEvents).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type AIInteractionEvent = typeof aiInteractionEvents.$inferSelect;
+export type InsertAIInteractionEvent = z.infer<typeof insertAIInteractionEventSchema>;
+
+// ============================================================================
+// MODERATION ACTIONS (for content moderation tracking)
+// ============================================================================
+
+export const moderationActions = pgTable("moderation_actions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contentId: varchar("content_id"), // ID of post/comment being moderated (flexible varchar for polymorphic reference)
+  contentType: varchar("content_type", { length: 20 }), // post, comment
+  moderatorType: varchar("moderator_type", { length: 20 }), // ai, human
+  outcome: varchar("outcome", { length: 20 }), // approved, flagged, removed
+  reason: text("reason"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => [
+  index("moderation_type_created_idx").on(table.moderatorType, table.createdAt),
+]);
+
+export const insertModerationActionSchema = createInsertSchema(moderationActions).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type ModerationAction = typeof moderationActions.$inferSelect;
+export type InsertModerationAction = z.infer<typeof insertModerationActionSchema>;
+
+// ============================================================================
 // ANNOUNCEMENTS (for university admins)
 // ============================================================================
 
