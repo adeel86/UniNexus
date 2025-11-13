@@ -463,6 +463,40 @@ export type DiscussionUpvote = typeof discussionUpvotes.$inferSelect;
 export type InsertDiscussionUpvote = z.infer<typeof insertDiscussionUpvoteSchema>;
 
 // ============================================================================
+// COURSE MILESTONES
+// ============================================================================
+
+export const courseMilestones = pgTable("course_milestones", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  courseId: varchar("course_id").notNull().references(() => courses.id, { onDelete: 'cascade' }),
+  studentId: varchar("student_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  milestoneType: varchar("milestone_type", { length: 100 }).notNull(), // first_discussion, five_helpful_answers, resolved_three_questions, active_contributor
+  achievedAt: timestamp("achieved_at").defaultNow(),
+  metadata: text("metadata"), // JSON string for additional data
+}, (table) => [
+  uniqueIndex("unique_student_course_milestone").on(table.studentId, table.courseId, table.milestoneType),
+]);
+
+export const courseMilestonesRelations = relations(courseMilestones, ({ one }) => ({
+  course: one(courses, {
+    fields: [courseMilestones.courseId],
+    references: [courses.id],
+  }),
+  student: one(users, {
+    fields: [courseMilestones.studentId],
+    references: [users.id],
+  }),
+}));
+
+export const insertCourseMilestoneSchema = createInsertSchema(courseMilestones).omit({
+  id: true,
+  achievedAt: true,
+});
+
+export type CourseMilestone = typeof courseMilestones.$inferSelect;
+export type InsertCourseMilestone = z.infer<typeof insertCourseMilestoneSchema>;
+
+// ============================================================================
 // CHALLENGES
 // ============================================================================
 
