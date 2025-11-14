@@ -32,6 +32,10 @@ import {
   postShares,
   conversations,
   messages,
+  postBoosts,
+  groups,
+  groupMembers,
+  groupPosts,
   insertPostSchema,
   insertCommentSchema,
   insertReactionSchema,
@@ -47,6 +51,10 @@ import {
   insertFollowerSchema,
   insertPostShareSchema,
   insertMessageSchema,
+  insertPostBoostSchema,
+  insertGroupSchema,
+  insertGroupMemberSchema,
+  insertGroupPostSchema,
 } from "@shared/schema";
 import OpenAI from "openai";
 import jwt from "jsonwebtoken";
@@ -3415,6 +3423,780 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         confidence: 0,
         error: "Moderation service unavailable"
       });
+    }
+  });
+
+  // ========================================================================
+  // POST BOOSTS API
+  // ========================================================================
+
+  // Boost a post
+  app.post("/api/posts/:postId/boost", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { postId } = req.params;
+
+      // Verify post exists
+      const [post] = await db
+        .select()
+        .from(posts)
+        .where(eq(posts.id, postId));
+
+      if (!post) {
+        return res.status(404).json({ error: "Post not found" });
+      }
+
+      // Check if already boosted
+      const existing = await db
+        .select()
+        .from(postBoosts)
+        .where(
+          and(
+            eq(postBoosts.postId, postId),
+            eq(postBoosts.userId, req.user!.id)
+          )
+        );
+
+      if (existing.length > 0) {
+        return res.status(400).json({ error: "Post already boosted" });
+      }
+
+      // Create boost
+      const [boost] = await db
+        .insert(postBoosts)
+        .values({
+          postId,
+          userId: req.user!.id,
+        })
+        .returning();
+
+      // Create notification for post author
+      if (post.authorId !== req.user!.id) {
+        await db.insert(notifications).values({
+          userId: post.authorId,
+          type: 'boost',
+          title: 'Post Boosted',
+          message: `${req.user!.firstName} ${req.user!.lastName} boosted your post`,
+          link: `/feed`,
+        });
+      }
+
+      // Update engagement score for boosting user
+      await db
+        .update(users)
+        .set({
+          engagementScore: sql`${users.engagementScore} + 3`,
+        })
+        .where(eq(users.id, req.user!.id));
+
+      res.json(boost);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Remove boost from a post
+  app.delete("/api/posts/:postId/boost", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { postId } = req.params;
+
+      await db
+        .delete(postBoosts)
+        .where(
+          and(
+            eq(postBoosts.postId, postId),
+            eq(postBoosts.userId, req.user!.id)
+          )
+        );
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get boosts for a post
+  app.get("/api/posts/:postId/boosts", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { postId } = req.params;
+
+      const results = await db
+        .select({
+          boost: postBoosts,
+          user: users,
+        })
+        .from(postBoosts)
+        .leftJoin(users, eq(postBoosts.userId, users.id))
+        .where(eq(postBoosts.postId, postId))
+        .orderBy(desc(postBoosts.createdAt));
+
+      res.json(results);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Check if user has boosted a post
+  app.get("/api/posts/:postId/boost/status", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { postId } = req.params;
+
+      const existing = await db
+        .select()
+        .from(postBoosts)
+        .where(
+          and(
+            eq(postBoosts.postId, postId),
+            eq(postBoosts.userId, req.user!.id)
+          )
+        );
+
+      res.json({ boosted: existing.length > 0 });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
+  // GROUPS/COMMUNITIES API
+  // ========================================================================
+
+  // Create a group
+  app.post("/api/groups", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const validatedData = insertGroupSchema.parse({
+        ...req.body,
+        creatorId: req.user!.id,
+      });
+
+      const [group] = await db
+        .insert(groups)
+        .values(validatedData)
+        .returning();
+
+      // Automatically add creator as admin member
+      await db.insert(groupMembers).values({
+        groupId: group.id,
+        userId: req.user!.id,
+        role: 'admin',
+      });
+
+      // Update member count
+      await db
+        .update(groups)
+        .set({ memberCount: 1 })
+        .where(eq(groups.id, group.id));
+
+      res.json(group);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get all groups (with optional filters)
+  app.get("/api/groups", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { type, category, university, search } = req.query;
+
+      let query = db
+        .select()
+        .from(groups);
+
+      const conditions = [];
+
+      if (type) {
+        conditions.push(eq(groups.groupType, type as string));
+      }
+      if (category) {
+        conditions.push(eq(groups.category, category as string));
+      }
+      if (university) {
+        conditions.push(eq(groups.university, university as string));
+      }
+      if (search) {
+        const searchPattern = `%${search}%`;
+        conditions.push(
+          or(
+            sql`${groups.name} ILIKE ${searchPattern}`,
+            sql`${groups.description} ILIKE ${searchPattern}`
+          )
+        );
+      }
+
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions)) as any;
+      }
+
+      const results = await query.orderBy(desc(groups.memberCount));
+
+      res.json(results);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get group by ID
+  app.get("/api/groups/:id", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { id } = req.params;
+
+      const [group] = await db
+        .select()
+        .from(groups)
+        .where(eq(groups.id, id));
+
+      if (!group) {
+        return res.status(404).json({ error: "Group not found" });
+      }
+
+      // Get member count and creator info
+      const memberCount = await db
+        .select({ count: sql`count(*)` })
+        .from(groupMembers)
+        .where(eq(groupMembers.groupId, id));
+
+      const [creator] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, group.creatorId));
+
+      // Check if current user is a member
+      const [membership] = await db
+        .select()
+        .from(groupMembers)
+        .where(
+          and(
+            eq(groupMembers.groupId, id),
+            eq(groupMembers.userId, req.user!.id)
+          )
+        );
+
+      res.json({
+        ...group,
+        creator,
+        memberCount: Number(memberCount[0]?.count || 0),
+        isMember: !!membership,
+        userRole: membership?.role || null,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Join a group
+  app.post("/api/groups/:id/join", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { id } = req.params;
+
+      // Check if group exists
+      const [group] = await db
+        .select()
+        .from(groups)
+        .where(eq(groups.id, id));
+
+      if (!group) {
+        return res.status(404).json({ error: "Group not found" });
+      }
+
+      // Check if already a member
+      const existing = await db
+        .select()
+        .from(groupMembers)
+        .where(
+          and(
+            eq(groupMembers.groupId, id),
+            eq(groupMembers.userId, req.user!.id)
+          )
+        );
+
+      if (existing.length > 0) {
+        return res.status(400).json({ error: "Already a member of this group" });
+      }
+
+      // Add member
+      const [membership] = await db
+        .insert(groupMembers)
+        .values({
+          groupId: id,
+          userId: req.user!.id,
+          role: 'member',
+        })
+        .returning();
+
+      // Update member count
+      await db
+        .update(groups)
+        .set({ memberCount: sql`${groups.memberCount} + 1` })
+        .where(eq(groups.id, id));
+
+      res.json(membership);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Leave a group
+  app.delete("/api/groups/:id/leave", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { id } = req.params;
+
+      // Check if member
+      const [membership] = await db
+        .select()
+        .from(groupMembers)
+        .where(
+          and(
+            eq(groupMembers.groupId, id),
+            eq(groupMembers.userId, req.user!.id)
+          )
+        );
+
+      if (!membership) {
+        return res.status(400).json({ error: "Not a member of this group" });
+      }
+
+      // Can't leave if you're the only admin
+      if (membership.role === 'admin') {
+        const adminCount = await db
+          .select({ count: sql`count(*)` })
+          .from(groupMembers)
+          .where(
+            and(
+              eq(groupMembers.groupId, id),
+              eq(groupMembers.role, 'admin')
+            )
+          );
+
+        if (Number(adminCount[0]?.count) === 1) {
+          return res.status(400).json({ error: "Cannot leave as the only admin. Assign another admin first." });
+        }
+      }
+
+      // Remove membership
+      await db
+        .delete(groupMembers)
+        .where(
+          and(
+            eq(groupMembers.groupId, id),
+            eq(groupMembers.userId, req.user!.id)
+          )
+        );
+
+      // Update member count
+      await db
+        .update(groups)
+        .set({ memberCount: sql`${groups.memberCount} - 1` })
+        .where(eq(groups.id, id));
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get group members
+  app.get("/api/groups/:id/members", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { id } = req.params;
+
+      const results = await db
+        .select({
+          membership: groupMembers,
+          user: users,
+        })
+        .from(groupMembers)
+        .leftJoin(users, eq(groupMembers.userId, users.id))
+        .where(eq(groupMembers.groupId, id))
+        .orderBy(desc(groupMembers.joinedAt));
+
+      res.json(results);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get user's groups
+  app.get("/api/users/groups", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const results = await db
+        .select({
+          membership: groupMembers,
+          group: groups,
+        })
+        .from(groupMembers)
+        .leftJoin(groups, eq(groupMembers.groupId, groups.id))
+        .where(eq(groupMembers.userId, req.user!.id))
+        .orderBy(desc(groupMembers.joinedAt));
+
+      res.json(results);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Post to a group
+  app.post("/api/groups/:id/posts", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { id } = req.params;
+
+      // Check if user is a member
+      const [membership] = await db
+        .select()
+        .from(groupMembers)
+        .where(
+          and(
+            eq(groupMembers.groupId, id),
+            eq(groupMembers.userId, req.user!.id)
+          )
+        );
+
+      if (!membership) {
+        return res.status(403).json({ error: "Must be a member to post in this group" });
+      }
+
+      const validatedData = insertGroupPostSchema.parse({
+        ...req.body,
+        groupId: id,
+        authorId: req.user!.id,
+      });
+
+      const [post] = await db
+        .insert(groupPosts)
+        .values(validatedData)
+        .returning();
+
+      res.json(post);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get posts from a group
+  app.get("/api/groups/:id/posts", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { id } = req.params;
+
+      // Check if user is a member or group is public
+      const [group] = await db
+        .select()
+        .from(groups)
+        .where(eq(groups.id, id));
+
+      if (!group) {
+        return res.status(404).json({ error: "Group not found" });
+      }
+
+      if (group.isPrivate) {
+        const [membership] = await db
+          .select()
+          .from(groupMembers)
+          .where(
+            and(
+              eq(groupMembers.groupId, id),
+              eq(groupMembers.userId, req.user!.id)
+            )
+          );
+
+        if (!membership) {
+          return res.status(403).json({ error: "Cannot view posts from private group" });
+        }
+      }
+
+      const results = await db
+        .select({
+          post: groupPosts,
+          author: users,
+        })
+        .from(groupPosts)
+        .leftJoin(users, eq(groupPosts.authorId, users.id))
+        .where(eq(groupPosts.groupId, id))
+        .orderBy(desc(groupPosts.createdAt))
+        .limit(50);
+
+      res.json(results);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
+  // AI TREND ENGINE & DISCOVERY API
+  // ========================================================================
+
+  // Get trending posts based on engagement
+  app.get("/api/trending/posts", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { limit = 20 } = req.query;
+
+      // Calculate trending score based on recent engagement
+      const trendingPosts = await db
+        .select({
+          post: posts,
+          author: users,
+          reactionCount: sql`COUNT(DISTINCT ${reactions.id})`.as('reaction_count'),
+          commentCount: sql`COUNT(DISTINCT ${comments.id})`.as('comment_count'),
+          boostCount: sql`COUNT(DISTINCT ${postBoosts.id})`.as('boost_count'),
+          trendScore: sql`
+            (COUNT(DISTINCT ${reactions.id}) * 1.0 + 
+             COUNT(DISTINCT ${comments.id}) * 2.0 + 
+             ${posts.shareCount} * 3.0 + 
+             COUNT(DISTINCT ${postBoosts.id}) * 4.0 +
+             ${posts.viewCount} * 0.1) / 
+            (EXTRACT(EPOCH FROM (NOW() - ${posts.createdAt})) / 3600 + 2)
+          `.as('trend_score'),
+        })
+        .from(posts)
+        .leftJoin(users, eq(posts.authorId, users.id))
+        .leftJoin(reactions, eq(posts.id, reactions.postId))
+        .leftJoin(comments, eq(posts.id, comments.postId))
+        .leftJoin(postBoosts, eq(posts.id, postBoosts.postId))
+        .where(sql`${posts.createdAt} > NOW() - INTERVAL '7 days'`)
+        .groupBy(posts.id, users.id)
+        .orderBy(sql`trend_score DESC`)
+        .limit(Number(limit));
+
+      res.json(trendingPosts);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get trending groups
+  app.get("/api/trending/groups", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { limit = 10 } = req.query;
+
+      // Get groups with recent growth in membership
+      const trendingGroups = await db
+        .select({
+          group: groups,
+          creator: users,
+          recentJoins: sql`
+            COUNT(DISTINCT CASE 
+              WHEN ${groupMembers.joinedAt} > NOW() - INTERVAL '7 days' 
+              THEN ${groupMembers.id} 
+            END)
+          `.as('recent_joins'),
+        })
+        .from(groups)
+        .leftJoin(users, eq(groups.creatorId, users.id))
+        .leftJoin(groupMembers, eq(groups.id, groupMembers.groupId))
+        .where(eq(groups.isPrivate, false))
+        .groupBy(groups.id, users.id)
+        .orderBy(sql`recent_joins DESC, ${groups.memberCount} DESC`)
+        .limit(Number(limit));
+
+      res.json(trendingGroups);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // AI-powered friend recommendations
+  app.get("/api/recommendations/friends", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const userId = req.user!.id;
+      const { limit = 10 } = req.query;
+
+      // Get user's interests and university
+      const [currentUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, userId));
+
+      if (!currentUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Get users already following
+      const following = await db
+        .select({ followingId: followers.followingId })
+        .from(followers)
+        .where(eq(followers.followerId, userId));
+
+      const followingIds = following.map(f => f.followingId);
+
+      // Find similar users based on interests, university, and engagement
+      const recommendations = await db
+        .select({
+          user: users,
+          commonInterests: sql`
+            ARRAY_LENGTH(
+              ARRAY(
+                SELECT UNNEST(${users.interests})
+                INTERSECT
+                SELECT UNNEST(${currentUser.interests}::text[])
+              ),
+              1
+            )
+          `.as('common_interests'),
+          sameUniversity: sql`${users.university} = ${currentUser.university}`.as('same_university'),
+          similarityScore: sql`
+            (COALESCE(ARRAY_LENGTH(
+              ARRAY(
+                SELECT UNNEST(${users.interests})
+                INTERSECT
+                SELECT UNNEST(${currentUser.interests}::text[])
+              ),
+              1
+            ), 0) * 10 +
+            CASE WHEN ${users.university} = ${currentUser.university} THEN 20 ELSE 0 END +
+            CASE WHEN ${users.role} = ${currentUser.role} THEN 10 ELSE 0 END +
+            ${users.engagementScore} * 0.1)
+          `.as('similarity_score'),
+        })
+        .from(users)
+        .where(
+          and(
+            sql`${users.id} != ${userId}`,
+            followingIds.length > 0
+              ? sql`${users.id} NOT IN (${followingIds.join(', ')})`
+              : sql`TRUE`
+          )
+        )
+        .orderBy(sql`similarity_score DESC`)
+        .limit(Number(limit));
+
+      res.json(recommendations);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Cross-university discovery
+  app.get("/api/discovery/universities", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      // Get trending students from other universities
+      const topStudents = await db
+        .select({
+          user: users,
+          postCount: sql`COUNT(DISTINCT ${posts.id})`.as('post_count'),
+          followerCount: sql`COUNT(DISTINCT ${followers.id})`.as('follower_count'),
+        })
+        .from(users)
+        .leftJoin(posts, eq(users.id, posts.authorId))
+        .leftJoin(followers, eq(users.id, followers.followingId))
+        .where(
+          and(
+            eq(users.role, 'student'),
+            sql`${users.university} != ${req.user!.university}`,
+            sql`${users.isVerified} = true`
+          )
+        )
+        .groupBy(users.id)
+        .orderBy(sql`(post_count * 2 + follower_count) DESC`)
+        .limit(20);
+
+      res.json(topStudents);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update user verification status (admin only)
+  app.patch("/api/users/:userId/verify", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    // Only master_admin and university_admin can verify users
+    if (req.user!.role !== 'master_admin' && req.user!.role !== 'university_admin') {
+      return res.status(403).json({ error: "Insufficient permissions" });
+    }
+
+    try {
+      const { userId } = req.params;
+      const { verified } = req.body;
+
+      await db
+        .update(users)
+        .set({
+          isVerified: verified,
+          verifiedAt: verified ? sql`NOW()` : null,
+        })
+        .where(eq(users.id, userId));
+
+      // Create notification for the user
+      if (verified) {
+        await db.insert(notifications).values({
+          userId,
+          type: 'verification',
+          title: 'Profile Verified',
+          message: 'Your profile has been verified!',
+          link: `/profile`,
+        });
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 
