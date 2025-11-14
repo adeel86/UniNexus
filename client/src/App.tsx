@@ -20,6 +20,8 @@ import GlobalChallengeMap from "@/pages/GlobalChallengeMap";
 import Profile from "@/pages/Profile";
 import CourseDetail from "@/pages/CourseDetail";
 import VerifyCertificate from "@/pages/VerifyCertificate";
+import Network from "@/pages/Network";
+import Messages from "@/pages/Messages";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -72,6 +74,8 @@ function Router() {
       <Navbar />
       <Switch>
         <Route path="/" component={HomePage} />
+        <Route path="/network" component={Network} />
+        <Route path="/messages" component={Messages} />
         <Route path="/leaderboard" component={Leaderboard} />
         <Route path="/challenges" component={Challenges} />
         <Route path="/challenges/map" component={GlobalChallengeMap} />

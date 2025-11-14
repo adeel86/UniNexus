@@ -85,9 +85,12 @@ export const posts = pgTable("posts", {
   authorId: varchar("author_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   content: text("content").notNull(),
   imageUrl: varchar("image_url"),
+  videoUrl: varchar("video_url"), // Support for video/Reels
+  mediaType: varchar("media_type", { length: 20 }).default('text'), // text, image, video, reel
   category: varchar("category"), // academic, social, project, achievement
   tags: text("tags").array(),
   viewCount: integer("view_count").notNull().default(0),
+  shareCount: integer("share_count").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -752,3 +755,153 @@ export const insertRecruiterFeedbackSchema = createInsertSchema(recruiterFeedbac
 
 export type RecruiterFeedback = typeof recruiterFeedback.$inferSelect;
 export type InsertRecruiterFeedback = z.infer<typeof insertRecruiterFeedbackSchema>;
+
+// ============================================================================
+// SOCIAL NETWORK: USER CONNECTIONS
+// ============================================================================
+
+export const userConnections = pgTable("user_connections", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  requesterId: varchar("requester_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  receiverId: varchar("receiver_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  status: varchar("status", { length: 20 }).notNull().default('pending'), // pending, accepted, rejected
+  createdAt: timestamp("created_at").defaultNow(),
+  respondedAt: timestamp("responded_at"),
+});
+
+export const userConnectionsRelations = relations(userConnections, ({ one }) => ({
+  requester: one(users, {
+    fields: [userConnections.requesterId],
+    references: [users.id],
+    relationName: "connection_requests_sent",
+  }),
+  receiver: one(users, {
+    fields: [userConnections.receiverId],
+    references: [users.id],
+    relationName: "connection_requests_received",
+  }),
+}));
+
+export const insertUserConnectionSchema = createInsertSchema(userConnections).omit({
+  id: true,
+  createdAt: true,
+  respondedAt: true,
+});
+
+export type UserConnection = typeof userConnections.$inferSelect;
+export type InsertUserConnection = z.infer<typeof insertUserConnectionSchema>;
+
+// ============================================================================
+// SOCIAL NETWORK: FOLLOWERS
+// ============================================================================
+
+export const followers = pgTable("followers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  followerId: varchar("follower_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  followingId: varchar("following_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const followersRelations = relations(followers, ({ one }) => ({
+  follower: one(users, {
+    fields: [followers.followerId],
+    references: [users.id],
+    relationName: "user_followers",
+  }),
+  following: one(users, {
+    fields: [followers.followingId],
+    references: [users.id],
+    relationName: "user_following",
+  }),
+}));
+
+export const insertFollowerSchema = createInsertSchema(followers).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type Follower = typeof followers.$inferSelect;
+export type InsertFollower = z.infer<typeof insertFollowerSchema>;
+
+// ============================================================================
+// SOCIAL NETWORK: POST SHARES
+// ============================================================================
+
+export const postShares = pgTable("post_shares", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  postId: varchar("post_id").notNull().references(() => posts.id, { onDelete: 'cascade' }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  comment: text("comment"), // Optional comment when sharing
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const postSharesRelations = relations(postShares, ({ one }) => ({
+  post: one(posts, {
+    fields: [postShares.postId],
+    references: [posts.id],
+  }),
+  user: one(users, {
+    fields: [postShares.userId],
+    references: [users.id],
+  }),
+}));
+
+export const insertPostShareSchema = createInsertSchema(postShares).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type PostShare = typeof postShares.$inferSelect;
+export type InsertPostShare = z.infer<typeof insertPostShareSchema>;
+
+// ============================================================================
+// SOCIAL NETWORK: CONVERSATIONS
+// ============================================================================
+
+export const conversations = pgTable("conversations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  participantIds: text("participant_ids").array().notNull(), // Array of user IDs in the conversation
+  isGroup: boolean("is_group").notNull().default(false),
+  groupName: varchar("group_name"),
+  lastMessageAt: timestamp("last_message_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export type Conversation = typeof conversations.$inferSelect;
+export type InsertConversation = typeof conversations.$inferInsert;
+
+// ============================================================================
+// SOCIAL NETWORK: MESSAGES
+// ============================================================================
+
+export const messages = pgTable("messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  conversationId: varchar("conversation_id").notNull().references(() => conversations.id, { onDelete: 'cascade' }),
+  senderId: varchar("sender_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  content: text("content").notNull(),
+  imageUrl: varchar("image_url"),
+  isRead: boolean("is_read").notNull().default(false),
+  readBy: text("read_by").array().default(sql`ARRAY[]::text[]`), // Array of user IDs who have read the message
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+  conversation: one(conversations, {
+    fields: [messages.conversationId],
+    references: [conversations.id],
+  }),
+  sender: one(users, {
+    fields: [messages.senderId],
+    references: [users.id],
+  }),
+}));
+
+export const insertMessageSchema = createInsertSchema(messages).omit({
+  id: true,
+  isRead: true,
+  readBy: true,
+  createdAt: true,
+});
+
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = z.infer<typeof insertMessageSchema>;

@@ -2,7 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "./UserAvatar";
-import { Bell, LogOut, Menu, Trophy, Target } from "lucide-react";
+import { Bell, LogOut, Menu, Trophy, Target, MessageCircle, Users } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,7 +28,13 @@ export function Navbar({ onMenuClick }: NavbarProps) {
     enabled: !!user,
   });
 
+  const { data: conversations = [] } = useQuery<any[]>({
+    queryKey: ["/api/conversations"],
+    enabled: !!user,
+  });
+
   const unreadCount = notifications.filter(n => !n.isRead).length;
+  const unreadMessages = conversations.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
 
   const roleDisplay = {
     student: "Student",
@@ -65,37 +71,75 @@ export function Navbar({ onMenuClick }: NavbarProps) {
             </a>
           </Link>
 
-          {/* Navigation Links for Students */}
-          {isStudent && (
-            <div className="hidden md:flex items-center gap-2">
-              <Link href="/leaderboard">
-                <a>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={`text-white hover:bg-white/20 gap-2 ${location === '/leaderboard' ? 'bg-white/20' : ''}`}
-                    data-testid="nav-link-leaderboard"
-                  >
-                    <Trophy className="h-4 w-4" />
-                    <span>Leaderboard</span>
-                  </Button>
-                </a>
-              </Link>
-              <Link href="/challenges">
-                <a>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className={`text-white hover:bg-white/20 gap-2 ${location === '/challenges' ? 'bg-white/20' : ''}`}
-                    data-testid="nav-link-challenges"
-                  >
-                    <Target className="h-4 w-4" />
-                    <span>Challenges</span>
-                  </Button>
-                </a>
-              </Link>
-            </div>
-          )}
+          {/* Navigation Links - Available to all roles */}
+          <div className="hidden md:flex items-center gap-2">
+            <Link href="/network">
+              <a>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`text-white hover:bg-white/20 gap-2 ${location === '/network' ? 'bg-white/20' : ''}`}
+                  data-testid="nav-link-network"
+                >
+                  <Users className="h-4 w-4" />
+                  <span>My Network</span>
+                </Button>
+              </a>
+            </Link>
+            <Link href="/messages">
+              <a>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`text-white hover:bg-white/20 gap-2 relative ${location === '/messages' ? 'bg-white/20' : ''}`}
+                  data-testid="nav-link-messages"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  <span>Messages</span>
+                  {unreadMessages > 0 && (
+                    <Badge
+                      className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-red-500 text-white text-xs"
+                      data-testid="badge-unread-messages"
+                    >
+                      {unreadMessages > 9 ? "9+" : unreadMessages}
+                    </Badge>
+                  )}
+                </Button>
+              </a>
+            </Link>
+            
+            {/* Student-specific links */}
+            {isStudent && (
+              <>
+                <Link href="/leaderboard">
+                  <a>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`text-white hover:bg-white/20 gap-2 ${location === '/leaderboard' ? 'bg-white/20' : ''}`}
+                      data-testid="nav-link-leaderboard"
+                    >
+                      <Trophy className="h-4 w-4" />
+                      <span>Leaderboard</span>
+                    </Button>
+                  </a>
+                </Link>
+                <Link href="/challenges">
+                  <a>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`text-white hover:bg-white/20 gap-2 ${location === '/challenges' ? 'bg-white/20' : ''}`}
+                      data-testid="nav-link-challenges"
+                    >
+                      <Target className="h-4 w-4" />
+                      <span>Challenges</span>
+                    </Button>
+                  </a>
+                </Link>
+              </>
+            )}
+          </div>
         </div>
 
         {/* Right: User Menu */}

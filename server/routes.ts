@@ -27,6 +27,11 @@ import {
   announcements,
   certifications,
   recruiterFeedback,
+  userConnections,
+  followers,
+  postShares,
+  conversations,
+  messages,
   insertPostSchema,
   insertCommentSchema,
   insertReactionSchema,
@@ -38,6 +43,10 @@ import {
   insertCourseMilestoneSchema,
   insertCertificationSchema,
   insertRecruiterFeedbackSchema,
+  insertUserConnectionSchema,
+  insertFollowerSchema,
+  insertPostShareSchema,
+  insertMessageSchema,
 } from "@shared/schema";
 import OpenAI from "openai";
 import jwt from "jsonwebtoken";
@@ -2583,6 +2592,829 @@ Make it personalized, constructive, and actionable. Use a professional but encou
       });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
+  // USER CONNECTIONS / NETWORK API
+  // ========================================================================
+
+  // Search for users (for network discovery)
+  app.get("/api/users/search", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { q } = req.query;
+      const searchTerm = q as string;
+
+      if (!searchTerm || searchTerm.length < 3) {
+        return res.json([]);
+      }
+
+      const searchPattern = `%${searchTerm}%`;
+      
+      const results = await db
+        .select()
+        .from(users)
+        .where(
+          and(
+            sql`${users.id} != ${req.user!.id}`, // Exclude current user
+            or(
+              sql`${users.firstName} ILIKE ${searchPattern}`,
+              sql`${users.lastName} ILIKE ${searchPattern}`,
+              sql`${users.email} ILIKE ${searchPattern}`,
+              sql`${users.major} ILIKE ${searchPattern}`,
+              sql`${users.company} ILIKE ${searchPattern}`,
+              sql`${users.university} ILIKE ${searchPattern}`
+            )
+          )
+        )
+        .limit(20);
+
+      res.json(results);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Send connection request
+  app.post("/api/connections/request", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { receiverId } = req.body;
+      
+      if (!receiverId) {
+        return res.status(400).json({ error: "Receiver ID is required" });
+      }
+
+      if (receiverId === req.user!.id) {
+        return res.status(400).json({ error: "Cannot connect with yourself" });
+      }
+
+      // Check if connection already exists
+      const existing = await db
+        .select()
+        .from(userConnections)
+        .where(
+          or(
+            and(
+              eq(userConnections.requesterId, req.user!.id),
+              eq(userConnections.receiverId, receiverId)
+            ),
+            and(
+              eq(userConnections.requesterId, receiverId),
+              eq(userConnections.receiverId, req.user!.id)
+            )
+          )
+        );
+
+      if (existing.length > 0) {
+        return res.status(400).json({ error: "Connection request already exists" });
+      }
+
+      // Create connection request
+      const [connection] = await db
+        .insert(userConnections)
+        .values({
+          requesterId: req.user!.id,
+          receiverId,
+          status: 'pending',
+        })
+        .returning();
+
+      // Create notification for receiver
+      await db.insert(notifications).values({
+        userId: receiverId,
+        type: 'connection',
+        title: 'New Connection Request',
+        message: `${req.user!.firstName} ${req.user!.lastName} wants to connect with you`,
+        link: '/network',
+      });
+
+      res.json(connection);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Accept/reject connection request
+  app.patch("/api/connections/:id", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { id } = req.params;
+      const { status } = req.body; // 'accepted' or 'rejected'
+
+      if (!['accepted', 'rejected'].includes(status)) {
+        return res.status(400).json({ error: "Invalid status" });
+      }
+
+      // Verify the user is the receiver of this request
+      const [connection] = await db
+        .select()
+        .from(userConnections)
+        .where(eq(userConnections.id, id));
+
+      if (!connection) {
+        return res.status(404).json({ error: "Connection request not found" });
+      }
+
+      if (connection.receiverId !== req.user!.id) {
+        return res.status(403).json({ error: "You can only respond to requests sent to you" });
+      }
+
+      // Update connection status
+      const [updated] = await db
+        .update(userConnections)
+        .set({ 
+          status,
+          respondedAt: new Date(),
+        })
+        .where(eq(userConnections.id, id))
+        .returning();
+
+      // Create notification for requester
+      if (status === 'accepted') {
+        await db.insert(notifications).values({
+          userId: connection.requesterId,
+          type: 'connection',
+          title: 'Connection Accepted',
+          message: `${req.user!.firstName} ${req.user!.lastName} accepted your connection request`,
+          link: '/network',
+        });
+      }
+
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get user's connections
+  app.get("/api/connections", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { status } = req.query;
+      const userId = req.user!.id;
+
+      let query = db
+        .select({
+          connection: userConnections,
+          user: users,
+        })
+        .from(userConnections)
+        .leftJoin(
+          users,
+          or(
+            eq(userConnections.requesterId, users.id),
+            eq(userConnections.receiverId, users.id)
+          )
+        )
+        .where(
+          and(
+            or(
+              eq(userConnections.requesterId, userId),
+              eq(userConnections.receiverId, userId)
+            ),
+            status ? eq(userConnections.status, status as string) : undefined
+          )
+        );
+
+      const results = await query;
+
+      // Filter to show only the other user in the connection
+      const connections = results
+        .map(r => ({
+          ...r.connection,
+          user: r.user!.id === userId ? null : r.user,
+        }))
+        .filter(c => c.user !== null);
+
+      res.json(connections);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get connection status with a specific user
+  app.get("/api/connections/status/:userId", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { userId } = req.params;
+      const currentUserId = req.user!.id;
+
+      const [connection] = await db
+        .select()
+        .from(userConnections)
+        .where(
+          or(
+            and(
+              eq(userConnections.requesterId, currentUserId),
+              eq(userConnections.receiverId, userId)
+            ),
+            and(
+              eq(userConnections.requesterId, userId),
+              eq(userConnections.receiverId, currentUserId)
+            )
+          )
+        );
+
+      res.json({
+        connected: connection?.status === 'accepted',
+        pending: connection?.status === 'pending',
+        isRequester: connection?.requesterId === currentUserId,
+        connectionId: connection?.id,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
+  // FOLLOWERS API
+  // ========================================================================
+
+  // Follow a user
+  app.post("/api/follow", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { followingId } = req.body;
+
+      if (!followingId) {
+        return res.status(400).json({ error: "Following user ID is required" });
+      }
+
+      if (followingId === req.user!.id) {
+        return res.status(400).json({ error: "Cannot follow yourself" });
+      }
+
+      // Check if already following
+      const existing = await db
+        .select()
+        .from(followers)
+        .where(
+          and(
+            eq(followers.followerId, req.user!.id),
+            eq(followers.followingId, followingId)
+          )
+        );
+
+      if (existing.length > 0) {
+        return res.status(400).json({ error: "Already following this user" });
+      }
+
+      // Create follow relationship
+      const [follow] = await db
+        .insert(followers)
+        .values({
+          followerId: req.user!.id,
+          followingId,
+        })
+        .returning();
+
+      // Create notification
+      await db.insert(notifications).values({
+        userId: followingId,
+        type: 'follow',
+        title: 'New Follower',
+        message: `${req.user!.firstName} ${req.user!.lastName} started following you`,
+        link: `/profile?userId=${req.user!.id}`,
+      });
+
+      res.json(follow);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Unfollow a user
+  app.delete("/api/follow/:userId", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { userId } = req.params;
+
+      await db
+        .delete(followers)
+        .where(
+          and(
+            eq(followers.followerId, req.user!.id),
+            eq(followers.followingId, userId)
+          )
+        );
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get followers for a user
+  app.get("/api/followers/:userId", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { userId } = req.params;
+
+      const results = await db
+        .select({
+          follower: followers,
+          user: users,
+        })
+        .from(followers)
+        .leftJoin(users, eq(followers.followerId, users.id))
+        .where(eq(followers.followingId, userId))
+        .orderBy(desc(followers.createdAt));
+
+      res.json(results);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get following for a user
+  app.get("/api/following/:userId", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { userId } = req.params;
+
+      const results = await db
+        .select({
+          follower: followers,
+          user: users,
+        })
+        .from(followers)
+        .leftJoin(users, eq(followers.followingId, users.id))
+        .where(eq(followers.followerId, userId))
+        .orderBy(desc(followers.createdAt));
+
+      res.json(results);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Check if following a user
+  app.get("/api/follow/status/:userId", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { userId } = req.params;
+
+      const [follow] = await db
+        .select()
+        .from(followers)
+        .where(
+          and(
+            eq(followers.followerId, req.user!.id),
+            eq(followers.followingId, userId)
+          )
+        );
+
+      res.json({ isFollowing: !!follow });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
+  // POST SHARES API
+  // ========================================================================
+
+  // Share a post
+  app.post("/api/posts/:postId/share", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { postId } = req.params;
+      const { comment } = req.body;
+
+      // Verify post exists
+      const [post] = await db
+        .select()
+        .from(posts)
+        .where(eq(posts.id, postId));
+
+      if (!post) {
+        return res.status(404).json({ error: "Post not found" });
+      }
+
+      // Create share record
+      const [share] = await db
+        .insert(postShares)
+        .values({
+          postId,
+          userId: req.user!.id,
+          comment: comment || null,
+        })
+        .returning();
+
+      // Update share count
+      await db
+        .update(posts)
+        .set({ shareCount: sql`${posts.shareCount} + 1` })
+        .where(eq(posts.id, postId));
+
+      // Create notification for post author
+      if (post.authorId !== req.user!.id) {
+        await db.insert(notifications).values({
+          userId: post.authorId,
+          type: 'share',
+          title: 'Post Shared',
+          message: `${req.user!.firstName} ${req.user!.lastName} shared your post`,
+          link: `/feed`,
+        });
+      }
+
+      // Update engagement score
+      await db
+        .update(users)
+        .set({
+          engagementScore: sql`${users.engagementScore} + 5`,
+        })
+        .where(eq(users.id, req.user!.id));
+
+      res.json(share);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get shares for a post
+  app.get("/api/posts/:postId/shares", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { postId } = req.params;
+
+      const results = await db
+        .select({
+          share: postShares,
+          user: users,
+        })
+        .from(postShares)
+        .leftJoin(users, eq(postShares.userId, users.id))
+        .where(eq(postShares.postId, postId))
+        .orderBy(desc(postShares.createdAt));
+
+      res.json(results);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
+  // MESSAGING / CONVERSATIONS API
+  // ========================================================================
+
+  // Create or get existing conversation
+  app.post("/api/conversations", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { participantIds, isGroup, groupName } = req.body;
+
+      if (!participantIds || participantIds.length === 0) {
+        return res.status(400).json({ error: "Participant IDs are required" });
+      }
+
+      // Add current user to participants if not included
+      const allParticipants = Array.from(new Set([req.user!.id, ...participantIds]));
+
+      // For non-group chats, check if conversation already exists
+      if (!isGroup && allParticipants.length === 2) {
+        const existingConvos = await db
+          .select()
+          .from(conversations)
+          .where(eq(conversations.isGroup, false));
+
+        const existing = existingConvos.find(c => {
+          const pIds = c.participantIds || [];
+          return pIds.length === 2 && 
+                 pIds.includes(allParticipants[0]) && 
+                 pIds.includes(allParticipants[1]);
+        });
+
+        if (existing) {
+          return res.json(existing);
+        }
+      }
+
+      // Create new conversation
+      const [conversation] = await db
+        .insert(conversations)
+        .values({
+          participantIds: allParticipants,
+          isGroup: isGroup || false,
+          groupName: groupName || null,
+        })
+        .returning();
+
+      res.json(conversation);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get user's conversations
+  app.get("/api/conversations", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const userId = req.user!.id;
+
+      const allConversations = await db
+        .select()
+        .from(conversations)
+        .orderBy(desc(conversations.lastMessageAt));
+
+      // Filter conversations where user is a participant
+      const userConversations = allConversations.filter(c => 
+        (c.participantIds || []).includes(userId)
+      );
+
+      // Get participant details and last message for each conversation
+      const enrichedConversations = await Promise.all(
+        userConversations.map(async (conversation) => {
+          // Get participants
+          const participants = await db
+            .select()
+            .from(users)
+            .where(
+              sql`${users.id} = ANY(${conversation.participantIds})`
+            );
+
+          // Get last message
+          const [lastMessage] = await db
+            .select()
+            .from(messages)
+            .where(eq(messages.conversationId, conversation.id))
+            .orderBy(desc(messages.createdAt))
+            .limit(1);
+
+          // Get unread count for current user
+          const unreadMessages = await db
+            .select()
+            .from(messages)
+            .where(
+              and(
+                eq(messages.conversationId, conversation.id),
+                sql`NOT (${userId} = ANY(${messages.readBy}))`
+              )
+            );
+
+          return {
+            ...conversation,
+            participants,
+            lastMessage,
+            unreadCount: unreadMessages.length,
+          };
+        })
+      );
+
+      res.json(enrichedConversations);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get messages in a conversation
+  app.get("/api/conversations/:id/messages", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { id } = req.params;
+      const userId = req.user!.id;
+
+      // Verify user is participant
+      const [conversation] = await db
+        .select()
+        .from(conversations)
+        .where(eq(conversations.id, id));
+
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+
+      if (!(conversation.participantIds || []).includes(userId)) {
+        return res.status(403).json({ error: "Not a participant in this conversation" });
+      }
+
+      // Get messages with sender info
+      const messagesList = await db
+        .select({
+          message: messages,
+          sender: users,
+        })
+        .from(messages)
+        .leftJoin(users, eq(messages.senderId, users.id))
+        .where(eq(messages.conversationId, id))
+        .orderBy(messages.createdAt);
+
+      res.json(messagesList);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Send a message
+  app.post("/api/conversations/:id/messages", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { id } = req.params;
+      const { content, imageUrl } = req.body;
+      const userId = req.user!.id;
+
+      if (!content && !imageUrl) {
+        return res.status(400).json({ error: "Message content or image is required" });
+      }
+
+      // Verify user is participant
+      const [conversation] = await db
+        .select()
+        .from(conversations)
+        .where(eq(conversations.id, id));
+
+      if (!conversation) {
+        return res.status(404).json({ error: "Conversation not found" });
+      }
+
+      if (!(conversation.participantIds || []).includes(userId)) {
+        return res.status(403).json({ error: "Not a participant in this conversation" });
+      }
+
+      // Create message
+      const [message] = await db
+        .insert(messages)
+        .values({
+          conversationId: id,
+          senderId: userId,
+          content: content || '',
+          imageUrl: imageUrl || null,
+          readBy: [userId], // Sender has read their own message
+        })
+        .returning();
+
+      // Update conversation last message time
+      await db
+        .update(conversations)
+        .set({ lastMessageAt: new Date() })
+        .where(eq(conversations.id, id));
+
+      // Create notifications for other participants
+      const otherParticipants = (conversation.participantIds || []).filter(pId => pId !== userId);
+      
+      for (const participantId of otherParticipants) {
+        await db.insert(notifications).values({
+          userId: participantId,
+          type: 'message',
+          title: 'New Message',
+          message: `${req.user!.firstName} ${req.user!.lastName} sent you a message`,
+          link: `/messages?conversation=${id}`,
+        });
+      }
+
+      res.json(message);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Mark messages as read
+  app.patch("/api/conversations/:id/read", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { id } = req.params;
+      const userId = req.user!.id;
+
+      // Get all unread messages in conversation
+      const unreadMessages = await db
+        .select()
+        .from(messages)
+        .where(
+          and(
+            eq(messages.conversationId, id),
+            sql`NOT (${userId} = ANY(${messages.readBy}))`
+          )
+        );
+
+      // Mark each as read by adding userId to readBy array
+      for (const message of unreadMessages) {
+        await db
+          .update(messages)
+          .set({
+            readBy: sql`array_append(${messages.readBy}, ${userId})`,
+          })
+          .where(eq(messages.id, message.id));
+      }
+
+      res.json({ success: true, markedRead: unreadMessages.length });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
+  // AI IMAGE MODERATION API
+  // ========================================================================
+
+  app.post("/api/ai/moderate-image", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      if (!openai) {
+        return res.status(503).json({ 
+          error: "AI moderation is not available",
+          approved: true // Fail open if OpenAI not configured
+        });
+      }
+
+      const { imageUrl } = req.body;
+
+      if (!imageUrl) {
+        return res.status(400).json({ error: "Image URL is required" });
+      }
+
+      // Use GPT-4 Vision to analyze the image
+      const response = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "system",
+            content: "You are a content moderator for a university social platform. Analyze images for inappropriate content including: violence, hate speech symbols, explicit content, illegal activities, or harmful behavior. Respond with ONLY 'APPROVED' or 'REJECTED: [brief reason]'."
+          },
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "Analyze this image for inappropriate content:" },
+              { type: "image_url", image_url: { url: imageUrl } }
+            ]
+          }
+        ],
+        max_tokens: 100,
+      });
+
+      const result = response.choices[0]?.message?.content || "APPROVED";
+      const approved = result.toUpperCase().startsWith("APPROVED");
+      const reason = approved ? null : result.replace(/^REJECTED:\s*/i, '');
+
+      res.json({
+        approved,
+        reason,
+        confidence: approved ? 1.0 : 0.9
+      });
+    } catch (error: any) {
+      console.error("Image moderation error:", error);
+      // Fail open - approve if moderation fails
+      res.json({
+        approved: true,
+        reason: null,
+        confidence: 0,
+        error: "Moderation service unavailable"
+      });
     }
   });
 
