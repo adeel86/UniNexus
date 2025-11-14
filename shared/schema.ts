@@ -597,7 +597,7 @@ export const aiInteractionEvents = pgTable("ai_interaction_events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   type: varchar("type", { length: 50 }).notNull(), // careerbot, content_moderation, post_suggestion
   userId: varchar("user_id").references(() => users.id, { onDelete: 'set null' }),
-  metadata: text("metadata", { mode: 'json' }), // JSONB for efficient filtering
+  metadata: jsonb("metadata"), // JSONB for efficient filtering
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => [
   index("ai_events_type_created_idx").on(table.type, table.createdAt),

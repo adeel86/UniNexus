@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { eq, desc, sql, and, or, like } from "drizzle-orm";
+import { createHash } from "crypto";
 import { db } from "./db";
 import { storage } from "./storage";
 import { setupAuth, verifyToken, isAuthenticated, type AuthRequest } from "./firebaseAuth";
@@ -2062,14 +2063,17 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
       if (challenge) {
         // Automatically issue participation certificate
-        const certificateId = `cert-${req.user!.id}-${challengeId}-${Date.now()}`;
+        const verificationHash = createHash('sha256')
+          .update(`${req.user!.id}-${challengeId}-${Date.now()}`)
+          .digest('hex');
+        
         await db.insert(certifications).values({
-          id: certificateId,
           userId: req.user!.id,
           title: `${challenge.title} - Participation`,
           description: `Successfully participated and submitted a solution for the ${challenge.title} challenge`,
-          issuedBy: challenge.organizerId,
-          issuedDate: new Date(),
+          issuerName: 'UniNexus Platform',
+          issuerId: challenge.organizerId || null,
+          verificationHash,
           type: 'challenge',
           metadata: {
             challengeId: challenge.id,
@@ -2178,15 +2182,17 @@ Make it personalized, constructive, and actionable. Use a professional but encou
       // Issue winner certificate for top 3 finishers
       if (rank <= 3) {
         const rankLabels = ['1st Place', '2nd Place', '3rd Place'];
-        const certificateId = `cert-${participant.userId}-${challenge.id}-winner-${Date.now()}`;
+        const verificationHash = createHash('sha256')
+          .update(`${participant.userId}-${challenge.id}-winner-${Date.now()}`)
+          .digest('hex');
         
         await db.insert(certifications).values({
-          id: certificateId,
           userId: participant.userId,
           title: `${challenge.title} - ${rankLabels[rank - 1]}`,
           description: `Achieved ${rankLabels[rank - 1]} in the ${challenge.title} challenge, demonstrating exceptional skills and problem-solving abilities`,
-          issuedBy: challenge.organizerId,
-          issuedDate: new Date(),
+          issuerName: 'UniNexus Platform',
+          issuerId: challenge.organizerId || null,
+          verificationHash,
           type: 'challenge',
           metadata: {
             challengeId: challenge.id,
