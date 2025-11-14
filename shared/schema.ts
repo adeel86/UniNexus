@@ -48,6 +48,8 @@ export const users = pgTable("users", {
   company: varchar("company"), // for industry professionals
   position: varchar("position"), // for industry professionals
   interests: text("interests").array().default(sql`ARRAY[]::text[]`),
+  isVerified: boolean("is_verified").notNull().default(false), // Verified student profile
+  verifiedAt: timestamp("verified_at"),
   engagementScore: integer("engagement_score").notNull().default(0),
   problemSolverScore: integer("problem_solver_score").notNull().default(0),
   endorsementScore: integer("endorsement_score").notNull().default(0),
@@ -71,6 +73,12 @@ export const usersRelations = relations(users, ({ many }) => ({
   challengeParticipations: many(challengeParticipants),
   notifications: many(notifications),
   certifications: many(certifications),
+  followers: many(followers, { relationName: "user_followers" }),
+  following: many(followers, { relationName: "user_following" }),
+  postShares: many(postShares),
+  postBoosts: many(postBoosts),
+  messagesSent: many(messages),
+  groupMemberships: many(groupMembers),
 }));
 
 export type User = typeof users.$inferSelect;
@@ -102,6 +110,8 @@ export const postsRelations = relations(posts, ({ one, many }) => ({
   }),
   comments: many(comments),
   reactions: many(reactions),
+  shares: many(postShares),
+  boosts: many(postBoosts),
 }));
 
 export const insertPostSchema = createInsertSchema(posts).omit({
@@ -905,3 +915,146 @@ export const insertMessageSchema = createInsertSchema(messages).omit({
 
 export type Message = typeof messages.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;
+
+// ============================================================================
+// SOCIAL NETWORK: POST BOOSTS
+// ============================================================================
+
+export const postBoosts = pgTable("post_boosts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  postId: varchar("post_id").notNull().references(() => posts.id, { onDelete: 'cascade' }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("unique_boost_user_post").on(table.userId, table.postId),
+]);
+
+export const postBoostsRelations = relations(postBoosts, ({ one }) => ({
+  post: one(posts, {
+    fields: [postBoosts.postId],
+    references: [posts.id],
+  }),
+  user: one(users, {
+    fields: [postBoosts.userId],
+    references: [users.id],
+  }),
+}));
+
+export const insertPostBoostSchema = createInsertSchema(postBoosts).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type PostBoost = typeof postBoosts.$inferSelect;
+export type InsertPostBoost = z.infer<typeof insertPostBoostSchema>;
+
+// ============================================================================
+// SOCIAL NETWORK: GROUPS/COMMUNITIES
+// ============================================================================
+
+export const groups = pgTable("groups", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 200 }).notNull(),
+  description: text("description"),
+  groupType: varchar("group_type", { length: 50 }).notNull(), // subject, skill, university, hobby, study_group
+  category: varchar("category"), // Tech, Business, Arts, Science, etc.
+  university: varchar("university"), // Associated university if applicable
+  coverImageUrl: varchar("cover_image_url"),
+  isPrivate: boolean("is_private").notNull().default(false),
+  memberCount: integer("member_count").notNull().default(0),
+  creatorId: varchar("creator_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const groupsRelations = relations(groups, ({ one, many }) => ({
+  creator: one(users, {
+    fields: [groups.creatorId],
+    references: [users.id],
+  }),
+  members: many(groupMembers),
+  posts: many(groupPosts),
+}));
+
+export const insertGroupSchema = createInsertSchema(groups).omit({
+  id: true,
+  memberCount: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type Group = typeof groups.$inferSelect;
+export type InsertGroup = z.infer<typeof insertGroupSchema>;
+
+// ============================================================================
+// SOCIAL NETWORK: GROUP MEMBERS
+// ============================================================================
+
+export const groupMembers = pgTable("group_members", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  groupId: varchar("group_id").notNull().references(() => groups.id, { onDelete: 'cascade' }),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  role: varchar("role", { length: 20 }).notNull().default('member'), // admin, moderator, member
+  joinedAt: timestamp("joined_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("unique_group_user").on(table.groupId, table.userId),
+]);
+
+export const groupMembersRelations = relations(groupMembers, ({ one }) => ({
+  group: one(groups, {
+    fields: [groupMembers.groupId],
+    references: [groups.id],
+  }),
+  user: one(users, {
+    fields: [groupMembers.userId],
+    references: [users.id],
+  }),
+}));
+
+export const insertGroupMemberSchema = createInsertSchema(groupMembers).omit({
+  id: true,
+  joinedAt: true,
+});
+
+export type GroupMember = typeof groupMembers.$inferSelect;
+export type InsertGroupMember = z.infer<typeof insertGroupMemberSchema>;
+
+// ============================================================================
+// SOCIAL NETWORK: GROUP POSTS
+// ============================================================================
+
+export const groupPosts = pgTable("group_posts", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  groupId: varchar("group_id").notNull().references(() => groups.id, { onDelete: 'cascade' }),
+  authorId: varchar("author_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  content: text("content").notNull(),
+  imageUrl: varchar("image_url"),
+  videoUrl: varchar("video_url"),
+  mediaType: varchar("media_type", { length: 20 }).default('text'),
+  likeCount: integer("like_count").notNull().default(0),
+  commentCount: integer("comment_count").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const groupPostsRelations = relations(groupPosts, ({ one }) => ({
+  group: one(groups, {
+    fields: [groupPosts.groupId],
+    references: [groups.id],
+  }),
+  author: one(users, {
+    fields: [groupPosts.authorId],
+    references: [users.id],
+  }),
+}));
+
+export const insertGroupPostSchema = createInsertSchema(groupPosts).omit({
+  id: true,
+  likeCount: true,
+  commentCount: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type GroupPost = typeof groupPosts.$inferSelect;
+export type InsertGroupPost = z.infer<typeof insertGroupPostSchema>;
