@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "./UserAvatar";
-import { Heart, MessageCircle, Share2, ThumbsUp, Lightbulb, Handshake } from "lucide-react";
+import { Heart, MessageCircle, Share2, ThumbsUp, Lightbulb, Handshake, BadgeCheck } from "lucide-react";
 import type { Post, User, Comment, Reaction } from "@shared/schema";
 import { useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
+import { VideoPlayer } from "@/components/VideoPlayer";
 
 type PostWithAuthor = Post & {
   author: User;
@@ -30,7 +31,7 @@ const reactionTypes = [
 ];
 
 export function PostCard({ post }: PostCardProps) {
-  const { user } = useAuth();
+  const auth = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showComments, setShowComments] = useState(false);
@@ -60,8 +61,10 @@ export function PostCard({ post }: PostCardProps) {
   });
 
   const handleReaction = (type: string) => {
+    if (!auth.userData) return;
+    
     const existingReaction = post.reactions.find(
-      (r) => r.userId === user?.id && r.type === type
+      (r) => r.userId === auth.userData?.id && r.type === type
     );
     
     if (!existingReaction) {
@@ -74,7 +77,7 @@ export function PostCard({ post }: PostCardProps) {
   };
 
   const hasUserReacted = (type: string) => {
-    return post.reactions.some((r) => r.userId === user?.id && r.type === type);
+    return post.reactions.some((r) => r.userId === auth.userData?.id && r.type === type);
   };
 
   return (
@@ -87,6 +90,9 @@ export function PostCard({ post }: PostCardProps) {
             <span className="font-semibold">
               {post.author.firstName} {post.author.lastName}
             </span>
+            {post.author.isVerified && (
+              <BadgeCheck className="h-4 w-4 text-primary" data-testid="icon-verified" />
+            )}
             {post.author.role === 'student' && post.author.major && (
               <Badge variant="secondary" className="text-xs">
                 {post.author.major}
@@ -108,13 +114,43 @@ export function PostCard({ post }: PostCardProps) {
       {/* Post Content */}
       <div className="mb-4">
         <p className="text-base leading-relaxed whitespace-pre-wrap">{post.content}</p>
+        
+        {/* Legacy single image support */}
         {post.imageUrl && (
           <img
             src={post.imageUrl}
             alt="Post image"
             className="mt-4 rounded-lg w-full object-cover max-h-96"
+            data-testid="post-image"
           />
         )}
+
+        {/* Multiple images from mediaUrls */}
+        {post.mediaUrls && post.mediaUrls.length > 0 && (
+          <div className={`mt-4 grid gap-2 ${post.mediaUrls.length === 1 ? 'grid-cols-1' : post.mediaUrls.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
+            {post.mediaUrls.map((url, index) => (
+              <img
+                key={index}
+                src={url}
+                alt={`Post image ${index + 1}`}
+                className="rounded-lg w-full object-cover h-64"
+                data-testid={`post-image-${index}`}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Video player */}
+        {post.videoUrl && (
+          <div className="mt-4">
+            <VideoPlayer
+              src={post.videoUrl}
+              isReel={post.category === 'reel'}
+              data-testid="post-video"
+            />
+          </div>
+        )}
+
         {post.tags && post.tags.length > 0 && (
           <div className="flex gap-2 mt-3 flex-wrap">
             {post.tags.map((tag) => (
@@ -160,11 +196,11 @@ export function PostCard({ post }: PostCardProps) {
       </div>
 
       {/* Comments Section */}
-      {showComments && (
+      {showComments && auth.userData && (
         <div className="border-t pt-4 space-y-4">
           {/* Add Comment */}
           <div className="flex gap-3">
-            <UserAvatar user={user!} size="sm" />
+            <UserAvatar user={auth.userData} size="sm" />
             <div className="flex-1">
               <Textarea
                 placeholder="Write a comment..."
@@ -190,10 +226,12 @@ export function PostCard({ post }: PostCardProps) {
             <div className="space-y-3">
               {post.comments.map((comment) => (
                 <div key={comment.id} className="flex gap-3" data-testid={`comment-${comment.id}`}>
-                  <UserAvatar user={comment.author} size="sm" />
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-sm font-semibold">
+                    ?
+                  </div>
                   <div className="flex-1 bg-muted rounded-lg p-3">
                     <div className="font-medium text-sm mb-1">
-                      {comment.author.firstName} {comment.author.lastName}
+                      User
                     </div>
                     <p className="text-sm">{comment.content}</p>
                     <div className="text-xs text-muted-foreground mt-1">

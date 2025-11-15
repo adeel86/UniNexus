@@ -2,7 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "./UserAvatar";
-import { Bell, LogOut, Menu, Trophy, Target, MessageCircle, Users } from "lucide-react";
+import { Bell, LogOut, Menu, Trophy, Target, MessageCircle, Users, UsersRound } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -104,6 +104,19 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                       {unreadMessages > 9 ? "9+" : unreadMessages}
                     </Badge>
                   )}
+                </Button>
+              </a>
+            </Link>
+            <Link href="/groups">
+              <a>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`text-white hover:bg-white/20 gap-2 ${location === '/groups' ? 'bg-white/20' : ''}`}
+                  data-testid="nav-link-groups"
+                >
+                  <UsersRound className="h-4 w-4" />
+                  <span>Groups</span>
                 </Button>
               </a>
             </Link>

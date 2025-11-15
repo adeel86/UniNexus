@@ -9,3 +9,4 @@ vite.config.ts.*
 secrets/
 .local/
 attached_assets/
+uploads/

@@ -4,6 +4,7 @@ import type { Post, User, Comment, Reaction, UserBadge, Badge, Challenge } from 
 import { PostCard } from "@/components/PostCard";
 import { CreatePostModal } from "@/components/CreatePostModal";
 import { SuggestedPosts } from "@/components/SuggestedPosts";
+import { TrendingWidget } from "@/components/TrendingWidget";
 import { RankTierBadge } from "@/components/RankTierBadge";
 import { ChallengeMilestonesCard } from "@/components/ChallengeMilestonesCard";
 import { Card } from "@/components/ui/card";
@@ -26,25 +27,44 @@ export default function StudentHome() {
   const { userData: user } = useAuth();
   const [createPostOpen, setCreatePostOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [interestFilter, setInterestFilter] = useState(false);
+  const [feedType, setFeedType] = useState<'personalized' | 'following'>('personalized');
   const [postInitialValues, setPostInitialValues] = useState<{ content: string; category: string; tags: string }>({ 
     content: "", 
     category: "social", 
     tags: "" 
   });
 
-  const { data: posts = [], isLoading } = useQuery<PostWithAuthor[]>({
-    queryKey: ["/api/posts", selectedCategory, interestFilter ? 'interests' : 'all', user?.id],
+  // Personalized AI-curated feed
+  const { data: personalizedPosts = [], isLoading: isLoadingPersonalized } = useQuery<PostWithAuthor[]>({
+    queryKey: ["/api/feed/personalized", selectedCategory],
     queryFn: async () => {
-      const params = new URLSearchParams({
-        category: selectedCategory,
-        ...(interestFilter && user?.id ? { filterByInterests: 'true', userId: user.id } : {})
+      const params = new URLSearchParams({ 
+        limit: '20',
+        ...(selectedCategory && selectedCategory !== 'all' ? { category: selectedCategory } : {})
       });
-      const response = await fetch(`/api/posts?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch posts');
+      const response = await fetch(`/api/feed/personalized?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch personalized feed');
       return response.json();
     },
+    enabled: feedType === 'personalized',
   });
+
+  // Following feed (chronological from followed users only)
+  const { data: followingPosts = [], isLoading: isLoadingFollowing } = useQuery<PostWithAuthor[]>({
+    queryKey: ["/api/feed/following", selectedCategory],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        ...(selectedCategory && selectedCategory !== 'all' ? { category: selectedCategory } : {})
+      });
+      const response = await fetch(`/api/feed/following?${params}`);
+      if (!response.ok) throw new Error('Failed to fetch following feed');
+      return response.json();
+    },
+    enabled: feedType === 'following',
+  });
+
+  const posts = feedType === 'personalized' ? personalizedPosts : followingPosts;
+  const isLoading = feedType === 'personalized' ? isLoadingPersonalized : isLoadingFollowing;
 
   const { data: userBadges = [] } = useQuery<(UserBadge & { badge: Badge })[]>({
     queryKey: ["/api/user-badges", user?.id],
@@ -104,6 +124,20 @@ export default function StudentHome() {
             </div>
           </Card>
 
+          {/* Feed Type Tabs */}
+          <Tabs value={feedType} onValueChange={(v) => setFeedType(v as 'personalized' | 'following')} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="personalized" className="gap-2" data-testid="tab-for-you">
+                <Sparkles className="h-4 w-4" />
+                For You
+              </TabsTrigger>
+              <TabsTrigger value="following" className="gap-2" data-testid="tab-following">
+                <Users className="h-4 w-4" />
+                Following
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+
           {/* Category Filter */}
           <div className="flex gap-2 flex-wrap items-center">
             {categories.map((cat) => {
@@ -122,18 +156,6 @@ export default function StudentHome() {
                 </Button>
               );
             })}
-            {user?.interests && user.interests.length > 0 && (
-              <Button
-                variant={interestFilter ? "default" : "outline"}
-                size="sm"
-                onClick={() => setInterestFilter(!interestFilter)}
-                className="gap-2 ml-auto"
-                data-testid="filter-interests"
-              >
-                <Sparkles className="h-4 w-4" />
-                {interestFilter ? "Showing My Interests" : "Filter by Interests"}
-              </Button>
-            )}
           </div>
 
           {/* Create Post Button */}
@@ -194,6 +216,9 @@ export default function StudentHome() {
               </Link>
             </div>
           </Card>
+
+          {/* Trending Posts */}
+          <TrendingWidget />
 
           {/* Challenge Journey */}
           {user?.id && <ChallengeMilestonesCard userId={user.id} />}

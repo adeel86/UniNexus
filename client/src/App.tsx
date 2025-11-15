@@ -22,6 +22,7 @@ import CourseDetail from "@/pages/CourseDetail";
 import VerifyCertificate from "@/pages/VerifyCertificate";
 import Network from "@/pages/Network";
 import Messages from "@/pages/Messages";
+import GroupsDiscovery from "@/pages/GroupsDiscovery";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -76,6 +77,7 @@ function Router() {
         <Route path="/" component={HomePage} />
         <Route path="/network" component={Network} />
         <Route path="/messages" component={Messages} />
+        <Route path="/groups" component={GroupsDiscovery} />
         <Route path="/leaderboard" component={Leaderboard} />
         <Route path="/challenges" component={Challenges} />
         <Route path="/challenges/map" component={GlobalChallengeMap} />

@@ -92,10 +92,11 @@ export const posts = pgTable("posts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   authorId: varchar("author_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   content: text("content").notNull(),
-  imageUrl: varchar("image_url"),
+  imageUrl: varchar("image_url"), // Legacy single image support
   videoUrl: varchar("video_url"), // Support for video/Reels
+  mediaUrls: text("media_urls").array().default(sql`ARRAY[]::text[]`), // Multiple images support
   mediaType: varchar("media_type", { length: 20 }).default('text'), // text, image, video, reel
-  category: varchar("category"), // academic, social, project, achievement
+  category: varchar("category"), // academic, social, project, achievement, reel
   tags: text("tags").array(),
   viewCount: integer("view_count").notNull().default(0),
   shareCount: integer("share_count").notNull().default(0),

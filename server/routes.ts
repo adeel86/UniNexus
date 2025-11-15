@@ -1,9 +1,13 @@
 import type { Express, Request, Response } from "express";
+import express from "express";
 import { createServer, type Server } from "http";
 import { eq, desc, sql, and, or, like } from "drizzle-orm";
 import { createHash } from "crypto";
 import { db } from "./db";
 import { storage } from "./storage";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 import { setupAuth, verifyToken, isAuthenticated, type AuthRequest } from "./firebaseAuth";
 import {
   users,
@@ -239,7 +243,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
 
   app.get("/api/posts", async (req: Request, res: Response) => {
-    const { category, filterByInterests, userId } = req.query;
+    const { category, filterByInterests, userId, authorId } = req.query;
     
     try {
       let query = db
@@ -248,9 +252,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           authorId: posts.authorId,
           content: posts.content,
           imageUrl: posts.imageUrl,
+          videoUrl: posts.videoUrl,
+          mediaUrls: posts.mediaUrls,
+          mediaType: posts.mediaType,
           category: posts.category,
           tags: posts.tags,
           viewCount: posts.viewCount,
+          shareCount: posts.shareCount,
           createdAt: posts.createdAt,
           updatedAt: posts.updatedAt,
           author: users,
@@ -260,8 +268,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .orderBy(desc(posts.createdAt))
         .$dynamic();
 
+      // Filter by category
       if (category && category !== 'all') {
         query = query.where(eq(posts.category, category as string));
+      }
+
+      // Filter by author
+      if (authorId) {
+        query = query.where(eq(posts.authorId, authorId as string));
       }
 
       let postsData = await query;
@@ -318,6 +332,326 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(postsWithDetails);
     } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Personalized AI-curated feed
+  app.get("/api/feed/personalized", async (req: Request, res: Response) => {
+    // Check authentication
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const currentUser = req.user;
+      const limit = parseInt(req.query.limit as string) || 20;
+      const category = req.query.category as string;
+      
+      // Get user's followed users
+      const followedUsers = await db
+        .select({ followingId: followers.followingId })
+        .from(followers)
+        .where(eq(followers.followerId, currentUser.id));
+      
+      const followedIds = followedUsers.map(f => f.followingId);
+      
+      // Fetch all recent posts (last 7 days for performance)
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      
+      // Build query with optional category filter
+      let query = db
+        .select({
+          id: posts.id,
+          authorId: posts.authorId,
+          content: posts.content,
+          imageUrl: posts.imageUrl,
+          videoUrl: posts.videoUrl,
+          mediaUrls: posts.mediaUrls,
+          mediaType: posts.mediaType,
+          category: posts.category,
+          tags: posts.tags,
+          viewCount: posts.viewCount,
+          shareCount: posts.shareCount,
+          createdAt: posts.createdAt,
+          updatedAt: posts.updatedAt,
+          author: users,
+        })
+        .from(posts)
+        .leftJoin(users, eq(posts.authorId, users.id))
+        .orderBy(desc(posts.createdAt))
+        .$dynamic();
+      
+      // Apply filters
+      const conditions = [sql`datetime(${posts.createdAt}) > datetime(${sevenDaysAgo.toISOString()})`];
+      if (category && category !== 'all') {
+        conditions.push(eq(posts.category, category));
+      }
+      
+      const allPosts = await query.where(and(...conditions));
+      
+      // Filter out posts with null createdAt
+      const validPosts = allPosts.filter(post => post.createdAt != null);
+      
+      // Fetch engagement data
+      const postsWithDetails = await Promise.all(
+        validPosts.map(async (post) => {
+          const [commentsData, reactionsData] = await Promise.all([
+            db.select({ id: comments.id, postId: comments.postId, authorId: comments.authorId, content: comments.content, createdAt: comments.createdAt, author: users })
+              .from(comments)
+              .leftJoin(users, eq(comments.authorId, users.id))
+              .where(eq(comments.postId, post.id)),
+            db.select().from(reactions).where(eq(reactions.postId, post.id))
+          ]);
+          
+          return {
+            ...post,
+            comments: commentsData,
+            reactions: reactionsData,
+          };
+        })
+      );
+      
+      // Score each post for personalization
+      const scoredPosts = postsWithDetails.map((post) => {
+        let score = 0;
+        const ageHours = (Date.now() - new Date(post.createdAt!).getTime()) / (1000 * 60 * 60);
+        
+        // 1. Social graph score (50% weight)
+        const isFollowing = followedIds.includes(post.authorId);
+        if (isFollowing) score += 50;
+        
+        // 2. Interest/tag overlap (30% weight)
+        const userInterests = currentUser.interests || [];
+        const userSkills = currentUser.skills || [];
+        const postTags = post.tags || [];
+        let interestScore = 0;
+        
+        postTags.forEach(tag => {
+          const tagLower = tag.toLowerCase();
+          if (userInterests.some(i => i.toLowerCase().includes(tagLower) || tagLower.includes(i.toLowerCase()))) {
+            interestScore += 10;
+          }
+          if (userSkills.some(s => s.toLowerCase().includes(tagLower) || tagLower.includes(s.toLowerCase()))) {
+            interestScore += 5;
+          }
+        });
+        
+        score += Math.min(interestScore, 30); // Cap at 30
+        
+        // 3. University/major match (10% bonus)
+        if (post.author?.university === currentUser.university) score += 5;
+        if (post.author?.major === currentUser.major) score += 5;
+        
+        // 4. Engagement metrics (normalized by age)
+        const engagementScore = (
+          (post.reactions.length * 1) +
+          (post.comments.length * 2) +
+          (post.shareCount * 3) +
+          (post.viewCount * 0.1)
+        );
+        score += Math.min(engagementScore / (1 + ageHours / 12), 20);
+        
+        // 5. Recency decay
+        const recencyMultiplier = 1 / (1 + ageHours / 24);
+        score *= recencyMultiplier;
+        
+        return { ...post, score };
+      });
+      
+      // Sort by score and apply diversity constraints
+      scoredPosts.sort((a, b) => b.score - a.score);
+      
+      // Enforce diversity: max 2 posts per author in top results
+      const selectedPosts: typeof scoredPosts = [];
+      const authorCount = new Map<string, number>();
+      
+      for (const post of scoredPosts) {
+        const count = authorCount.get(post.authorId) || 0;
+        if (count < 2) {
+          selectedPosts.push(post);
+          authorCount.set(post.authorId, count + 1);
+        }
+        if (selectedPosts.length >= limit) break;
+      }
+      
+      // Remove score from response
+      const finalPosts = selectedPosts.map(({ score, ...post }) => post);
+      
+      res.json(finalPosts);
+    } catch (error: any) {
+      console.error('Personalized feed error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Following feed (chronological from followed users only)
+  app.get("/api/feed/following", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const currentUser = req.user;
+      const category = req.query.category as string;
+      
+      // Get user's followed users
+      const followedUsers = await db
+        .select({ followingId: followers.followingId })
+        .from(followers)
+        .where(eq(followers.followerId, currentUser.id));
+      
+      const followedIds = followedUsers.map(f => f.followingId);
+      
+      if (followedIds.length === 0) {
+        return res.json([]);
+      }
+      
+      // Build query for posts from followed users
+      let query = db
+        .select({
+          id: posts.id,
+          authorId: posts.authorId,
+          content: posts.content,
+          imageUrl: posts.imageUrl,
+          videoUrl: posts.videoUrl,
+          mediaUrls: posts.mediaUrls,
+          mediaType: posts.mediaType,
+          category: posts.category,
+          tags: posts.tags,
+          viewCount: posts.viewCount,
+          shareCount: posts.shareCount,
+          createdAt: posts.createdAt,
+          updatedAt: posts.updatedAt,
+          author: users,
+        })
+        .from(posts)
+        .leftJoin(users, eq(posts.authorId, users.id))
+        .orderBy(desc(posts.createdAt))
+        .$dynamic();
+      
+      // Filter by followed users and optional category
+      const conditions = [sql`${posts.authorId} IN ${followedIds}`];
+      if (category && category !== 'all') {
+        conditions.push(eq(posts.category, category));
+      }
+      
+      const followingPosts = await query.where(and(...conditions));
+      
+      // Fetch engagement data
+      const postsWithDetails = await Promise.all(
+        followingPosts.map(async (post) => {
+          const [commentsData, reactionsData] = await Promise.all([
+            db.select({ id: comments.id, postId: comments.postId, authorId: comments.authorId, content: comments.content, createdAt: comments.createdAt, author: users })
+              .from(comments)
+              .leftJoin(users, eq(comments.authorId, users.id))
+              .where(eq(comments.postId, post.id)),
+            db.select().from(reactions).where(eq(reactions.postId, post.id))
+          ]);
+          
+          return {
+            ...post,
+            comments: commentsData,
+            reactions: reactionsData,
+          };
+        })
+      );
+      
+      res.json(postsWithDetails);
+    } catch (error: any) {
+      console.error('Following feed error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Trending feed (engagement-weighted posts from last 48 hours)
+  app.get("/api/feed/trending", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const category = req.query.category as string;
+      const limit = parseInt(req.query.limit as string) || 10;
+      
+      // Get posts from last 48 hours
+      const fortyEightHoursAgo = new Date();
+      fortyEightHoursAgo.setHours(fortyEightHoursAgo.getHours() - 48);
+      
+      // Build query
+      let query = db
+        .select({
+          id: posts.id,
+          authorId: posts.authorId,
+          content: posts.content,
+          imageUrl: posts.imageUrl,
+          videoUrl: posts.videoUrl,
+          mediaUrls: posts.mediaUrls,
+          mediaType: posts.mediaType,
+          category: posts.category,
+          tags: posts.tags,
+          viewCount: posts.viewCount,
+          shareCount: posts.shareCount,
+          createdAt: posts.createdAt,
+          updatedAt: posts.updatedAt,
+          author: users,
+        })
+        .from(posts)
+        .leftJoin(users, eq(posts.authorId, users.id))
+        .orderBy(desc(posts.createdAt))
+        .$dynamic();
+      
+      // Apply filters
+      const conditions = [sql`datetime(${posts.createdAt}) > datetime(${fortyEightHoursAgo.toISOString()})`];
+      if (category && category !== 'all') {
+        conditions.push(eq(posts.category, category));
+      }
+      
+      const recentPosts = await query.where(and(...conditions));
+      
+      // Filter out posts with null createdAt
+      const validPosts = recentPosts.filter(post => post.createdAt != null);
+      
+      // Fetch engagement data and calculate trending score
+      const postsWithScores = await Promise.all(
+        validPosts.map(async (post) => {
+          const [commentsData, reactionsData] = await Promise.all([
+            db.select({ id: comments.id, postId: comments.postId, authorId: comments.authorId, content: comments.content, createdAt: comments.createdAt, author: users })
+              .from(comments)
+              .leftJoin(users, eq(comments.authorId, users.id))
+              .where(eq(comments.postId, post.id)),
+            db.select().from(reactions).where(eq(reactions.postId, post.id))
+          ]);
+          
+          // Calculate trending score: (reactions*3 + comments*5 + shares*8 + views*0.5) / (hours_since_post/6 + 1)
+          const ageHours = (Date.now() - new Date(post.createdAt!).getTime()) / (1000 * 60 * 60);
+          const engagementScore = (
+            reactionsData.length * 3 +
+            commentsData.length * 5 +
+            (post.shareCount || 0) * 8 +
+            (post.viewCount || 0) * 0.5
+          );
+          const trendingScore = engagementScore / (ageHours / 6 + 1);
+          
+          return {
+            ...post,
+            comments: commentsData,
+            reactions: reactionsData,
+            trendingScore,
+          };
+        })
+      );
+      
+      // Sort by trending score and limit results
+      const trendingPosts = postsWithScores
+        .sort((a, b) => b.trendingScore - a.trendingScore)
+        .slice(0, limit)
+        .map(({ trendingScore, ...post }) => post); // Remove score from response
+      
+      res.json(trendingPosts);
+    } catch (error: any) {
+      console.error('Trending feed error:', error);
       res.status(500).json({ error: error.message });
     }
   });
@@ -4195,6 +4529,132 @@ Make it personalized, constructive, and actionable. Use a professional but encou
       }
 
       res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
+  // FILE UPLOAD API (Images & Videos)
+  // ========================================================================
+
+  // Create uploads directory if it doesn't exist
+  const uploadsDir = path.join(process.cwd(), 'uploads');
+  const imagesDir = path.join(uploadsDir, 'images');
+  const videosDir = path.join(uploadsDir, 'videos');
+
+  if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  if (!fs.existsSync(imagesDir)) {
+    fs.mkdirSync(imagesDir, { recursive: true });
+  }
+  if (!fs.existsSync(videosDir)) {
+    fs.mkdirSync(videosDir, { recursive: true });
+  }
+
+  // Configure multer for image uploads
+  const imageStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, imagesDir);
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const ext = path.extname(file.originalname);
+      cb(null, `image-${uniqueSuffix}${ext}`);
+    }
+  });
+
+  const imageUpload = multer({
+    storage: imageStorage,
+    limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+    fileFilter: (req, file, cb) => {
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (allowedTypes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error('Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.'));
+      }
+    }
+  });
+
+  // Configure multer for video uploads
+  const videoStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, videosDir);
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const ext = path.extname(file.originalname);
+      cb(null, `video-${uniqueSuffix}${ext}`);
+    }
+  });
+
+  const videoUpload = multer({
+    storage: videoStorage,
+    limits: { fileSize: 100 * 1024 * 1024 }, // 100MB limit
+    fileFilter: (req, file, cb) => {
+      const allowedTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-matroska'];
+      if (allowedTypes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error('Invalid file type. Only MP4, WebM, QuickTime, and MKV are allowed.'));
+      }
+    }
+  });
+
+  // Serve uploaded files statically
+  app.use('/uploads', express.static(uploadsDir));
+
+  // Upload image endpoint
+  app.post("/api/upload/image", imageUpload.single('image'), async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No image file provided" });
+      }
+
+      const imageUrl = `/uploads/images/${req.file.filename}`;
+      res.json({ url: imageUrl });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Upload video endpoint
+  app.post("/api/upload/video", videoUpload.single('video'), async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No video file provided" });
+      }
+
+      const videoUrl = `/uploads/videos/${req.file.filename}`;
+      res.json({ url: videoUrl });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Upload multiple images endpoint (for galleries/posts with multiple images)
+  app.post("/api/upload/images", imageUpload.array('images', 10), async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+        return res.status(400).json({ error: "No image files provided" });
+      }
+
+      const urls = req.files.map(file => `/uploads/images/${file.filename}`);
+      res.json({ urls });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
