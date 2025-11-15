@@ -27,12 +27,32 @@ export default function Network() {
 
   // Get all connections
   const { data: acceptedConnections = [] } = useQuery<ConnectionWithUser[]>({
-    queryKey: ["/api/connections", { status: "accepted" }],
+    queryKey: ["/api/connections", "accepted"],
+    queryFn: async () => {
+      const res = await fetch("/api/connections?status=accepted", {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('dev_token')}`,
+        },
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to fetch connections");
+      return res.json();
+    },
   });
 
   // Get pending requests (received)
   const { data: pendingRequests = [] } = useQuery<ConnectionWithUser[]>({
-    queryKey: ["/api/connections", { status: "pending" }],
+    queryKey: ["/api/connections", "pending"],
+    queryFn: async () => {
+      const res = await fetch("/api/connections?status=pending", {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('dev_token')}`,
+        },
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to fetch pending requests");
+      return res.json();
+    },
   });
 
   // Get followers (people following me)
@@ -47,7 +67,18 @@ export default function Network() {
 
   // Search for users to connect with
   const { data: searchResults = [] } = useQuery<User[]>({
-    queryKey: ["/api/users/search", { q: searchTerm }],
+    queryKey: ["/api/users/search", searchTerm],
+    queryFn: async () => {
+      if (searchTerm.length <= 2) return [];
+      const res = await fetch(`/api/users/search?q=${encodeURIComponent(searchTerm)}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('dev_token')}`,
+        },
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error("Failed to search users");
+      return res.json();
+    },
     enabled: searchTerm.length > 2,
   });
 
