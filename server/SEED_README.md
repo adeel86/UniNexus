@@ -6,26 +6,39 @@ The comprehensive seed script (`comprehensive-seed.ts`) populates the entire Uni
 
 ## Data Volume
 
-The seed generates approximately **5,000 rows** across all tables:
+The seed generates approximately **9,500+ rows** across all tables with deterministic, reproducible data:
 
-- **50-60 users** across all roles (students, teachers, industry professionals, university admins, master admin)
-- **200+ posts** with realistic content and metadata
-- **400+ reactions** across different types (like, celebrate, insightful, support)
-- **150+ comments** on posts
-- **20+ courses** across multiple universities
-- **80+ course discussions** with replies and upvotes
-- **10+ challenges** with participants
-- **15+ certifications** with NFT-style verification hashes
-- **50+ endorsements** between users
-- **100+ follower** relationships
-- **6+ groups** with 150+ memberships
-- AI interaction events, moderation actions, announcements, and more
+- **142 users** across all roles (100 students, 20 teachers, 8 industry professionals, 3 university admins, 1 master admin)
+- **392 posts** with realistic content and metadata
+- **4,866 reactions** across different types (like, celebrate, insightful, support)
+- **925 comments** on posts
+- **20 courses** across 5 universities (MIT, Stanford, UC Berkeley, Carnegie Mellon, Georgia Tech)
+- **288 course enrollments** with 100 discussions and 584 replies
+- **5 challenges** with 100 participants
+- **135 certifications** with NFT-style verification hashes
+- **452 endorsements** between users
+- **958 follower relationships**
+- **6 groups** with 120 group memberships
+- **600 user skills** with proficiency levels
+- **344 user badge awards**
+- **97 notifications**, **17 recruiter feedback entries**, **46 AI interaction events**, **19 announcements**, and more
 
 ## Usage
 
 ### Running the Seed
 
+**For a fresh, complete seed (recommended):**
 ```bash
+# Reset database schema first (wipes existing data)
+npm run db:push -- --force
+
+# Run comprehensive seed
+npm run db:seed:full
+```
+
+**For adding to existing data:**
+```bash
+# Safe to run - uses onConflictDoNothing() to avoid duplicates
 npm run db:seed:full
 ```
 
@@ -113,24 +126,35 @@ The seed script includes factory functions for generating consistent data:
 - Returns inserted IDs for downstream references
 - No destructive operations on existing data
 
-## Cleanup
+## Starting Fresh
 
-To clear the database and reseed:
+To completely clear the database and generate fresh mock data:
 
 ```bash
-# Push fresh schema (wipes data)
-npm run db:push --force
+# Reset database schema (wipes all data)
+npm run db:push -- --force
 
 # Run comprehensive seed
 npm run db:seed:full
 ```
 
+This ensures you get the exact deterministic counts shown in the "Data Volume" section above.
+
 ## Technical Notes
 
-- Total execution time: ~30-60 seconds
-- Memory usage: Moderate (batched inserts)
-- Database size: ~50-100MB with indexes
-- Uses transactions where possible for data integrity
+- **Total execution time**: ~30-60 seconds (depending on hardware)
+- **Memory usage**: Moderate (batched inserts, no memory spikes)
+- **Database size**: ~50-100MB with indexes
+- **Deterministic seeding**: Uses faker.seed(42) and faker helpers throughout (no Math.random() or Date.now())
+- **True idempotent reruns**: Produces identical counts on every run - uses onConflictDoNothing() and fallback fetches for all tables
+- **Proper Drizzle syntax**: Uses eq() from drizzle-orm for WHERE clauses
+
+### Important Notes
+
+- **Reproducible counts**: Reruns produce identical summary counts whether on fresh or existing database
+- **Safe to rerun**: Won't create duplicate data - uses onConflictDoNothing() throughout
+- **Verification hashes**: Certifications use SHA-256 hashes generated from student ID, cert type, issuer ID, and index for reproducibility
+- **No random variance**: All randomness controlled by faker.seed(42) for consistent data across runs
 
 ## Customization
 

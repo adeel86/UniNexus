@@ -47,6 +47,7 @@ import {
 import { faker } from "@faker-js/faker";
 import crypto from "crypto";
 import { calculateTotalPoints, getRankTier } from "./rankTiers";
+import { eq } from "drizzle-orm";
 
 // ============================================================================
 // CONFIGURATION
@@ -72,18 +73,15 @@ faker.seed(42);
 // ============================================================================
 
 function randomDate(start: Date, end: Date): Date {
-  return new Date(
-    start.getTime() + Math.random() * (end.getTime() - start.getTime())
-  );
+  return faker.date.between({ from: start, to: end });
 }
 
 function randomItem<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
+  return faker.helpers.arrayElement(arr);
 }
 
 function randomItems<T>(arr: T[], count: number): T[] {
-  const shuffled = [...arr].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, Math.min(count, arr.length));
+  return faker.helpers.arrayElements(arr, count);
 }
 
 function generateVerificationHash(data: string): string {
@@ -231,7 +229,13 @@ async function seedCanonicalData() {
     { name: "Project Management", category: "soft_skills" },
   ];
 
-  const insertedSkills = await db.insert(skills).values(skillsData).onConflictDoNothing().returning();
+  let insertedSkills = await db.insert(skills).values(skillsData).onConflictDoNothing().returning();
+  
+  // If no skills were inserted (already exist), fetch them instead
+  if (insertedSkills.length === 0) {
+    insertedSkills = await db.select().from(skills);
+  }
+  
   console.log(`  ✓ Created ${insertedSkills.length} skills`);
 
   // Badges
@@ -248,7 +252,13 @@ async function seedCanonicalData() {
     { name: "Champion", description: "Won a challenge", icon: "Trophy", category: "achievement", tier: "gold", criteria: "Win a challenge" },
   ];
 
-  const insertedBadges = await db.insert(badges).values(badgesData).onConflictDoNothing().returning();
+  let insertedBadges = await db.insert(badges).values(badgesData).onConflictDoNothing().returning();
+  
+  // If no badges were inserted (already exist), fetch them instead
+  if (insertedBadges.length === 0) {
+    insertedBadges = await db.select().from(badges);
+  }
+  
   console.log(`  ✓ Created ${insertedBadges.length} badges`);
 
   return { skills: insertedSkills, badges: insertedBadges };
@@ -306,7 +316,13 @@ async function seedUsers() {
     }
   });
 
-  const insertedUsers = await db.insert(users).values(usersToCreate).onConflictDoNothing().returning();
+  let insertedUsers = await db.insert(users).values(usersToCreate).onConflictDoNothing().returning();
+  
+  // If no users were inserted (already exist), fetch them instead
+  if (insertedUsers.length === 0) {
+    insertedUsers = await db.select().from(users);
+  }
+  
   console.log(`  ✓ Created ${insertedUsers.length} users`);
 
   // Organize users by role
@@ -342,7 +358,13 @@ async function seedAcademicData(
     }
   }
 
-  const insertedCourses = await db.insert(courses).values(coursesToCreate).onConflictDoNothing().returning();
+  let insertedCourses = await db.insert(courses).values(coursesToCreate).onConflictDoNothing().returning();
+  
+  // If no courses were inserted (already exist), fetch them instead
+  if (insertedCourses.length === 0) {
+    insertedCourses = await db.select().from(courses);
+  }
+  
   console.log(`  ✓ Created ${insertedCourses.length} courses`);
 
   // Create enrollments
@@ -361,7 +383,13 @@ async function seedAcademicData(
     }
   }
 
-  const insertedEnrollments = await db.insert(courseEnrollments).values(enrollmentsToCreate).onConflictDoNothing().returning();
+  let insertedEnrollments = await db.insert(courseEnrollments).values(enrollmentsToCreate).onConflictDoNothing().returning();
+  
+  // If no enrollments were inserted (already exist), fetch them instead
+  if (insertedEnrollments.length === 0) {
+    insertedEnrollments = await db.select().from(courseEnrollments);
+  }
+  
   console.log(`  ✓ Created ${insertedEnrollments.length} enrollments`);
 
   // Create course discussions
@@ -376,8 +404,8 @@ async function seedAcademicData(
         authorId: randomItem(enrolledStudents).id,
         title: faker.lorem.sentence(),
         content: faker.lorem.paragraph(),
-        isQuestion: Math.random() > 0.3,
-        isResolved: Math.random() > 0.5,
+        isQuestion: faker.datatype.boolean(0.7),
+        isResolved: faker.datatype.boolean(0.5),
         replyCount: 0,
         upvoteCount: 0,
         createdAt: randomDate(new Date(2024, 8, 1), new Date()),
@@ -385,7 +413,13 @@ async function seedAcademicData(
     }
   }
 
-  const insertedDiscussions = await db.insert(courseDiscussions).values(discussionsToCreate).onConflictDoNothing().returning();
+  let insertedDiscussions = await db.insert(courseDiscussions).values(discussionsToCreate).onConflictDoNothing().returning();
+  
+  // If no discussions were inserted (already exist), fetch them instead
+  if (insertedDiscussions.length === 0) {
+    insertedDiscussions = await db.select().from(courseDiscussions);
+  }
+  
   console.log(`  ✓ Created ${insertedDiscussions.length} discussions`);
 
   // Create discussion replies
@@ -406,7 +440,13 @@ async function seedAcademicData(
     }
   }
 
-  const insertedReplies = await db.insert(discussionReplies).values(repliesToCreate).onConflictDoNothing().returning();
+  let insertedReplies = await db.insert(discussionReplies).values(repliesToCreate).onConflictDoNothing().returning();
+  
+  // If no replies were inserted (already exist), fetch them instead
+  if (insertedReplies.length === 0) {
+    insertedReplies = await db.select().from(discussionReplies);
+  }
+  
   console.log(`  ✓ Created ${insertedReplies.length} replies`);
 
   // Update discussion reply counts
@@ -414,7 +454,7 @@ async function seedAcademicData(
     const replyCount = insertedReplies.filter((r: any) => r.discussionId === discussion.id).length;
     await db.update(courseDiscussions)
       .set({ replyCount })
-      .where((row, { eq }) => eq(row.id, discussion.id));
+      .where(eq(courseDiscussions.id, discussion.id));
   }
 
   return { courses: insertedCourses, enrollments: insertedEnrollments, discussions: insertedDiscussions, replies: insertedReplies };
@@ -438,7 +478,13 @@ async function seedEngagementData(
     }
   }
 
-  const insertedPosts = await db.insert(posts).values(postsToCreate).onConflictDoNothing().returning();
+  let insertedPosts = await db.insert(posts).values(postsToCreate).onConflictDoNothing().returning();
+  
+  // If no posts were inserted (already exist), fetch them instead
+  if (insertedPosts.length === 0) {
+    insertedPosts = await db.select().from(posts);
+  }
+  
   console.log(`  ✓ Created ${insertedPosts.length} posts`);
 
   // Create comments
@@ -455,7 +501,13 @@ async function seedEngagementData(
     }
   }
 
-  const insertedComments = await db.insert(comments).values(commentsToCreate).onConflictDoNothing().returning();
+  let insertedComments = await db.insert(comments).values(commentsToCreate).onConflictDoNothing().returning();
+  
+  // If no comments were inserted (already exist), fetch them instead
+  if (insertedComments.length === 0) {
+    insertedComments = await db.select().from(comments);
+  }
+  
   console.log(`  ✓ Created ${insertedComments.length} comments`);
 
   // Create reactions
@@ -475,7 +527,13 @@ async function seedEngagementData(
     }
   }
 
-  const insertedReactions = await db.insert(reactions).values(reactionsToCreate).onConflictDoNothing().returning();
+  let insertedReactions = await db.insert(reactions).values(reactionsToCreate).onConflictDoNothing().returning();
+  
+  // If no reactions were inserted (already exist), fetch them instead
+  if (insertedReactions.length === 0) {
+    insertedReactions = await db.select().from(reactions);
+  }
+  
   console.log(`  ✓ Created ${insertedReactions.length} reactions`);
 
   // Create followers
@@ -495,7 +553,13 @@ async function seedEngagementData(
     }
   }
 
-  const insertedFollowers = await db.insert(followers).values(followersToCreate).onConflictDoNothing().returning();
+  let insertedFollowers = await db.insert(followers).values(followersToCreate).onConflictDoNothing().returning();
+  
+  // If no followers were inserted (already exist), fetch them instead
+  if (insertedFollowers.length === 0) {
+    insertedFollowers = await db.select().from(followers);
+  }
+  
   console.log(`  ✓ Created ${insertedFollowers.length} follower relationships`);
 
   // Create groups
@@ -515,7 +579,13 @@ async function seedEngagementData(
     memberCount: 0,
   }));
 
-  const insertedGroups = await db.insert(groups).values(groupsToCreate).onConflictDoNothing().returning();
+  let insertedGroups = await db.insert(groups).values(groupsToCreate).onConflictDoNothing().returning();
+  
+  // If no groups were inserted (already exist), fetch them instead
+  if (insertedGroups.length === 0) {
+    insertedGroups = await db.select().from(groups);
+  }
+  
   console.log(`  ✓ Created ${insertedGroups.length} groups`);
 
   // Create group members
@@ -533,7 +603,13 @@ async function seedEngagementData(
     }
   }
 
-  const insertedGroupMembers = await db.insert(groupMembers).values(groupMembersToCreate).onConflictDoNothing().returning();
+  let insertedGroupMembers = await db.insert(groupMembers).values(groupMembersToCreate).onConflictDoNothing().returning();
+  
+  // If no group members were inserted (already exist), fetch them instead
+  if (insertedGroupMembers.length === 0) {
+    insertedGroupMembers = await db.select().from(groupMembers);
+  }
+  
   console.log(`  ✓ Created ${insertedGroupMembers.length} group memberships`);
 
   // Update group member counts
@@ -541,7 +617,7 @@ async function seedEngagementData(
     const memberCount = insertedGroupMembers.filter((m: any) => m.groupId === group.id).length;
     await db.update(groups)
       .set({ memberCount })
-      .where((row, { eq }) => eq(row.id, group.id));
+      .where(eq(groups.id, group.id));
   }
 
   return { posts: insertedPosts, comments: insertedComments, reactions: insertedReactions, groups: insertedGroups };
@@ -605,11 +681,17 @@ async function seedAncillarySystems(
     ...c,
     organizerId: randomItem(usersByRole.industryPros).id,
     startDate: randomDate(new Date(2024, 9, 1), new Date(2024, 11, 31)),
-    endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+    endDate: new Date(2025, 0, 15), // Fixed future date for determinism
     participantCount: 0,
   }));
 
-  const insertedChallenges = await db.insert(challenges).values(challengesToCreate).onConflictDoNothing().returning();
+  let insertedChallenges = await db.insert(challenges).values(challengesToCreate).onConflictDoNothing().returning();
+  
+  // If no challenges were inserted (already exist), fetch them instead
+  if (insertedChallenges.length === 0) {
+    insertedChallenges = await db.select().from(challenges);
+  }
+  
   console.log(`  ✓ Created ${insertedChallenges.length} challenges`);
 
   // Create challenge participants
@@ -622,14 +704,20 @@ async function seedAncillarySystems(
       participantsToCreate.push({
         challengeId: challenge.id,
         userId: participants[i].id,
-        submissionUrl: Math.random() > 0.3 ? `https://github.com/student/project-${i}` : null,
-        submittedAt: Math.random() > 0.3 ? randomDate(new Date(challenge.startDate!), new Date()) : null,
+        submissionUrl: faker.datatype.boolean(0.7) ? `https://github.com/student/project-${i}` : null,
+        submittedAt: faker.datatype.boolean(0.7) ? randomDate(new Date(challenge.startDate!), new Date()) : null,
         rank: challenge.status === "completed" && i < 3 ? i + 1 : null,
       });
     }
   }
 
-  const insertedParticipants = await db.insert(challengeParticipants).values(participantsToCreate).onConflictDoNothing().returning();
+  let insertedParticipants = await db.insert(challengeParticipants).values(participantsToCreate).onConflictDoNothing().returning();
+  
+  // If no participants were inserted (already exist), fetch them instead
+  if (insertedParticipants.length === 0) {
+    insertedParticipants = await db.select().from(challengeParticipants);
+  }
+  
   console.log(`  ✓ Created ${insertedParticipants.length} challenge participants`);
 
   // Create certifications
@@ -641,7 +729,7 @@ async function seedAncillarySystems(
     for (let i = 0; i < numCerts; i++) {
       const certType = randomItem(certTypes);
       const issuer = randomItem([...usersByRole.teachers, ...usersByRole.industryPros]);
-      const certData = `${student.id}-${certType}-${Date.now()}-${i}`;
+      const certData = `${student.id}-${certType}-${issuer.id}-${i}`;
 
       certificationsToCreate.push({
         userId: student.id,
@@ -658,7 +746,13 @@ async function seedAncillarySystems(
     }
   }
 
-  const insertedCertifications = await db.insert(certifications).values(certificationsToCreate).onConflictDoNothing().returning();
+  let insertedCertifications = await db.insert(certifications).values(certificationsToCreate).onConflictDoNothing().returning();
+  
+  // If no certifications were inserted (already exist), fetch them instead
+  if (insertedCertifications.length === 0) {
+    insertedCertifications = await db.select().from(certifications);
+  }
+  
   console.log(`  ✓ Created ${insertedCertifications.length} certifications`);
 
   // Create recruiter feedback
@@ -675,13 +769,19 @@ async function seedAncillarySystems(
         category: randomItem(feedbackCategories),
         feedback: faker.lorem.paragraph(),
         context: randomItem(["challenge", "interview", "project_review", "general"]),
-        challengeId: Math.random() > 0.5 ? randomItem(insertedChallenges).id : null,
-        isPublic: Math.random() > 0.4,
+        challengeId: faker.datatype.boolean(0.5) ? randomItem(insertedChallenges).id : null,
+        isPublic: faker.datatype.boolean(0.6),
       });
     }
   }
 
-  const insertedFeedback = await db.insert(recruiterFeedback).values(feedbackToCreate).onConflictDoNothing().returning();
+  let insertedFeedback = await db.insert(recruiterFeedback).values(feedbackToCreate).onConflictDoNothing().returning();
+  
+  // If no feedback was inserted (already exist), fetch it instead
+  if (insertedFeedback.length === 0) {
+    insertedFeedback = await db.select().from(recruiterFeedback);
+  }
+  
   console.log(`  ✓ Created ${insertedFeedback.length} recruiter feedback entries`);
 
   // Create AI interaction events
@@ -700,7 +800,13 @@ async function seedAncillarySystems(
     }
   }
 
-  const insertedAiEvents = await db.insert(aiInteractionEvents).values(aiEventsToCreate).onConflictDoNothing().returning();
+  let insertedAiEvents = await db.insert(aiInteractionEvents).values(aiEventsToCreate).onConflictDoNothing().returning();
+  
+  // If no AI events were inserted (already exist), fetch them instead
+  if (insertedAiEvents.length === 0) {
+    insertedAiEvents = await db.select().from(aiInteractionEvents);
+  }
+  
   console.log(`  ✓ Created ${insertedAiEvents.length} AI interaction events`);
 
   return { challenges: insertedChallenges, certifications: insertedCertifications };
@@ -734,7 +840,13 @@ async function seedAdditionalData(
     }
   }
 
-  const insertedUserSkills = await db.insert(userSkills).values(userSkillsToCreate).onConflictDoNothing().returning();
+  let insertedUserSkills = await db.insert(userSkills).values(userSkillsToCreate).onConflictDoNothing().returning();
+  
+  // If no user skills were inserted (already exist), fetch them instead
+  if (insertedUserSkills.length === 0) {
+    insertedUserSkills = await db.select().from(userSkills);
+  }
+  
   console.log(`  ✓ Created ${insertedUserSkills.length} user skills`);
 
   // User badges
@@ -752,7 +864,13 @@ async function seedAdditionalData(
     }
   }
 
-  const insertedUserBadges = await db.insert(userBadges).values(userBadgesToCreate).onConflictDoNothing().returning();
+  let insertedUserBadges = await db.insert(userBadges).values(userBadgesToCreate).onConflictDoNothing().returning();
+  
+  // If no user badges were inserted (already exist), fetch them instead
+  if (insertedUserBadges.length === 0) {
+    insertedUserBadges = await db.select().from(userBadges);
+  }
+  
   console.log(`  ✓ Created ${insertedUserBadges.length} user badges`);
 
   // Endorsements
@@ -773,7 +891,13 @@ async function seedAdditionalData(
     }
   }
 
-  const insertedEndorsements = await db.insert(endorsements).values(endorsementsToCreate).onConflictDoNothing().returning();
+  let insertedEndorsements = await db.insert(endorsements).values(endorsementsToCreate).onConflictDoNothing().returning();
+  
+  // If no endorsements were inserted (already exist), fetch them instead
+  if (insertedEndorsements.length === 0) {
+    insertedEndorsements = await db.select().from(endorsements);
+  }
+  
   console.log(`  ✓ Created ${insertedEndorsements.length} endorsements`);
 
   // Notifications
@@ -792,13 +916,19 @@ async function seedAdditionalData(
         title: `New ${notifType}`,
         message: faker.lorem.sentence(),
         link: "/",
-        isRead: Math.random() > 0.5,
+        isRead: faker.datatype.boolean(0.5),
         createdAt: randomDate(new Date(2024, 9, 1), new Date()),
       });
     }
   }
 
-  const insertedNotifications = await db.insert(notifications).values(notificationsToCreate).onConflictDoNothing().returning();
+  let insertedNotifications = await db.insert(notifications).values(notificationsToCreate).onConflictDoNothing().returning();
+  
+  // If no notifications were inserted (already exist), fetch them instead
+  if (insertedNotifications.length === 0) {
+    insertedNotifications = await db.select().from(notifications);
+  }
+  
   console.log(`  ✓ Created ${insertedNotifications.length} notifications`);
 
   // Announcements
@@ -812,12 +942,18 @@ async function seedAdditionalData(
         title: faker.lorem.sentence(),
         content: faker.lorem.paragraph(),
         university: admin.university,
-        isPinned: Math.random() > 0.7,
+        isPinned: faker.datatype.boolean(0.3),
       });
     }
   }
 
-  const insertedAnnouncements = await db.insert(announcements).values(announcementsToCreate).onConflictDoNothing().returning();
+  let insertedAnnouncements = await db.insert(announcements).values(announcementsToCreate).onConflictDoNothing().returning();
+  
+  // If no announcements were inserted (already exist), fetch them instead
+  if (insertedAnnouncements.length === 0) {
+    insertedAnnouncements = await db.select().from(announcements);
+  }
+  
   console.log(`  ✓ Created ${insertedAnnouncements.length} announcements`);
 }
 
