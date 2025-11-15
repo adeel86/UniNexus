@@ -138,30 +138,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    // Check if this is a demo account - use dev auth instead of Firebase
-    const demoEmails = [
-      'demo.student@uninexus.app',
-      'demo.teacher@uninexus.app',
-      'demo.university@uninexus.app',
-      'demo.industry@uninexus.app',
-      'demo.admin@uninexus.app',
-    ];
-    
-    if (demoEmails.includes(email.toLowerCase())) {
-      try {
-        const response = await fetch('/api/auth/dev-login', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ email, password }),
-        });
-        
-        if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.message || 'Demo account login failed');
-        }
-        
+    // Try dev login first (works for all seeded accounts with password "demo123")
+    try {
+      const response = await fetch('/api/auth/dev-login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+      
+      if (response.ok) {
         const { token, user } = await response.json();
         
         // Store the dev token in localStorage for subsequent requests
@@ -176,13 +163,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
         } as User);
         
         return;
-      } catch (error: any) {
-        console.error('Demo account login failed:', error);
-        throw new Error(error.message || 'Demo account login failed');
       }
+    } catch (error: any) {
+      console.log('Dev login not available, trying Firebase...', error.message);
     }
     
-    // Regular Firebase authentication for non-demo accounts
+    // Fallback to Firebase authentication if dev login fails or is unavailable
     if (!auth) {
       throw new Error('Firebase authentication is not configured');
     }
