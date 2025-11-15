@@ -673,6 +673,329 @@ async function seedDatabase() {
   const insertedAnnouncements = await db.insert(announcements).values(mockAnnouncements).onConflictDoNothing().returning();
   console.log(`Inserted ${insertedAnnouncements.length} announcements`);
 
+  // ============================================================================
+  // NETWORK CONNECTIONS
+  // ============================================================================
+
+  const mockConnections = [
+    // Demo Student's accepted connections
+    {
+      requesterId: insertedUsers[0].id, // Demo Student
+      receiverId: insertedUsers[6].id, // Jordan Chen
+      status: "accepted",
+      respondedAt: new Date(),
+    },
+    {
+      requesterId: insertedUsers[7].id, // Maya Patel
+      receiverId: insertedUsers[0].id, // Demo Student
+      status: "accepted",
+      respondedAt: new Date(),
+    },
+    {
+      requesterId: insertedUsers[0].id, // Demo Student
+      receiverId: insertedUsers[5].id, // Alex Rivera
+      status: "accepted",
+      respondedAt: new Date(),
+    },
+    {
+      requesterId: insertedUsers[8].id, // Dr. Sarah Smith
+      receiverId: insertedUsers[0].id, // Demo Student
+      status: "accepted",
+      respondedAt: new Date(),
+    },
+    {
+      requesterId: insertedUsers[0].id, // Demo Student
+      receiverId: insertedUsers[9].id, // Prof. Michael Johnson
+      status: "accepted",
+      respondedAt: new Date(),
+    },
+    {
+      requesterId: insertedUsers[10].id, // Emily Thompson
+      receiverId: insertedUsers[0].id, // Demo Student
+      status: "accepted",
+      respondedAt: new Date(),
+    },
+    // Demo Student's pending connection requests
+    {
+      requesterId: insertedUsers[11].id, // David Williams
+      receiverId: insertedUsers[0].id, // Demo Student
+      status: "pending",
+    },
+    {
+      requesterId: insertedUsers[0].id, // Demo Student
+      receiverId: insertedUsers[8].id, // Dr. Sarah Smith
+      status: "pending",
+    },
+    // Demo Teacher's connections
+    {
+      requesterId: insertedUsers[1].id, // Demo Teacher
+      receiverId: insertedUsers[0].id, // Demo Student
+      status: "accepted",
+      respondedAt: new Date(),
+    },
+    {
+      requesterId: insertedUsers[1].id, // Demo Teacher
+      receiverId: insertedUsers[6].id, // Jordan Chen
+      status: "accepted",
+      respondedAt: new Date(),
+    },
+    {
+      requesterId: insertedUsers[7].id, // Maya Patel
+      receiverId: insertedUsers[1].id, // Demo Teacher
+      status: "accepted",
+      respondedAt: new Date(),
+    },
+    {
+      requesterId: insertedUsers[1].id, // Demo Teacher
+      receiverId: insertedUsers[9].id, // Prof. Michael Johnson
+      status: "accepted",
+      respondedAt: new Date(),
+    },
+    // Demo University Admin's connections
+    {
+      requesterId: insertedUsers[2].id, // Demo University Admin
+      receiverId: insertedUsers[1].id, // Demo Teacher
+      status: "accepted",
+      respondedAt: new Date(),
+    },
+    {
+      requesterId: insertedUsers[2].id, // Demo University Admin
+      receiverId: insertedUsers[0].id, // Demo Student
+      status: "accepted",
+      respondedAt: new Date(),
+    },
+    {
+      requesterId: insertedUsers[6].id, // Jordan Chen
+      receiverId: insertedUsers[2].id, // Demo University Admin
+      status: "accepted",
+      respondedAt: new Date(),
+    },
+    // Demo Industry Partner's connections
+    {
+      requesterId: insertedUsers[3].id, // Demo Industry Partner
+      receiverId: insertedUsers[0].id, // Demo Student
+      status: "accepted",
+      respondedAt: new Date(),
+    },
+    {
+      requesterId: insertedUsers[6].id, // Jordan Chen
+      receiverId: insertedUsers[3].id, // Demo Industry Partner
+      status: "accepted",
+      respondedAt: new Date(),
+    },
+    {
+      requesterId: insertedUsers[3].id, // Demo Industry Partner
+      receiverId: insertedUsers[7].id, // Maya Patel
+      status: "accepted",
+      respondedAt: new Date(),
+    },
+    {
+      requesterId: insertedUsers[5].id, // Alex Rivera
+      receiverId: insertedUsers[3].id, // Demo Industry Partner
+      status: "pending",
+    },
+    // Demo Admin's connections with all demo accounts
+    {
+      requesterId: insertedUsers[4].id, // Demo Admin
+      receiverId: insertedUsers[0].id, // Demo Student
+      status: "accepted",
+      respondedAt: new Date(),
+    },
+    {
+      requesterId: insertedUsers[4].id, // Demo Admin
+      receiverId: insertedUsers[1].id, // Demo Teacher
+      status: "accepted",
+      respondedAt: new Date(),
+    },
+    {
+      requesterId: insertedUsers[4].id, // Demo Admin
+      receiverId: insertedUsers[2].id, // Demo University Admin
+      status: "accepted",
+      respondedAt: new Date(),
+    },
+    {
+      requesterId: insertedUsers[4].id, // Demo Admin
+      receiverId: insertedUsers[3].id, // Demo Industry Partner
+      status: "accepted",
+      respondedAt: new Date(),
+    },
+    // Additional student connections
+    {
+      requesterId: insertedUsers[5].id, // Alex Rivera
+      receiverId: insertedUsers[6].id, // Jordan Chen
+      status: "accepted",
+      respondedAt: new Date(),
+    },
+    {
+      requesterId: insertedUsers[6].id, // Jordan Chen
+      receiverId: insertedUsers[7].id, // Maya Patel
+      status: "accepted",
+      respondedAt: new Date(),
+    },
+    {
+      requesterId: insertedUsers[7].id, // Maya Patel
+      receiverId: insertedUsers[5].id, // Alex Rivera
+      status: "accepted",
+      respondedAt: new Date(),
+    },
+  ];
+
+  console.log("Inserting user connections...");
+  const insertedConnections = await db.insert(userConnections).values(mockConnections).onConflictDoNothing().returning();
+  console.log(`Inserted ${insertedConnections.length} user connections`);
+
+  // ============================================================================
+  // FOLLOWERS
+  // ============================================================================
+
+  const mockFollowers = [
+    // Students following Demo Student
+    {
+      followerId: insertedUsers[5].id, // Alex Rivera follows Demo Student
+      followingId: insertedUsers[0].id,
+    },
+    {
+      followerId: insertedUsers[6].id, // Jordan Chen follows Demo Student
+      followingId: insertedUsers[0].id,
+    },
+    {
+      followerId: insertedUsers[7].id, // Maya Patel follows Demo Student
+      followingId: insertedUsers[0].id,
+    },
+    {
+      followerId: insertedUsers[8].id, // Dr. Sarah Smith follows Demo Student
+      followingId: insertedUsers[0].id,
+    },
+    {
+      followerId: insertedUsers[9].id, // Prof. Michael Johnson follows Demo Student
+      followingId: insertedUsers[0].id,
+    },
+    {
+      followerId: insertedUsers[10].id, // Emily Thompson follows Demo Student
+      followingId: insertedUsers[0].id,
+    },
+    {
+      followerId: insertedUsers[11].id, // David Williams follows Demo Student
+      followingId: insertedUsers[0].id,
+    },
+    // Demo Student following others
+    {
+      followerId: insertedUsers[0].id, // Demo Student follows Alex Rivera
+      followingId: insertedUsers[5].id,
+    },
+    {
+      followerId: insertedUsers[0].id, // Demo Student follows Jordan Chen
+      followingId: insertedUsers[6].id,
+    },
+    {
+      followerId: insertedUsers[0].id, // Demo Student follows Maya Patel
+      followingId: insertedUsers[7].id,
+    },
+    {
+      followerId: insertedUsers[0].id, // Demo Student follows Demo Teacher
+      followingId: insertedUsers[1].id,
+    },
+    // Demo Teacher followers
+    {
+      followerId: insertedUsers[5].id, // Jordan Chen follows Demo Teacher
+      followingId: insertedUsers[1].id,
+    },
+    {
+      followerId: insertedUsers[6].id, // Maya Patel follows Demo Teacher
+      followingId: insertedUsers[1].id,
+    },
+    {
+      followerId: insertedUsers[9].id, // Prof. Michael Johnson follows Demo Teacher
+      followingId: insertedUsers[1].id,
+    },
+    // Demo Teacher following
+    {
+      followerId: insertedUsers[1].id, // Demo Teacher follows Demo Student
+      followingId: insertedUsers[0].id,
+    },
+    {
+      followerId: insertedUsers[1].id, // Demo Teacher follows Alex Rivera
+      followingId: insertedUsers[5].id,
+    },
+    // Demo Industry Partner followers
+    {
+      followerId: insertedUsers[0].id, // Demo Student follows Demo Industry Partner
+      followingId: insertedUsers[3].id,
+    },
+    {
+      followerId: insertedUsers[5].id, // Alex Rivera follows Demo Industry Partner
+      followingId: insertedUsers[3].id,
+    },
+    {
+      followerId: insertedUsers[6].id, // Jordan Chen follows Demo Industry Partner
+      followingId: insertedUsers[3].id,
+    },
+    {
+      followerId: insertedUsers[7].id, // Maya Patel follows Demo Industry Partner
+      followingId: insertedUsers[3].id,
+    },
+    // Demo Industry Partner following talented students
+    {
+      followerId: insertedUsers[3].id, // Demo Industry Partner follows Demo Student
+      followingId: insertedUsers[0].id,
+    },
+    {
+      followerId: insertedUsers[3].id, // Demo Industry Partner follows Alex Rivera
+      followingId: insertedUsers[5].id,
+    },
+    {
+      followerId: insertedUsers[3].id, // Demo Industry Partner follows Jordan Chen
+      followingId: insertedUsers[6].id,
+    },
+    {
+      followerId: insertedUsers[3].id, // Demo Industry Partner follows Maya Patel
+      followingId: insertedUsers[7].id,
+    },
+    // Demo University Admin followers
+    {
+      followerId: insertedUsers[0].id, // Demo Student follows Demo University Admin
+      followingId: insertedUsers[2].id,
+    },
+    {
+      followerId: insertedUsers[1].id, // Demo Teacher follows Demo University Admin
+      followingId: insertedUsers[2].id,
+    },
+    // Demo Admin following all demo accounts
+    {
+      followerId: insertedUsers[4].id, // Demo Admin follows Demo Student
+      followingId: insertedUsers[0].id,
+    },
+    {
+      followerId: insertedUsers[4].id, // Demo Admin follows Demo Teacher
+      followingId: insertedUsers[1].id,
+    },
+    {
+      followerId: insertedUsers[4].id, // Demo Admin follows Demo University Admin
+      followingId: insertedUsers[2].id,
+    },
+    {
+      followerId: insertedUsers[4].id, // Demo Admin follows Demo Industry Partner
+      followingId: insertedUsers[3].id,
+    },
+    // Cross-student following
+    {
+      followerId: insertedUsers[5].id, // Alex Rivera follows Jordan Chen
+      followingId: insertedUsers[6].id,
+    },
+    {
+      followerId: insertedUsers[6].id, // Jordan Chen follows Maya Patel
+      followingId: insertedUsers[7].id,
+    },
+    {
+      followerId: insertedUsers[7].id, // Maya Patel follows Alex Rivera
+      followingId: insertedUsers[5].id,
+    },
+  ];
+
+  console.log("Inserting followers...");
+  const insertedFollowers = await db.insert(followers).values(mockFollowers).onConflictDoNothing().returning();
+  console.log(`Inserted ${insertedFollowers.length} followers`);
+
   console.log("Database seed completed successfully!");
 }
 
