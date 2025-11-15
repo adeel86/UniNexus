@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
+import { getAuth } from 'firebase/auth';
 
 const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID || 'demo-project';
 
@@ -13,15 +13,13 @@ const firebaseConfig = {
 };
 
 let auth: any = null;
-let googleProvider: any = null;
 
 try {
   const app = initializeApp(firebaseConfig);
   auth = getAuth(app);
-  googleProvider = new GoogleAuthProvider();
   console.log('Firebase initialized successfully with project:', projectId);
 } catch (error) {
   console.warn('Firebase initialization failed. Using fallback auth.', error);
 }
 
-export { auth, googleProvider };
+export { auth };

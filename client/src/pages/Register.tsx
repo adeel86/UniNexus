@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Chrome, Users, GraduationCap, Building2, Briefcase, Shield } from 'lucide-react';
+import { Users, GraduationCap, Building2, Briefcase, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const registerSchema = z.object({
@@ -37,7 +37,7 @@ const roleOptions = [
 ];
 
 export default function Register() {
-  const { signUp, signInWithGoogle } = useAuth();
+  const { signUp } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -82,26 +82,6 @@ export default function Register() {
     } catch (error: any) {
       toast({
         title: 'Registration failed',
-        description: error.message || 'Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleGoogleSignUp = async () => {
-    setIsLoading(true);
-    try {
-      await signInWithGoogle();
-      toast({
-        title: 'Welcome!',
-        description: 'You have successfully signed up with Google.',
-      });
-      navigate('/');
-    } catch (error: any) {
-      toast({
-        title: 'Google sign up failed',
         description: error.message || 'Please try again.',
         variant: 'destructive',
       });
@@ -304,26 +284,6 @@ export default function Register() {
               </Button>
             </form>
           </Form>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
-            </div>
-          </div>
-
-          <Button
-            variant="outline"
-            onClick={handleGoogleSignUp}
-            disabled={isLoading}
-            className="w-full gap-2"
-            data-testid="button-google-register"
-          >
-            <Chrome className="h-4 w-4" />
-            Sign up with Google
-          </Button>
 
           <div className="text-center text-sm text-muted-foreground">
             Already have an account?{' '}

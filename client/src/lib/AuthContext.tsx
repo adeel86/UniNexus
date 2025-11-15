@@ -4,11 +4,10 @@ import {
   onAuthStateChanged, 
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  signInWithPopup,
   signOut as firebaseSignOut,
   updateProfile
 } from 'firebase/auth';
-import { auth, googleProvider } from './firebase';
+import { auth } from './firebase';
 import type { User as DBUser } from '@shared/schema';
 
 interface AuthContextType {
@@ -17,7 +16,6 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, displayName: string, role: string, additionalData: any) => Promise<void>;
-  signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   refreshUserData: () => Promise<void>;
 }
@@ -228,43 +226,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     await refreshUserData();
   };
 
-  const signInWithGoogle = async () => {
-    if (!auth || !googleProvider) {
-      throw new Error('Firebase authentication is not configured');
-    }
-    
-    const result = await signInWithPopup(auth, googleProvider);
-    const user = result.user;
-    
-    const token = await user.getIdToken();
-    const existingUser = await fetch('/api/auth/user', {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    });
-
-    if (!existingUser.ok) {
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          email: user.email,
-          displayName: user.displayName || 'User',
-          role: 'student',
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create user profile');
-      }
-    }
-
-    await refreshUserData();
-  };
-
   const signOut = async () => {
     // Clear dev token if present
     localStorage.removeItem('dev_token');
@@ -286,7 +247,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     loading,
     signIn,
     signUp,
-    signInWithGoogle,
     signOut,
     refreshUserData,
   };

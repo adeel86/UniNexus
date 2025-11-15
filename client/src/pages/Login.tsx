@@ -8,7 +8,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Chrome } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const loginSchema = z.object({
@@ -19,7 +18,7 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function Login() {
-  const { signIn, signInWithGoogle } = useAuth();
+  const { signIn } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
@@ -45,26 +44,6 @@ export default function Login() {
       toast({
         title: 'Login failed',
         description: error.message || 'Please check your credentials and try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    setIsLoading(true);
-    try {
-      await signInWithGoogle();
-      toast({
-        title: 'Welcome!',
-        description: 'You have successfully logged in with Google.',
-      });
-      navigate('/');
-    } catch (error: any) {
-      toast({
-        title: 'Google login failed',
-        description: error.message || 'Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -131,26 +110,6 @@ export default function Login() {
               </Button>
             </form>
           </Form>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
-            </div>
-          </div>
-
-          <Button
-            variant="outline"
-            onClick={handleGoogleSignIn}
-            disabled={isLoading}
-            className="w-full gap-2"
-            data-testid="button-google-login"
-          >
-            <Chrome className="h-4 w-4" />
-            Sign in with Google
-          </Button>
 
           <div className="text-center text-sm text-muted-foreground">
             Don't have an account?{' '}
