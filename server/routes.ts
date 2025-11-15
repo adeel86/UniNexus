@@ -329,7 +329,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      const currentUser = req.user;
+      // Fetch full user data including interests
+      const [currentUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, req.user.id));
+      
+      if (!currentUser) {
+        return res.status(404).send("User not found");
+      }
+      
       const limit = parseInt(req.query.limit as string) || 20;
       const category = req.query.category as string;
       
@@ -409,17 +418,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // 2. Interest/tag overlap (30% weight)
         const userInterests = currentUser.interests || [];
-        const userSkills = currentUser.skills || [];
         const postTags = post.tags || [];
         let interestScore = 0;
         
-        postTags.forEach(tag => {
+        postTags.forEach((tag: string) => {
           const tagLower = tag.toLowerCase();
-          if (userInterests.some(i => i.toLowerCase().includes(tagLower) || tagLower.includes(i.toLowerCase()))) {
+          if (userInterests.some((i: string) => i.toLowerCase().includes(tagLower) || tagLower.includes(i.toLowerCase()))) {
             interestScore += 10;
-          }
-          if (userSkills.some(s => s.toLowerCase().includes(tagLower) || tagLower.includes(s.toLowerCase()))) {
-            interestScore += 5;
           }
         });
         
