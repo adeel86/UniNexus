@@ -2,7 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "./UserAvatar";
-import { Bell, LogOut, Menu, Trophy, Target, MessageCircle, Users, UsersRound } from "lucide-react";
+import { Bell, LogOut, Menu, Trophy, Target, MessageCircle, Users, UsersRound, Compass } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -83,6 +83,19 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                 >
                   <Users className="h-4 w-4" />
                   <span>My Network</span>
+                </Button>
+              </a>
+            </Link>
+            <Link href="/discovery">
+              <a>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`text-white hover:bg-white/20 gap-2 ${location === '/discovery' ? 'bg-white/20' : ''}`}
+                  data-testid="nav-link-discovery"
+                >
+                  <Compass className="h-4 w-4" />
+                  <span>Discover</span>
                 </Button>
               </a>
             </Link>

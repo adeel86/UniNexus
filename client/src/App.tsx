@@ -25,6 +25,9 @@ import Network from "@/pages/Network";
 import Messages from "@/pages/Messages";
 import GroupsDiscovery from "@/pages/GroupsDiscovery";
 import Notifications from "@/pages/Notifications";
+import Discovery from "@/pages/Discovery";
+import EthicsDashboard from "@/pages/EthicsDashboard";
+import TransparencyReport from "@/pages/TransparencyReport";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -79,6 +82,7 @@ function Router() {
         <Switch>
           <Route path="/" component={HomePage} />
           <Route path="/network" component={Network} />
+          <Route path="/discovery" component={Discovery} />
           <Route path="/messages" component={Messages} />
           <Route path="/groups" component={GroupsDiscovery} />
           <Route path="/notifications" component={Notifications} />
@@ -90,6 +94,10 @@ function Router() {
           
           {/* Public verification route */}
           <Route path="/verify/:hash" component={VerifyCertificate} />
+          
+          {/* Admin/Ethics routes */}
+          <Route path="/ethics" component={EthicsDashboard} />
+          <Route path="/transparency" component={TransparencyReport} />
           
           {/* Role-specific routes */}
           <Route path="/teacher-dashboard" component={TeacherDashboard} />
