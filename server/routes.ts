@@ -71,16 +71,7 @@ const openai = process.env.OPENAI_API_KEY ? new OpenAI({
 
 const DEV_AUTH_ENABLED = process.env.DEV_AUTH_ENABLED === 'true';
 const DEV_JWT_SECRET = process.env.DEV_JWT_SECRET;
-const DEMO_PASSWORD = "demo123"; // Fixed password for demo accounts
-
-// Allowlist of demo account emails that can use dev-login
-const DEMO_ACCOUNT_ALLOWLIST = [
-  'demo.student@uninexus.app',
-  'demo.teacher@uninexus.app',
-  'demo.university@uninexus.app',
-  'demo.industry@uninexus.app',
-  'demo.admin@uninexus.app',
-];
+const DEMO_PASSWORD = "demo123"; // Universal password for all dev/test accounts
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -103,18 +94,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Email and password are required" });
       }
 
-      // Security: Only allow demo accounts from the allowlist
-      if (!DEMO_ACCOUNT_ALLOWLIST.includes(email)) {
-        console.warn(`Dev login attempt blocked for non-demo email: ${email}`);
-        return res.status(401).json({ message: "Invalid credentials" });
-      }
-
-      // Validate password (all demo accounts use the same password)
+      // Validate password (all test accounts use the same password: demo123)
       if (password !== DEMO_PASSWORD) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
-      // Look up user by email
+      // Look up user by email in database
       const [user] = await db
         .select()
         .from(users)
