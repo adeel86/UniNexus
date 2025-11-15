@@ -8,6 +8,19 @@ The application provides a social feed for students to share posts and engage wi
 
 ## Recent Changes (November 2025)
 
+### React Native Mobile App (November 15, 2025)
+Implemented cross-platform mobile application for iOS and Android:
+- **Mobile App Structure**: React Native Expo app in `/mobile` directory with TypeScript
+- **Firebase Authentication**: Email/password authentication only (consistent with web app)
+- **Mobile Screens**: Login, Sign Up, and Home screens with Gen Z gradient design
+- **Auth State Management**: AuthContext provider for authentication state and persistence
+- **Navigation**: React Navigation with native stack navigator
+- **UI Design**: Purple-pink-blue gradient theme matching web app aesthetics
+- **Demo Account Support**: "Use Demo Account" button for quick testing
+- **Persistence**: Firebase auth persistence for staying logged in between sessions
+- **Tech Stack**: Expo, React Navigation, Firebase Auth, AsyncStorage, LinearGradient
+- **Testing**: Supports iOS/Android simulators and Expo Go for physical devices
+
 ### Teacher Validation & Academic Endorsement Features
 Implemented comprehensive teacher tools for student validation and career development:
 - **Digital Certificate Issuance**: Teachers can issue NFT-style certificates directly from the Teacher Dashboard with customizable type, title, description, metadata (JSON), image URL, and expiration date
@@ -135,10 +148,11 @@ Preferred communication style: Simple, everyday language.
 ### External Dependencies
 
 **Firebase Services:**
-- Firebase Authentication: Client-side user authentication with Google OAuth support
+- Firebase Authentication: Client-side user authentication with email/password only
 - Firebase Admin SDK: Server-side token verification and user management
-- Firebase Storage: Media file uploads and CDN delivery
-- Service account key: `serviceAccountKey.json` (not in repo, environment-based)
+- Firebase Storage: Media file uploads and CDN delivery (if configured)
+- Development Mode: DEV_AUTH_ENABLED bypass for demo accounts without Firebase setup
+- Service account key: `serviceAccountKey.json` (optional, for production only)
 
 **AI/ML Integration:**
 - OpenAI API: GPT models for post suggestions, career guidance chatbot, and content moderation
