@@ -437,4 +437,64 @@
   button, a, .hover-elevate {
     transition: all 0.2s ease-in-out;
   }
+
+  /* Mobile-specific optimizations */
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-area-inset-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* Touch-friendly tap targets (minimum 44x44px) */
+  @media (max-width: 768px) {
+    button, a[role="button"], [role="tab"] {
+      min-height: 44px;
+      min-width: 44px;
+    }
+
+    /* Optimize mobile scrolling */
+    body {
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: none;
+    }
+
+    /* Disable pull-to-refresh on mobile */
+    body {
+      overscroll-behavior-y: contain;
+    }
+
+    /* Better mobile typography */
+    body {
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+    }
+  }
+
+  /* Hide scrollbar on mobile for cleaner UX */
+  @media (max-width: 768px) {
+    * {
+      scrollbar-width: none;
+    }
+    *::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  /* Mobile-first responsive utilities */
+  @media (max-width: 640px) {
+    .mobile-full-width {
+      width: 100%;
+    }
+
+    .mobile-padding {
+      padding: 1rem;
+    }
+
+    .mobile-text-sm {
+      font-size: 0.875rem;
+    }
+  }
 }

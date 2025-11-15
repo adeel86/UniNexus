@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/lib/AuthContext";
 import { Navbar } from "@/components/Navbar";
+import { MobileNavigation } from "@/components/MobileNavigation";
 import { CareerBot } from "@/components/CareerBot";
 import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
@@ -23,6 +24,7 @@ import VerifyCertificate from "@/pages/VerifyCertificate";
 import Network from "@/pages/Network";
 import Messages from "@/pages/Messages";
 import GroupsDiscovery from "@/pages/GroupsDiscovery";
+import Notifications from "@/pages/Notifications";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -73,29 +75,35 @@ function Router() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <Switch>
-        <Route path="/" component={HomePage} />
-        <Route path="/network" component={Network} />
-        <Route path="/messages" component={Messages} />
-        <Route path="/groups" component={GroupsDiscovery} />
-        <Route path="/leaderboard" component={Leaderboard} />
-        <Route path="/challenges" component={Challenges} />
-        <Route path="/challenges/map" component={GlobalChallengeMap} />
-        <Route path="/profile" component={Profile} />
-        <Route path="/courses/:courseId" component={CourseDetail} />
-        
-        {/* Public verification route */}
-        <Route path="/verify/:hash" component={VerifyCertificate} />
-        
-        {/* Role-specific routes */}
-        <Route path="/teacher" component={TeacherDashboard} />
-        <Route path="/university" component={UniversityDashboard} />
-        <Route path="/industry" component={IndustryDashboard} />
-        <Route path="/admin" component={MasterAdminDashboard} />
-        
-        {/* 404 fallback */}
-        <Route component={NotFound} />
-      </Switch>
+      <div className="pb-16 md:pb-0">
+        <Switch>
+          <Route path="/" component={HomePage} />
+          <Route path="/network" component={Network} />
+          <Route path="/messages" component={Messages} />
+          <Route path="/groups" component={GroupsDiscovery} />
+          <Route path="/notifications" component={Notifications} />
+          <Route path="/leaderboard" component={Leaderboard} />
+          <Route path="/challenges" component={Challenges} />
+          <Route path="/challenges/map" component={GlobalChallengeMap} />
+          <Route path="/profile" component={Profile} />
+          <Route path="/courses/:courseId" component={CourseDetail} />
+          
+          {/* Public verification route */}
+          <Route path="/verify/:hash" component={VerifyCertificate} />
+          
+          {/* Role-specific routes */}
+          <Route path="/teacher-dashboard" component={TeacherDashboard} />
+          <Route path="/university-dashboard" component={UniversityDashboard} />
+          <Route path="/industry-dashboard" component={IndustryDashboard} />
+          <Route path="/master-admin-dashboard" component={MasterAdminDashboard} />
+          
+          {/* 404 fallback */}
+          <Route component={NotFound} />
+        </Switch>
+      </div>
+      
+      {/* Mobile Navigation - Bottom Tab Bar */}
+      <MobileNavigation />
       
       {/* AI Assistant - Available for all authenticated users */}
       <CareerBot />
