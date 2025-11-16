@@ -2,11 +2,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import type { User, insertChallengeSchema } from "@shared/schema";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
-import { Search, Briefcase, Users, Trophy, Plus, Calendar } from "lucide-react";
+import { Search, Briefcase, Users, Trophy, Plus, Calendar, TrendingUp, MessageSquare } from "lucide-react";
+import { UniversalFeed } from "@/components/UniversalFeed";
 import { useState } from "react";
 import {
   Dialog,
@@ -127,10 +129,27 @@ export default function IndustryDashboard() {
       <div className="mb-6">
         <h1 className="font-heading text-3xl font-bold mb-2">Industry Partner Dashboard</h1>
         <p className="text-muted-foreground">
-          Discover talented students and create challenges
+          Discover talented students, create challenges, and engage with the community
         </p>
       </div>
 
+      <Tabs defaultValue="analytics" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsTrigger value="analytics" data-testid="tab-analytics">
+            <TrendingUp className="h-4 w-4 mr-2" />
+            Analytics
+          </TabsTrigger>
+          <TabsTrigger value="feed" data-testid="tab-feed">
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Community Feed
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="feed">
+          <UniversalFeed role="industry" initialCategory="all" />
+        </TabsContent>
+
+        <TabsContent value="analytics">
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <Card className="p-6">
@@ -253,7 +272,10 @@ export default function IndustryDashboard() {
           )}
         </div>
       </Card>
+        </TabsContent>
+      </Tabs>
 
+      {/* Modals */}
       {/* Challenge Creation Modal */}
       <Dialog open={isChallengeModalOpen} onOpenChange={setIsChallengeModalOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
