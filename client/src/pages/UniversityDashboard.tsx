@@ -1,9 +1,11 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery } from "@tanstack/react-query";
 import type { User } from "@shared/schema";
-import { TrendingUp, TrendingDown, Users, Award, Target, AlertTriangle, Trophy, GraduationCap, FileCheck, Briefcase } from "lucide-react";
+import { TrendingUp, TrendingDown, Users, Award, Target, AlertTriangle, Trophy, GraduationCap, FileCheck, Briefcase, MessageSquare } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { UniversalFeed } from "@/components/UniversalFeed";
 
 interface RetentionOverview {
   overview: {
@@ -89,10 +91,27 @@ export default function UniversityDashboard() {
       <div className="mb-6">
         <h1 className="font-heading text-3xl font-bold mb-2">University Dashboard</h1>
         <p className="text-muted-foreground">
-          Monitor institutional engagement and retention metrics
+          Monitor institutional engagement, retention metrics, and engage with the community
         </p>
       </div>
 
+      <Tabs defaultValue="analytics" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsTrigger value="analytics" data-testid="tab-analytics">
+            <TrendingUp className="h-4 w-4 mr-2" />
+            Analytics
+          </TabsTrigger>
+          <TabsTrigger value="feed" data-testid="tab-feed">
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Community Feed
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="feed">
+          <UniversalFeed role="university" initialCategory="all" />
+        </TabsContent>
+
+        <TabsContent value="analytics">
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <Card className="p-6">
@@ -457,6 +476,8 @@ export default function UniversityDashboard() {
           </div>
         </div>
       </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

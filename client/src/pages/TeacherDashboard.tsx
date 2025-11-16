@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { TrendingUp, Award, Users, Target, Plus, Shield, Sparkles } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TrendingUp, Award, Users, Target, Plus, Shield, Sparkles, MessageSquare } from "lucide-react";
 import { useState } from "react";
 import { CreatePostModal } from "@/components/CreatePostModal";
 import { SuggestedPosts } from "@/components/SuggestedPosts";
+import { UniversalFeed } from "@/components/UniversalFeed";
 import {
   Dialog,
   DialogContent,
@@ -177,12 +179,29 @@ export default function TeacherDashboard() {
       <div className="mb-6">
         <h1 className="font-heading text-3xl font-bold mb-2">Teacher Dashboard</h1>
         <p className="text-muted-foreground">
-          Monitor student progress and provide endorsements
+          Monitor student progress, provide endorsements, and engage with the community
         </p>
       </div>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <Tabs defaultValue="analytics" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsTrigger value="analytics" data-testid="tab-analytics">
+            <TrendingUp className="h-4 w-4 mr-2" />
+            Analytics
+          </TabsTrigger>
+          <TabsTrigger value="feed" data-testid="tab-feed">
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Community Feed
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="feed">
+          <UniversalFeed role="teacher" initialCategory="academic" />
+        </TabsContent>
+
+        <TabsContent value="analytics">
+          {/* Stats Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -429,7 +448,10 @@ export default function TeacherDashboard() {
           </Card>
         </div>
       </div>
+        </TabsContent>
+      </Tabs>
 
+      {/* Modals */}
       {/* Endorsement Modal */}
       <Dialog open={endorseModalOpen} onOpenChange={setEndorseModalOpen}>
         <DialogContent>
@@ -671,7 +693,6 @@ export default function TeacherDashboard() {
         </DialogContent>
       </Dialog>
 
-      {/* Create Post Modal */}
       <CreatePostModal
         open={createPostOpen}
         onOpenChange={setCreatePostOpen}

@@ -2095,9 +2095,9 @@ Respond with a JSON object containing:
 
 Be lenient with academic discussions, debates, and Gen Z slang. Only flag clearly inappropriate content.`;
 
-      // Using gpt-4o (latest OpenAI model as of 2024-2025)
+      // Using gpt-4o-mini for cost-efficient content moderation
       const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
+        model: "gpt-4o-mini",
         messages: [
           { role: "system", content: moderationPrompt },
         ],
