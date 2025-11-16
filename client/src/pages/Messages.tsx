@@ -6,10 +6,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { UserAvatar } from "@/components/UserAvatar";
-import { Send, MessageCircle } from "lucide-react";
+import { Send, MessageCircle, Plus, Search } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/AuthContext";
 import { formatDistanceToNow } from "date-fns";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
 
 interface EnrichedConversation extends Conversation {
   participants: User[];
@@ -23,8 +32,11 @@ interface MessageWithSender extends Message {
 
 export default function Messages() {
   const { userData: currentUser } = useAuth();
+  const { toast } = useToast();
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [messageInput, setMessageInput] = useState("");
+  const [newConversationOpen, setNewConversationOpen] = useState(false);
+  const [userSearchTerm, setUserSearchTerm] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Get all conversations
@@ -61,6 +73,45 @@ export default function Messages() {
     },
   });
 
+  // Search users for new conversation
+  const { data: userSearchResults = [] } = useQuery<User[]>({
+    queryKey: ["/api/users/search", userSearchTerm],
+    queryFn: async () => {
+      if (userSearchTerm.length < 3) return [];
+      const response = await fetch(`/api/users/search?q=${encodeURIComponent(userSearchTerm)}`);
+      if (!response.ok) throw new Error('Failed to search users');
+      return response.json();
+    },
+    enabled: userSearchTerm.length >= 3,
+  });
+
+  // Create new conversation mutation
+  const createConversation = useMutation({
+    mutationFn: async (participantId: string) => {
+      const response = await apiRequest("POST", `/api/conversations`, {
+        participantIds: [participantId],
+      });
+      return response as unknown as Conversation;
+    },
+    onSuccess: (conversation: Conversation) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations"] });
+      setSelectedConversationId(conversation.id);
+      setNewConversationOpen(false);
+      setUserSearchTerm("");
+      toast({
+        title: "Conversation started",
+        description: "You can now start chatting!",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to start conversation",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -94,7 +145,82 @@ export default function Messages() {
       <div className="grid grid-cols-12 gap-4 h-full">
         {/* Conversations List */}
         <Card className="col-span-12 md:col-span-4 p-4 flex flex-col">
-          <h2 className="font-semibold mb-4">Conversations</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold">Conversations</h2>
+            <Dialog open={newConversationOpen} onOpenChange={setNewConversationOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="default" data-testid="button-new-conversation">
+                  <Plus className="h-4 w-4 mr-2" />
+                  New
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Start New Conversation</DialogTitle>
+                  <DialogDescription>
+                    Search for someone to start chatting with
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by name, email, university, or company..."
+                      className="pl-10"
+                      value={userSearchTerm}
+                      onChange={(e) => setUserSearchTerm(e.target.value)}
+                      data-testid="input-search-users"
+                    />
+                  </div>
+                  <ScrollArea className="h-[300px]">
+                    {userSearchTerm.length < 3 ? (
+                      <p className="text-sm text-muted-foreground text-center py-8">
+                        Type at least 3 characters to search
+                      </p>
+                    ) : userSearchResults.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-8">
+                        No users found
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {userSearchResults.map((user) => (
+                          <div
+                            key={user.id}
+                            className="flex items-center justify-between p-3 rounded-md hover-elevate"
+                            data-testid={`user-result-${user.id}`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <UserAvatar user={user} size="md" />
+                              <div>
+                                <p className="font-medium">
+                                  {user.firstName} {user.lastName}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {user.role === 'student' && user.major}
+                                  {user.role === 'teacher' && 'Teacher'}
+                                  {user.role === 'industry_professional' && user.company}
+                                  {user.role === 'university_admin' && user.university}
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              size="sm"
+                              onClick={() => createConversation.mutate(user.id)}
+                              disabled={createConversation.isPending}
+                              data-testid={`button-message-${user.id}`}
+                            >
+                              <MessageCircle className="h-4 w-4 mr-2" />
+                              Message
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </ScrollArea>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
           <ScrollArea className="flex-1">
             {conversations.length === 0 ? (
               <div className="text-center py-8">

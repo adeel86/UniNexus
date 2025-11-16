@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { TrendingUp, Award, Users, Target, Plus, Shield, Sparkles } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { TrendingUp, Award, Users, Target, Plus, Shield, Sparkles, MessageSquare } from "lucide-react";
 import { useState } from "react";
 import { CreatePostModal } from "@/components/CreatePostModal";
 import { SuggestedPosts } from "@/components/SuggestedPosts";
+import { UniversalFeed } from "@/components/UniversalFeed";
 import {
   Dialog,
   DialogContent,
