@@ -11,9 +11,11 @@ import { AchievementTimeline } from "@/components/AchievementTimeline";
 import { CertificateShowcase } from "@/components/CertificateShowcase";
 import { RankTierBadge } from "@/components/RankTierBadge";
 import { PostCard } from "@/components/PostCard";
-import { Award, TrendingUp, Zap, Trophy, Clock, Shield, Users, UserPlus, UserMinus, CheckCircle } from "lucide-react";
+import { EditProfileModal } from "@/components/EditProfileModal";
+import { Award, TrendingUp, Zap, Trophy, Clock, Shield, Users, UserPlus, UserMinus, CheckCircle, Edit, Mail, Phone, Globe, Briefcase, GraduationCap } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState } from "react";
+import type { UserProfile } from "@shared/schema";
 
 type PostWithAuthor = Post & {
   author: User;
@@ -68,21 +70,6 @@ export default function Profile() {
     enabled: !!targetUserId,
   });
 
-  // Fetch connections
-  const { data: allConnections = [] } = useQuery<any[]>({
-    queryKey: [`/api/connections`, targetUserId],
-    queryFn: async () => {
-      const response = await fetch(`/api/connections`);
-      if (!response.ok) throw new Error('Failed to fetch connections');
-      return response.json();
-    },
-    enabled: !!targetUserId && isViewingOwnProfile,
-  });
-
-  // Calculate connection stats
-  const acceptedConnections = allConnections.filter((c: any) => c.status === 'accepted');
-  const pendingConnections = allConnections.filter((c: any) => c.status === 'pending');
-
   // Fetch user's posts
   const { data: userPosts = [] } = useQuery<PostWithAuthor[]>({
     queryKey: [`/api/posts`, 'author', targetUserId],
@@ -118,7 +105,13 @@ export default function Profile() {
 
   const [showFollowers, setShowFollowers] = useState(false);
   const [showFollowing, setShowFollowing] = useState(false);
-  const [showConnections, setShowConnections] = useState(false);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
+
+  // Fetch extended profile data
+  const { data: extendedProfile } = useQuery<UserProfile>({
+    queryKey: [`/api/user-profiles/${targetUserId}`],
+    enabled: !!targetUserId,
+  });
 
   if (userLoading || !user) {
     return (
@@ -159,23 +152,8 @@ export default function Profile() {
                 <p className="text-purple-100 mb-3">{user.university}</p>
               )}
               
-              {/* Followers/Following/Connections counts */}
+              {/* Followers/Following counts */}
               <div className="flex gap-6 mt-4">
-                {isViewingOwnProfile && (
-                  <button 
-                    onClick={() => setShowConnections(!showConnections)}
-                    className="hover-elevate rounded-lg p-2 transition-all"
-                    data-testid="button-connections"
-                  >
-                    <div className="text-2xl font-bold">{acceptedConnections.length}</div>
-                    <div className="text-sm text-purple-100">Connections</div>
-                    {pendingConnections.length > 0 && (
-                      <div className="text-xs text-purple-200 mt-1">
-                        {pendingConnections.length} pending
-                      </div>
-                    )}
-                  </button>
-                )}
                 <button 
                   onClick={() => setShowFollowers(!showFollowers)}
                   className="hover-elevate rounded-lg p-2 transition-all"
@@ -212,6 +190,22 @@ export default function Profile() {
               </div>
             </div>
           </div>
+          
+          {/* Edit Profile button (only show when viewing own profile) */}
+          {isViewingOwnProfile && (
+            <div>
+              <Button
+                onClick={() => setEditProfileOpen(true)}
+                variant="outline"
+                size="lg"
+                className="bg-white/20 backdrop-blur text-white border-white/30 hover:bg-white/30"
+                data-testid="button-edit-profile"
+              >
+                <Edit className="mr-2 h-5 w-5" />
+                Edit Profile
+              </Button>
+            </div>
+          )}
           
           {/* Follow button (only show when viewing someone else's profile) */}
           {!isViewingOwnProfile && currentUser && (
@@ -341,80 +335,6 @@ export default function Profile() {
         </Card>
       )}
 
-      {/* Connections List */}
-      {showConnections && (
-        <Card className="p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-heading text-xl font-semibold flex items-center gap-2">
-              <Users className="h-5 w-5" />
-              Connections ({allConnections.length})
-            </h3>
-            <Button variant="ghost" size="sm" onClick={() => setShowConnections(false)} data-testid="button-close-connections">
-              Close
-            </Button>
-          </div>
-          
-          {/* Tabs for Accepted and Pending */}
-          <div className="flex gap-2 mb-4">
-            <Badge variant={acceptedConnections.length > 0 ? "default" : "secondary"}>
-              Accepted ({acceptedConnections.length})
-            </Badge>
-            <Badge variant={pendingConnections.length > 0 ? "default" : "secondary"}>
-              Pending ({pendingConnections.length})
-            </Badge>
-          </div>
-
-          {/* Accepted Connections */}
-          {acceptedConnections.length > 0 && (
-            <div className="mb-6">
-              <h4 className="font-semibold mb-3 text-green-600">Accepted Connections</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {acceptedConnections.map((connection: any) => connection.user && (
-                  <div key={connection.id} className="flex items-center gap-3 p-3 rounded-lg hover-elevate bg-green-50 dark:bg-green-950" data-testid={`connection-accepted-${connection.user.id}`}>
-                    <UserAvatar user={connection.user} size="md" />
-                    <div className="flex-1">
-                      <div className="font-medium">{connection.user.firstName} {connection.user.lastName}</div>
-                      {connection.user.major && (
-                        <div className="text-sm text-muted-foreground">{connection.user.major}</div>
-                      )}
-                    </div>
-                    <CheckCircle className="h-5 w-5 text-green-600" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Pending Connections */}
-          {pendingConnections.length > 0 && (
-            <div>
-              <h4 className="font-semibold mb-3 text-orange-600">Pending Requests</h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {pendingConnections.map((connection: any) => connection.user && (
-                  <div key={connection.id} className="flex items-center gap-3 p-3 rounded-lg hover-elevate bg-orange-50 dark:bg-orange-950" data-testid={`connection-pending-${connection.user.id}`}>
-                    <UserAvatar user={connection.user} size="md" />
-                    <div className="flex-1">
-                      <div className="font-medium">{connection.user.firstName} {connection.user.lastName}</div>
-                      {connection.user.major && (
-                        <div className="text-sm text-muted-foreground">{connection.user.major}</div>
-                      )}
-                      <div className="text-xs text-orange-600 mt-1">
-                        {connection.requesterId === currentUser?.id ? 'Sent by you' : 'Waiting for your response'}
-                      </div>
-                    </div>
-                    <Clock className="h-5 w-5 text-orange-600" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {allConnections.length === 0 && (
-            <p className="text-center text-muted-foreground py-8">No connections yet</p>
-          )}
-        </Card>
-      )}
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Badges */}
         <Card className="p-6">
@@ -503,6 +423,198 @@ export default function Profile() {
         <CertificateShowcase certifications={certifications} />
       </div>
 
+      {/* Extended Profile Information */}
+      {extendedProfile && (
+        <>
+          {user.role === "student" && (extendedProfile.programme || extendedProfile.academicGoals || extendedProfile.careerGoals) && (
+            <Card className="p-6 mt-6">
+              <h2 className="font-heading text-xl font-semibold mb-4 flex items-center gap-2">
+                <GraduationCap className="h-5 w-5 text-blue-600" />
+                Academic Information
+              </h2>
+              <div className="space-y-3">
+                {extendedProfile.programme && (
+                  <div>
+                    <h3 className="font-medium text-sm text-muted-foreground">Programme</h3>
+                    <p>{extendedProfile.programme}</p>
+                  </div>
+                )}
+                {extendedProfile.yearOfStudy && (
+                  <div>
+                    <h3 className="font-medium text-sm text-muted-foreground">Year of Study</h3>
+                    <p>Year {extendedProfile.yearOfStudy}</p>
+                  </div>
+                )}
+                {extendedProfile.academicGoals && (
+                  <div>
+                    <h3 className="font-medium text-sm text-muted-foreground">Academic Goals</h3>
+                    <p className="whitespace-pre-wrap">{extendedProfile.academicGoals}</p>
+                  </div>
+                )}
+                {extendedProfile.careerGoals && (
+                  <div>
+                    <h3 className="font-medium text-sm text-muted-foreground">Career Goals</h3>
+                    <p className="whitespace-pre-wrap">{extendedProfile.careerGoals}</p>
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
+
+          {user.role === "teacher" && (extendedProfile.teachingSubjects || extendedProfile.professionalBio || extendedProfile.specializations) && (
+            <Card className="p-6 mt-6">
+              <h2 className="font-heading text-xl font-semibold mb-4 flex items-center gap-2">
+                <Briefcase className="h-5 w-5 text-purple-600" />
+                Teaching Profile
+              </h2>
+              <div className="space-y-3">
+                {extendedProfile.department && (
+                  <div>
+                    <h3 className="font-medium text-sm text-muted-foreground">Department</h3>
+                    <p>{extendedProfile.department}</p>
+                  </div>
+                )}
+                {extendedProfile.teachingSubjects && extendedProfile.teachingSubjects.length > 0 && (
+                  <div>
+                    <h3 className="font-medium text-sm text-muted-foreground">Teaching Subjects</h3>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {extendedProfile.teachingSubjects.map((subject, i) => (
+                        <Badge key={i} variant="secondary">{subject}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {extendedProfile.specializations && extendedProfile.specializations.length > 0 && (
+                  <div>
+                    <h3 className="font-medium text-sm text-muted-foreground">Specializations</h3>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {extendedProfile.specializations.map((spec, i) => (
+                        <Badge key={i} variant="outline">{spec}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {extendedProfile.professionalBio && (
+                  <div>
+                    <h3 className="font-medium text-sm text-muted-foreground">Professional Biography</h3>
+                    <p className="whitespace-pre-wrap">{extendedProfile.professionalBio}</p>
+                  </div>
+                )}
+                {extendedProfile.officeHours && (
+                  <div>
+                    <h3 className="font-medium text-sm text-muted-foreground">Office Hours</h3>
+                    <p>{extendedProfile.officeHours}</p>
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
+
+          {user.role === "university_admin" && extendedProfile.universityMission && (
+            <Card className="p-6 mt-6">
+              <h2 className="font-heading text-xl font-semibold mb-4 flex items-center gap-2">
+                <Globe className="h-5 w-5 text-green-600" />
+                About {user.university || "Our University"}
+              </h2>
+              <div className="space-y-3">
+                {extendedProfile.universityMission && (
+                  <div>
+                    <h3 className="font-medium text-sm text-muted-foreground">Mission</h3>
+                    <p className="whitespace-pre-wrap">{extendedProfile.universityMission}</p>
+                  </div>
+                )}
+                {extendedProfile.focusAreas && extendedProfile.focusAreas.length > 0 && (
+                  <div>
+                    <h3 className="font-medium text-sm text-muted-foreground">Focus Areas</h3>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {extendedProfile.focusAreas.map((area, i) => (
+                        <Badge key={i} variant="secondary">{area}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {extendedProfile.opportunitiesOffered && (
+                  <div>
+                    <h3 className="font-medium text-sm text-muted-foreground">Opportunities Offered</h3>
+                    <p className="whitespace-pre-wrap">{extendedProfile.opportunitiesOffered}</p>
+                  </div>
+                )}
+                {(extendedProfile.contactEmail || extendedProfile.contactPhone || extendedProfile.website) && (
+                  <div>
+                    <h3 className="font-medium text-sm text-muted-foreground mb-2">Contact Information</h3>
+                    <div className="space-y-1">
+                      {extendedProfile.contactEmail && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Mail className="h-4 w-4 text-muted-foreground" />
+                          <a href={`mailto:${extendedProfile.contactEmail}`} className="hover:underline">
+                            {extendedProfile.contactEmail}
+                          </a>
+                        </div>
+                      )}
+                      {extendedProfile.contactPhone && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Phone className="h-4 w-4 text-muted-foreground" />
+                          <a href={`tel:${extendedProfile.contactPhone}`} className="hover:underline">
+                            {extendedProfile.contactPhone}
+                          </a>
+                        </div>
+                      )}
+                      {extendedProfile.website && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Globe className="h-4 w-4 text-muted-foreground" />
+                          <a href={extendedProfile.website} target="_blank" rel="noopener noreferrer" className="hover:underline">
+                            {extendedProfile.website}
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
+
+          {user.role === "industry_professional" && extendedProfile.companyMission && (
+            <Card className="p-6 mt-6">
+              <h2 className="font-heading text-xl font-semibold mb-4 flex items-center gap-2">
+                <Briefcase className="h-5 w-5 text-orange-600" />
+                About {user.company || "Our Company"}
+              </h2>
+              <div className="space-y-3">
+                {extendedProfile.companyMission && (
+                  <div>
+                    <h3 className="font-medium text-sm text-muted-foreground">Company Mission</h3>
+                    <p className="whitespace-pre-wrap">{extendedProfile.companyMission}</p>
+                  </div>
+                )}
+                {extendedProfile.industryFocus && extendedProfile.industryFocus.length > 0 && (
+                  <div>
+                    <h3 className="font-medium text-sm text-muted-foreground">Industry Focus</h3>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {extendedProfile.industryFocus.map((focus, i) => (
+                        <Badge key={i} variant="secondary">{focus}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {extendedProfile.partnershipOpportunities && (
+                  <div>
+                    <h3 className="font-medium text-sm text-muted-foreground">Partnership Opportunities</h3>
+                    <p className="whitespace-pre-wrap">{extendedProfile.partnershipOpportunities}</p>
+                  </div>
+                )}
+                {extendedProfile.hiringOpportunities && (
+                  <div>
+                    <h3 className="font-medium text-sm text-muted-foreground">Hiring Opportunities</h3>
+                    <p className="whitespace-pre-wrap">{extendedProfile.hiringOpportunities}</p>
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
+        </>
+      )}
+
       {/* User's Posts */}
       <div className="mt-6">
         <h2 className="font-heading text-2xl font-semibold mb-4">
@@ -520,6 +632,14 @@ export default function Profile() {
           </Card>
         )}
       </div>
+
+      {/* Edit Profile Modal */}
+      <EditProfileModal
+        open={editProfileOpen}
+        onOpenChange={setEditProfileOpen}
+        userId={targetUserId || ""}
+        userRole={user.role}
+      />
     </div>
   );
 }

@@ -1059,3 +1059,99 @@ export const insertGroupPostSchema = createInsertSchema(groupPosts).omit({
 
 export type GroupPost = typeof groupPosts.$inferSelect;
 export type InsertGroupPost = z.infer<typeof insertGroupPostSchema>;
+
+// ============================================================================
+// TEACHER CONTENT MANAGEMENT
+// ============================================================================
+
+export const teacherContent = pgTable("teacher_content", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  teacherId: varchar("teacher_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  courseId: varchar("course_id").references(() => courses.id, { onDelete: 'set null' }),
+  title: varchar("title", { length: 200 }).notNull(),
+  description: text("description"),
+  contentType: varchar("content_type", { length: 50 }).notNull(), // pdf, doc, text, link, video
+  fileUrl: varchar("file_url"), // URL to uploaded file
+  textContent: text("text_content"), // For text-based content
+  metadata: jsonb("metadata"), // File size, page count, etc.
+  tags: text("tags").array().default(sql`ARRAY[]::text[]`),
+  isPublic: boolean("is_public").notNull().default(true), // Visible to all students or just enrolled
+  uploadedAt: timestamp("uploaded_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const teacherContentRelations = relations(teacherContent, ({ one }) => ({
+  teacher: one(users, {
+    fields: [teacherContent.teacherId],
+    references: [users.id],
+  }),
+  course: one(courses, {
+    fields: [teacherContent.courseId],
+    references: [courses.id],
+  }),
+}));
+
+export const insertTeacherContentSchema = createInsertSchema(teacherContent).omit({
+  id: true,
+  uploadedAt: true,
+  updatedAt: true,
+});
+
+export type TeacherContent = typeof teacherContent.$inferSelect;
+export type InsertTeacherContent = z.infer<typeof insertTeacherContentSchema>;
+
+// ============================================================================
+// USER PROFILE EXTENSIONS
+// ============================================================================
+
+export const userProfiles = pgTable("user_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }).unique(),
+  
+  // Student-specific fields
+  programme: varchar("programme"), // Degree program
+  modules: text("modules").array().default(sql`ARRAY[]::text[]`), // Enrolled modules/courses
+  yearOfStudy: integer("year_of_study"),
+  academicGoals: text("academic_goals"),
+  careerGoals: text("career_goals"),
+  
+  // Teacher-specific fields
+  teachingSubjects: text("teaching_subjects").array().default(sql`ARRAY[]::text[]`),
+  specializations: text("specializations").array().default(sql`ARRAY[]::text[]`),
+  professionalBio: text("professional_bio"),
+  department: varchar("department"),
+  officeHours: varchar("office_hours"),
+  
+  // University-specific fields
+  universityMission: text("university_mission"),
+  focusAreas: text("focus_areas").array().default(sql`ARRAY[]::text[]`),
+  opportunitiesOffered: text("opportunities_offered"),
+  contactEmail: varchar("contact_email"),
+  contactPhone: varchar("contact_phone"),
+  website: varchar("website"),
+  
+  // Industry-specific fields
+  companyMission: text("company_mission"),
+  industryFocus: text("industry_focus").array().default(sql`ARRAY[]::text[]`),
+  partnershipOpportunities: text("partnership_opportunities"),
+  hiringOpportunities: text("hiring_opportunities"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const userProfilesRelations = relations(userProfiles, ({ one }) => ({
+  user: one(users, {
+    fields: [userProfiles.userId],
+    references: [users.id],
+  }),
+}));
+
+export const insertUserProfileSchema = createInsertSchema(userProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type UserProfile = typeof userProfiles.$inferSelect;
+export type InsertUserProfile = z.infer<typeof insertUserProfileSchema>;

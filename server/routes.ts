@@ -40,6 +40,8 @@ import {
   groups,
   groupMembers,
   groupPosts,
+  teacherContent,
+  userProfiles,
   insertPostSchema,
   insertCommentSchema,
   insertReactionSchema,
@@ -59,6 +61,7 @@ import {
   insertGroupSchema,
   insertGroupMemberSchema,
   insertGroupPostSchema,
+  insertTeacherContentSchema,
 } from "@shared/schema";
 import OpenAI from "openai";
 import jwt from "jsonwebtoken";
@@ -4646,6 +4649,377 @@ Make it personalized, constructive, and actionable. Use a professional but encou
       const urls = req.files.map(file => `/uploads/images/${file.filename}`);
       res.json({ urls });
     } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
+  // USER PROFILE MANAGEMENT API
+  // ========================================================================
+
+  // Get user profile by userId
+  app.get("/api/user-profiles/:userId", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { userId } = req.params;
+
+      const [profile] = await db
+        .select()
+        .from(userProfiles)
+        .where(eq(userProfiles.userId, userId));
+
+      // Return empty profile if doesn't exist yet
+      res.json(profile || { userId });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create or update user profile
+  app.post("/api/user-profiles", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const userId = req.user!.id;
+      const profileData = { ...req.body, userId };
+
+      // Upsert profile
+      const [profile] = await db
+        .insert(userProfiles)
+        .values(profileData)
+        .onConflictDoUpdate({
+          target: userProfiles.userId,
+          set: {
+            ...profileData,
+            updatedAt: new Date(),
+          },
+        })
+        .returning();
+
+      res.json(profile);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
+  // TEACHER CONTENT MANAGEMENT API
+  // ========================================================================
+
+  // Multer configuration for document uploads
+  const documentsDir = path.join(uploadsDir, 'documents');
+  if (!fs.existsSync(documentsDir)) {
+    fs.mkdirSync(documentsDir, { recursive: true });
+  }
+
+  const documentStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, documentsDir);
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      const ext = path.extname(file.originalname);
+      const baseName = path.basename(file.originalname, ext).replace(/[^a-z0-9]/gi, '_');
+      cb(null, `${baseName}-${uniqueSuffix}${ext}`);
+    }
+  });
+
+  const documentUpload = multer({
+    storage: documentStorage,
+    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
+    fileFilter: (req, file, cb) => {
+      const allowedTypes = [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'text/plain',
+        'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+      ];
+      if (allowedTypes.includes(file.mimetype)) {
+        cb(null, true);
+      } else {
+        cb(new Error('Invalid file type. Only PDF, DOC, DOCX, TXT, PPT, and PPTX are allowed.'));
+      }
+    }
+  });
+
+  // Serve uploaded documents
+  app.use('/uploads/documents', express.static(documentsDir));
+
+  // Upload teacher content document
+  app.post("/api/teacher-content/upload", documentUpload.single('document'), async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    // Check if user is a teacher
+    if (req.user!.role !== 'teacher' && req.user!.role !== 'master_admin') {
+      return res.status(403).json({ error: "Only teachers can upload content" });
+    }
+
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No document file provided" });
+      }
+
+      const fileUrl = `/uploads/documents/${req.file.filename}`;
+      
+      // Parse additional fields from request body
+      const { title, description, courseId, tags, isPublic } = req.body;
+
+      // Determine content type from file mimetype
+      let contentType = 'doc';
+      if (req.file.mimetype === 'application/pdf') contentType = 'pdf';
+      else if (req.file.mimetype === 'text/plain') contentType = 'text';
+
+      const metadata = {
+        originalName: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype,
+      };
+
+      const [content] = await db
+        .insert(teacherContent)
+        .values({
+          teacherId: req.user!.id,
+          title: title || req.file.originalname,
+          description: description || null,
+          courseId: courseId || null,
+          contentType,
+          fileUrl,
+          metadata,
+          tags: tags ? tags.split(',').map((t: string) => t.trim()) : [],
+          isPublic: isPublic === 'true' || isPublic === true,
+        })
+        .returning();
+
+      res.json({ url: fileUrl, content });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create text-based teacher content (notes, guidelines)
+  app.post("/api/teacher-content", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    // Check if user is a teacher
+    if (req.user!.role !== 'teacher' && req.user!.role !== 'master_admin') {
+      return res.status(403).json({ error: "Only teachers can create content" });
+    }
+
+    try {
+      const validatedData = insertTeacherContentSchema.parse({
+        ...req.body,
+        teacherId: req.user!.id,
+      });
+
+      const [content] = await db
+        .insert(teacherContent)
+        .values(validatedData)
+        .returning();
+
+      res.json(content);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get all teacher content for a specific teacher
+  app.get("/api/teacher-content/teacher/:teacherId", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { teacherId } = req.params;
+
+      const content = await db
+        .select()
+        .from(teacherContent)
+        .where(eq(teacherContent.teacherId, teacherId))
+        .orderBy(desc(teacherContent.uploadedAt));
+
+      res.json(content);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get teacher content for a specific course
+  app.get("/api/teacher-content/course/:courseId", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { courseId } = req.params;
+
+      const content = await db
+        .select()
+        .from(teacherContent)
+        .where(eq(teacherContent.courseId, courseId))
+        .orderBy(desc(teacherContent.uploadedAt));
+
+      res.json(content);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete teacher content
+  app.delete("/api/teacher-content/:id", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { id } = req.params;
+
+      // Get the content first to check ownership
+      const [content] = await db
+        .select()
+        .from(teacherContent)
+        .where(eq(teacherContent.id, id));
+
+      if (!content) {
+        return res.status(404).json({ error: "Content not found" });
+      }
+
+      // Check if user is the owner or admin
+      if (content.teacherId !== req.user!.id && req.user!.role !== 'master_admin') {
+        return res.status(403).json({ error: "Not authorized to delete this content" });
+      }
+
+      // Delete the file if it exists
+      if (content.fileUrl) {
+        const filePath = path.join(uploadsDir, content.fileUrl.replace('/uploads/', ''));
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      }
+
+      await db.delete(teacherContent).where(eq(teacherContent.id, id));
+
+      res.json({ message: "Content deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
+  // HYPER-LOCALIZED AI CHAT WITH TEACHER MATERIALS
+  // ========================================================================
+
+  // Chat with AI using teacher's uploaded materials
+  app.post("/api/teacher-ai/chat", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { teacherId, courseId, message } = req.body;
+
+      if (!message) {
+        return res.status(400).json({ error: "Message is required" });
+      }
+
+      // Fetch relevant teacher content
+      let teacherMaterials;
+      if (courseId) {
+        teacherMaterials = await db
+          .select()
+          .from(teacherContent)
+          .where(
+            and(
+              eq(teacherContent.courseId, courseId),
+              eq(teacherContent.isPublic, true)
+            )
+          );
+      } else if (teacherId) {
+        teacherMaterials = await db
+          .select()
+          .from(teacherContent)
+          .where(
+            and(
+              eq(teacherContent.teacherId, teacherId),
+              eq(teacherContent.isPublic, true)
+            )
+          );
+      } else {
+        return res.status(400).json({ error: "Either teacherId or courseId is required" });
+      }
+
+      // Get teacher info
+      const [teacher] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, teacherId || teacherMaterials[0]?.teacherId));
+
+      if (!teacher) {
+        return res.status(404).json({ error: "Teacher not found" });
+      }
+
+      // Prepare context from materials
+      const materialsContext = teacherMaterials
+        .map((material) => {
+          let context = `Material: ${material.title}\n`;
+          if (material.description) context += `Description: ${material.description}\n`;
+          if (material.textContent) context += `Content: ${material.textContent}\n`;
+          if (material.tags && material.tags.length > 0) context += `Tags: ${material.tags.join(', ')}\n`;
+          return context;
+        })
+        .join('\n---\n');
+
+      // Build system prompt
+      const systemPrompt = `You are an AI teaching assistant for ${teacher.firstName} ${teacher.lastName}'s class. 
+Your role is to help students understand the course materials by answering questions based ONLY on the provided materials.
+
+CRITICAL RULES:
+- Answer questions using ONLY the information from the teacher's materials provided below
+- If the answer isn't in the materials, clearly say "I don't have that information in the course materials"
+- Never make up or hallucinate information beyond what's provided
+- Cite specific materials when answering (e.g., "According to the lecture notes on...")
+- Use the teacher's terminology and teaching style
+- Be helpful, clear, and encourage learning
+
+TEACHER'S MATERIALS:
+${materialsContext || 'No materials have been uploaded yet. Please ask the teacher to upload course materials.'}`;
+
+      // Call OpenAI
+      if (!process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ error: "OpenAI API key not configured" });
+      }
+
+      const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: message }
+        ],
+        temperature: 0.7,
+        max_tokens: 1000,
+      });
+
+      const aiResponse = completion.choices[0]?.message?.content || "I couldn't generate a response. Please try again.";
+
+      res.json({ 
+        response: aiResponse,
+        materialsUsed: teacherMaterials.length,
+        teacherName: `${teacher.firstName} ${teacher.lastName}`
+      });
+    } catch (error: any) {
+      console.error("Teacher AI chat error:", error);
       res.status(500).json({ error: error.message });
     }
   });

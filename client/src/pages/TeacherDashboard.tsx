@@ -6,7 +6,7 @@ import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, Award, Users, Target, Plus, Shield, Sparkles, MessageSquare } from "lucide-react";
+import { TrendingUp, Award, Users, Target, Plus, Shield, Sparkles, MessageSquare, FileText } from "lucide-react";
 import { useState } from "react";
 import { CreatePostModal } from "@/components/CreatePostModal";
 import { SuggestedPosts } from "@/components/SuggestedPosts";
@@ -30,11 +30,14 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { TeacherContentUpload } from "@/components/TeacherContentUpload";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function TeacherDashboard() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [, navigate] = useLocation();
+  const { userData } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [endorseModalOpen, setEndorseModalOpen] = useState(false);
   const [certificateModalOpen, setCertificateModalOpen] = useState(false);
@@ -184,10 +187,14 @@ export default function TeacherDashboard() {
       </div>
 
       <Tabs defaultValue="analytics" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 max-w-md">
+        <TabsList className="grid w-full grid-cols-3 max-w-2xl">
           <TabsTrigger value="analytics" data-testid="tab-analytics">
             <TrendingUp className="h-4 w-4 mr-2" />
             Analytics
+          </TabsTrigger>
+          <TabsTrigger value="content" data-testid="tab-content">
+            <FileText className="h-4 w-4 mr-2" />
+            Course Materials
           </TabsTrigger>
           <TabsTrigger value="feed" data-testid="tab-feed">
             <MessageSquare className="h-4 w-4 mr-2" />
@@ -197,6 +204,10 @@ export default function TeacherDashboard() {
 
         <TabsContent value="feed">
           <UniversalFeed role="teacher" initialCategory="academic" />
+        </TabsContent>
+
+        <TabsContent value="content">
+          {userData?.id && <TeacherContentUpload teacherId={userData.id} />}
         </TabsContent>
 
         <TabsContent value="analytics">
