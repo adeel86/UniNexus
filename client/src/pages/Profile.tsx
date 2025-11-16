@@ -68,6 +68,21 @@ export default function Profile() {
     enabled: !!targetUserId,
   });
 
+  // Fetch connections
+  const { data: allConnections = [] } = useQuery<any[]>({
+    queryKey: [`/api/connections`, targetUserId],
+    queryFn: async () => {
+      const response = await fetch(`/api/connections`);
+      if (!response.ok) throw new Error('Failed to fetch connections');
+      return response.json();
+    },
+    enabled: !!targetUserId && isViewingOwnProfile,
+  });
+
+  // Calculate connection stats
+  const acceptedConnections = allConnections.filter((c: any) => c.status === 'accepted');
+  const pendingConnections = allConnections.filter((c: any) => c.status === 'pending');
+
   // Fetch user's posts
   const { data: userPosts = [] } = useQuery<PostWithAuthor[]>({
     queryKey: [`/api/posts`, 'author', targetUserId],
@@ -103,6 +118,7 @@ export default function Profile() {
 
   const [showFollowers, setShowFollowers] = useState(false);
   const [showFollowing, setShowFollowing] = useState(false);
+  const [showConnections, setShowConnections] = useState(false);
 
   if (userLoading || !user) {
     return (
@@ -143,8 +159,23 @@ export default function Profile() {
                 <p className="text-purple-100 mb-3">{user.university}</p>
               )}
               
-              {/* Followers/Following counts */}
+              {/* Followers/Following/Connections counts */}
               <div className="flex gap-6 mt-4">
+                {isViewingOwnProfile && (
+                  <button 
+                    onClick={() => setShowConnections(!showConnections)}
+                    className="hover-elevate rounded-lg p-2 transition-all"
+                    data-testid="button-connections"
+                  >
+                    <div className="text-2xl font-bold">{acceptedConnections.length}</div>
+                    <div className="text-sm text-purple-100">Connections</div>
+                    {pendingConnections.length > 0 && (
+                      <div className="text-xs text-purple-200 mt-1">
+                        {pendingConnections.length} pending
+                      </div>
+                    )}
+                  </button>
+                )}
                 <button 
                   onClick={() => setShowFollowers(!showFollowers)}
                   className="hover-elevate rounded-lg p-2 transition-all"
@@ -306,6 +337,80 @@ export default function Profile() {
             </div>
           ) : (
             <p className="text-center text-muted-foreground py-8">Not following anyone yet</p>
+          )}
+        </Card>
+      )}
+
+      {/* Connections List */}
+      {showConnections && (
+        <Card className="p-6 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-heading text-xl font-semibold flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Connections ({allConnections.length})
+            </h3>
+            <Button variant="ghost" size="sm" onClick={() => setShowConnections(false)} data-testid="button-close-connections">
+              Close
+            </Button>
+          </div>
+          
+          {/* Tabs for Accepted and Pending */}
+          <div className="flex gap-2 mb-4">
+            <Badge variant={acceptedConnections.length > 0 ? "default" : "secondary"}>
+              Accepted ({acceptedConnections.length})
+            </Badge>
+            <Badge variant={pendingConnections.length > 0 ? "default" : "secondary"}>
+              Pending ({pendingConnections.length})
+            </Badge>
+          </div>
+
+          {/* Accepted Connections */}
+          {acceptedConnections.length > 0 && (
+            <div className="mb-6">
+              <h4 className="font-semibold mb-3 text-green-600">Accepted Connections</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {acceptedConnections.map((connection: any) => connection.user && (
+                  <div key={connection.id} className="flex items-center gap-3 p-3 rounded-lg hover-elevate bg-green-50 dark:bg-green-950" data-testid={`connection-accepted-${connection.user.id}`}>
+                    <UserAvatar user={connection.user} size="md" />
+                    <div className="flex-1">
+                      <div className="font-medium">{connection.user.firstName} {connection.user.lastName}</div>
+                      {connection.user.major && (
+                        <div className="text-sm text-muted-foreground">{connection.user.major}</div>
+                      )}
+                    </div>
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Pending Connections */}
+          {pendingConnections.length > 0 && (
+            <div>
+              <h4 className="font-semibold mb-3 text-orange-600">Pending Requests</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {pendingConnections.map((connection: any) => connection.user && (
+                  <div key={connection.id} className="flex items-center gap-3 p-3 rounded-lg hover-elevate bg-orange-50 dark:bg-orange-950" data-testid={`connection-pending-${connection.user.id}`}>
+                    <UserAvatar user={connection.user} size="md" />
+                    <div className="flex-1">
+                      <div className="font-medium">{connection.user.firstName} {connection.user.lastName}</div>
+                      {connection.user.major && (
+                        <div className="text-sm text-muted-foreground">{connection.user.major}</div>
+                      )}
+                      <div className="text-xs text-orange-600 mt-1">
+                        {connection.requesterId === currentUser?.id ? 'Sent by you' : 'Waiting for your response'}
+                      </div>
+                    </div>
+                    <Clock className="h-5 w-5 text-orange-600" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {allConnections.length === 0 && (
+            <p className="text-center text-muted-foreground py-8">No connections yet</p>
           )}
         </Card>
       )}
