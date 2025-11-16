@@ -42,6 +42,7 @@ import {
   groupPosts,
   teacherContent,
   userProfiles,
+  educationRecords,
   insertPostSchema,
   insertCommentSchema,
   insertReactionSchema,
@@ -62,6 +63,7 @@ import {
   insertGroupMemberSchema,
   insertGroupPostSchema,
   insertTeacherContentSchema,
+  insertEducationRecordSchema,
 } from "@shared/schema";
 import OpenAI from "openai";
 import jwt from "jsonwebtoken";
@@ -1280,6 +1282,249 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json(user);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
+  // EDUCATION RECORDS ENDPOINTS
+  // ========================================================================
+
+  // Get education records for a user
+  app.get("/api/users/:userId/education", async (req: Request, res: Response) => {
+    try {
+      const { userId } = req.params;
+      const records = await db
+        .select()
+        .from(educationRecords)
+        .where(eq(educationRecords.userId, userId))
+        .orderBy(desc(educationRecords.isCurrent), desc(educationRecords.startDate));
+
+      res.json(records);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Add education record
+  app.post("/api/education", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const validated = insertEducationRecordSchema.parse({
+        ...req.body,
+        userId: req.user!.id,
+      });
+
+      const [record] = await db
+        .insert(educationRecords)
+        .values(validated)
+        .returning();
+
+      res.json(record);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update education record
+  app.patch("/api/education/:id", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { id } = req.params;
+      
+      // Verify ownership
+      const [existing] = await db
+        .select()
+        .from(educationRecords)
+        .where(eq(educationRecords.id, id))
+        .limit(1);
+
+      if (!existing) {
+        return res.status(404).json({ error: "Education record not found" });
+      }
+
+      if (existing.userId !== req.user!.id) {
+        return res.status(403).json({ error: "Not authorized to update this record" });
+      }
+
+      const [updated] = await db
+        .update(educationRecords)
+        .set({ ...req.body, updatedAt: new Date() })
+        .where(eq(educationRecords.id, id))
+        .returning();
+
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete education record
+  app.delete("/api/education/:id", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { id } = req.params;
+      
+      // Verify ownership
+      const [existing] = await db
+        .select()
+        .from(educationRecords)
+        .where(eq(educationRecords.id, id))
+        .limit(1);
+
+      if (!existing) {
+        return res.status(404).json({ error: "Education record not found" });
+      }
+
+      if (existing.userId !== req.user!.id) {
+        return res.status(403).json({ error: "Not authorized to delete this record" });
+      }
+
+      await db
+        .delete(educationRecords)
+        .where(eq(educationRecords.id, id));
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
+  // USER SKILLS ENDPOINTS
+  // ========================================================================
+
+  // Add skill to user profile
+  app.post("/api/users/skills", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { skillId, level } = req.body;
+
+      if (!skillId) {
+        return res.status(400).json({ error: "Skill ID is required" });
+      }
+
+      // Check if skill already added
+      const existing = await db
+        .select()
+        .from(userSkills)
+        .where(and(
+          eq(userSkills.userId, req.user!.id),
+          eq(userSkills.skillId, skillId)
+        ));
+
+      if (existing.length > 0) {
+        return res.status(400).json({ error: "Skill already added" });
+      }
+
+      const [userSkill] = await db
+        .insert(userSkills)
+        .values({
+          userId: req.user!.id,
+          skillId,
+          level: level || 'beginner',
+        })
+        .returning();
+
+      res.json(userSkill);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update skill level
+  app.patch("/api/users/skills/:id", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { id } = req.params;
+      const { level } = req.body;
+
+      // Verify ownership
+      const [existing] = await db
+        .select()
+        .from(userSkills)
+        .where(eq(userSkills.id, id))
+        .limit(1);
+
+      if (!existing) {
+        return res.status(404).json({ error: "User skill not found" });
+      }
+
+      if (existing.userId !== req.user!.id) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const [updated] = await db
+        .update(userSkills)
+        .set({ level })
+        .where(eq(userSkills.id, id))
+        .returning();
+
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Remove skill from user profile
+  app.delete("/api/users/skills/:id", async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { id } = req.params;
+
+      // Verify ownership
+      const [existing] = await db
+        .select()
+        .from(userSkills)
+        .where(eq(userSkills.id, id))
+        .limit(1);
+
+      if (!existing) {
+        return res.status(404).json({ error: "User skill not found" });
+      }
+
+      if (existing.userId !== req.user!.id) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      await db
+        .delete(userSkills)
+        .where(eq(userSkills.id, id));
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get all available skills
+  app.get("/api/skills", async (req: Request, res: Response) => {
+    try {
+      const allSkills = await db
+        .select()
+        .from(skills)
+        .orderBy(skills.name);
+
+      res.json(allSkills);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

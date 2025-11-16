@@ -5,17 +5,19 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { UserBadge, Badge as BadgeType, Endorsement, Skill, User, Certification, Post, Comment, Reaction } from "@shared/schema";
+import type { UserBadge, Badge as BadgeType, Endorsement, Skill, User, Certification, Post, Comment, Reaction, UserSkill } from "@shared/schema";
 import { BadgeIcon } from "@/components/BadgeIcon";
 import { AchievementTimeline } from "@/components/AchievementTimeline";
 import { CertificateShowcase } from "@/components/CertificateShowcase";
 import { RankTierBadge } from "@/components/RankTierBadge";
 import { PostCard } from "@/components/PostCard";
 import { EditProfileModal } from "@/components/EditProfileModal";
+import { EducationSection } from "@/components/EducationSection";
+import { SkillsSection } from "@/components/SkillsSection";
 import { Award, TrendingUp, Zap, Trophy, Clock, Shield, Users, UserPlus, UserMinus, CheckCircle, Edit, Mail, Phone, Globe, Briefcase, GraduationCap } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState } from "react";
-import type { UserProfile } from "@shared/schema";
+import type { UserProfile, EducationRecord } from "@shared/schema";
 
 type PostWithAuthor = Post & {
   author: User;
@@ -110,6 +112,18 @@ export default function Profile() {
   // Fetch extended profile data
   const { data: extendedProfile } = useQuery<UserProfile>({
     queryKey: [`/api/user-profiles/${targetUserId}`],
+    enabled: !!targetUserId,
+  });
+
+  // Fetch education records
+  const { data: educationRecords = [] } = useQuery<EducationRecord[]>({
+    queryKey: [`/api/users/${targetUserId}/education`],
+    enabled: !!targetUserId,
+  });
+
+  // Fetch user skills
+  const { data: userSkills = [] } = useQuery<(UserSkill & { skill: Skill })[]>({
+    queryKey: [`/api/user-skills/${targetUserId}`],
     enabled: !!targetUserId,
   });
 
@@ -421,6 +435,24 @@ export default function Profile() {
           Digital Certificates ({certifications.length})
         </h2>
         <CertificateShowcase certifications={certifications} />
+      </div>
+
+      {/* Education Section */}
+      <div className="mt-6">
+        <EducationSection
+          educationRecords={educationRecords}
+          isOwnProfile={isViewingOwnProfile}
+          userId={targetUserId!}
+        />
+      </div>
+
+      {/* Skills Section */}
+      <div className="mt-6">
+        <SkillsSection
+          userSkills={userSkills}
+          isOwnProfile={isViewingOwnProfile}
+          userId={targetUserId!}
+        />
       </div>
 
       {/* Extended Profile Information */}

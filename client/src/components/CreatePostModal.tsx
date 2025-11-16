@@ -178,6 +178,8 @@ export function CreatePostModal({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/feed/personalized"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/feed/following"] });
       toast({ title: "Post created successfully!" });
       setContent("");
       setCategory("social");

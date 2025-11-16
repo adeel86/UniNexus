@@ -32,6 +32,8 @@ import {
   groupPosts,
   aiInteractionEvents,
   moderationActions,
+  educationRecords,
+  userProfiles,
 } from "@shared/schema";
 import { calculateTotalPoints, getRankTier } from "./rankTiers";
 import { faker } from "@faker-js/faker";
@@ -413,6 +415,119 @@ async function seedDatabase() {
     console.log(`Assigned ${assignedSkills.length} skills to users`);
   }
 
+  if (insertedUsers.length > 0) {
+    const mockEducationRecords = [
+      {
+        userId: insertedUsers[0].id,
+        institution: "Tech University",
+        degree: "Bachelor of Science",
+        fieldOfStudy: "Computer Science",
+        startDate: "2022-09-01",
+        endDate: "2026-05-31",
+        description: "Focused on software engineering, AI, and web development. Active member of the coding club and participated in multiple hackathons."
+      },
+      {
+        userId: insertedUsers[0].id,
+        institution: "Online Learning Platform",
+        degree: "Certificate",
+        fieldOfStudy: "Full-Stack Web Development",
+        startDate: "2023-06-01",
+        endDate: "2023-09-30",
+        description: "Completed comprehensive program covering React, Node.js, PostgreSQL, and modern web development practices."
+      },
+      {
+        userId: insertedUsers[1].id,
+        institution: "Design Institute",
+        degree: "Bachelor of Arts",
+        fieldOfStudy: "UI/UX Design",
+        startDate: "2021-09-01",
+        endDate: "2025-05-31",
+        description: "Specialized in user-centered design, visual design principles, and prototyping. Led design projects for local startups."
+      },
+      {
+        userId: insertedUsers[2].id,
+        institution: "Tech University",
+        degree: "Bachelor of Science",
+        fieldOfStudy: "Data Science",
+        startDate: "2022-09-01",
+        endDate: "2026-05-31",
+        description: "Focus on machine learning, statistical analysis, and data visualization. Research assistant in the AI lab."
+      },
+      {
+        userId: insertedUsers[3].id,
+        institution: "State University",
+        degree: "Bachelor of Science",
+        fieldOfStudy: "Computer Science",
+        startDate: "2023-09-01",
+        endDate: "2027-05-31",
+        description: "First-year student exploring various areas of CS, with particular interest in mobile development and cybersecurity."
+      },
+      {
+        userId: insertedUsers[4].id,
+        institution: "Tech University",
+        degree: "Master of Science",
+        fieldOfStudy: "Computer Science",
+        startDate: "2015-09-01",
+        endDate: "2017-05-31",
+        description: "Specialized in distributed systems and cloud computing. Thesis on scalable web architectures."
+      },
+      {
+        userId: insertedUsers[4].id,
+        institution: "State University",
+        degree: "Bachelor of Science",
+        fieldOfStudy: "Computer Engineering",
+        startDate: "2011-09-01",
+        endDate: "2015-05-31",
+        description: "Foundation in hardware and software engineering with focus on embedded systems."
+      },
+    ];
+
+    console.log("Inserting education records...");
+    const insertedEducation = await db.insert(educationRecords).values(mockEducationRecords).onConflictDoNothing().returning();
+    console.log(`Inserted ${insertedEducation.length} education records`);
+  }
+
+  if (insertedUsers.length > 0) {
+    const mockUserProfiles = [
+      {
+        userId: insertedUsers[2].id,
+        universityMission: "Demo University is committed to fostering innovation, critical thinking, and academic excellence. We prepare the next generation of leaders through cutting-edge research, collaborative learning environments, and strong industry partnerships. Our mission is to empower students to make a positive impact on society and succeed in a rapidly evolving global landscape.",
+        focusAreas: ["STEM Education", "Innovation & Research", "Industry Partnerships", "Student Success", "Global Learning"],
+        opportunitiesOffered: "We offer comprehensive career services, state-of-the-art research facilities, internship programs with leading companies, study abroad opportunities in 50+ countries, and an extensive alumni network spanning across industries worldwide. Students have access to entrepreneurship incubators, mentorship programs, and exclusive networking events.",
+        contactEmail: "info@demouniversity.edu",
+        contactPhone: "+1 (555) 123-4567",
+        website: "https://www.demouniversity.edu"
+      },
+      {
+        userId: insertedUsers[3].id,
+        companyMission: "Demo Tech Inc is at the forefront of technological innovation, developing solutions that transform industries and improve lives. We believe in nurturing talent, fostering creativity, and building a diverse workforce that reflects the communities we serve. Our mission is to create breakthrough technologies while maintaining a commitment to sustainability, ethics, and social responsibility.",
+        industryFocus: ["Artificial Intelligence", "Cloud Computing", "Software Development", "Data Analytics", "Cybersecurity"],
+        partnershipOpportunities: "We partner with universities to create industry-academia collaborations, offer guest lectures and workshops, sponsor student competitions and hackathons, and provide research grants for innovative projects. We're committed to bridging the gap between academic learning and real-world application.",
+        hiringOpportunities: "We're actively recruiting talented graduates for positions in software engineering, data science, product management, UX design, and technical consulting. We offer competitive salaries, comprehensive benefits, remote work flexibility, continuous learning opportunities, and a vibrant company culture focused on innovation and work-life balance."
+      },
+      {
+        userId: insertedUsers[6].id,
+        universityMission: "At State University, we are dedicated to providing accessible, high-quality education that transforms lives and communities. We pride ourselves on our diverse student body, world-class faculty, and commitment to research that addresses real-world challenges. Our goal is to create an inclusive learning environment where every student can thrive and reach their full potential.",
+        focusAreas: ["Social Sciences", "Engineering & Technology", "Business & Entrepreneurship", "Health Sciences", "Environmental Studies"],
+        opportunitiesOffered: "Students benefit from personalized academic advising, hands-on research opportunities, industry internships, career development workshops, and access to a robust alumni network. We also offer scholarships, leadership programs, and community engagement initiatives that prepare students for successful careers and meaningful lives.",
+        contactEmail: "admissions@stateuniversity.edu",
+        contactPhone: "+1 (555) 987-6543",
+        website: "https://www.stateuniversity.edu"
+      },
+      {
+        userId: insertedUsers[7].id,
+        companyMission: "TechCorp Solutions is a leader in enterprise technology, helping organizations worldwide innovate and succeed in the digital age. We are passionate about creating cutting-edge solutions, fostering talent development, and building long-term partnerships with educational institutions. Our mission is to drive technological advancement while cultivating the next generation of tech leaders.",
+        industryFocus: ["Enterprise Software", "Digital Transformation", "Machine Learning", "IoT Solutions", "Blockchain Technology"],
+        partnershipOpportunities: "We collaborate with universities through sponsored research, capstone project partnerships, internship programs, and technology donations. We host regular campus recruitment events, tech talks, and career fairs. We're eager to work with institutions that share our commitment to innovation and excellence.",
+        hiringOpportunities: "TechCorp is hiring for roles in software development, cloud architecture, data engineering, DevOps, and technical project management. We offer comprehensive onboarding, mentorship programs, professional development stipends, flexible work arrangements, and opportunities for career advancement. Join our team to work on cutting-edge projects that impact millions of users worldwide."
+      }
+    ];
+
+    console.log("Inserting user profiles...");
+    const insertedProfiles = await db.insert(userProfiles).values(mockUserProfiles).onConflictDoNothing().returning();
+    console.log(`Inserted ${insertedProfiles.length} user profiles`);
+  }
+
   const mockPosts = [
     {
       authorId: insertedUsers[0].id,
@@ -429,7 +544,7 @@ async function seedDatabase() {
       viewCount: 189,
     },
     {
-      authorId: insertedUsers[2].id,
+      authorId: insertedUsers[5].id,
       content: "Finally cracked the algorithm for sentiment analysis on Twitter data! Spent 3 days debugging but the results are amazing. Machine learning is tough but so satisfying when it clicks. Who else is working on ML projects?",
       category: "achievement",
       tags: ["Machine Learning", "Data Science", "Python", "NLP"],
@@ -448,6 +563,34 @@ async function seedDatabase() {
       category: "social",
       tags: ["Design", "DarkMode", "Coding"],
       viewCount: 98,
+    },
+    {
+      authorId: insertedUsers[2].id,
+      content: "Demo University is excited to announce our new Innovation Lab opening next semester! Students will have access to cutting-edge technology, mentorship from industry experts, and funding opportunities for breakthrough projects. Applications open November 20th. This is your chance to turn your ideas into reality! 🚀",
+      category: "academic",
+      tags: ["Innovation", "Research", "Opportunities", "University"],
+      viewCount: 412,
+    },
+    {
+      authorId: insertedUsers[3].id,
+      content: "Demo Tech Inc is hosting a virtual career fair on December 5th! Meet our engineers, explore internship and full-time opportunities, and learn about our exciting projects in AI and cloud computing. Open to all students - register now at the link in our profile. We're looking forward to meeting talented minds! 💼",
+      category: "social",
+      tags: ["Careers", "Hiring", "Internships", "TechJobs"],
+      viewCount: 387,
+    },
+    {
+      authorId: insertedUsers[6].id,
+      content: "State University is proud to announce record research funding this year, enabling groundbreaking work in renewable energy, healthcare innovation, and AI ethics. We're committed to solving real-world problems and creating opportunities for students to participate in cutting-edge research. Congratulations to our amazing faculty and students! 🎓",
+      category: "academic",
+      tags: ["Research", "Innovation", "University", "StudentSuccess"],
+      viewCount: 298,
+    },
+    {
+      authorId: insertedUsers[7].id,
+      content: "TechCorp Solutions is launching our Student Ambassador Program! Get hands-on experience with enterprise technology, exclusive mentorship, early access to job opportunities, and a chance to represent us on campus. Applications are open - we're looking for passionate students who want to bridge the gap between academia and industry. Apply today! 🌟",
+      category: "social",
+      tags: ["Opportunities", "Mentorship", "StudentPrograms", "Tech"],
+      viewCount: 356,
     },
   ];
 
@@ -977,17 +1120,43 @@ async function seedDatabase() {
       followerId: insertedUsers[4].id, // Demo Admin follows Demo Industry Partner
       followingId: insertedUsers[3].id,
     },
-    // Cross-student following
+    // Students following university admins
     {
-      followerId: insertedUsers[5].id, // Alex Rivera follows Jordan Chen
-      followingId: insertedUsers[6].id,
+      followerId: insertedUsers[5].id, // Alex Rivera follows Demo University Admin
+      followingId: insertedUsers[2].id,
     },
     {
-      followerId: insertedUsers[6].id, // Jordan Chen follows Maya Patel
+      followerId: insertedUsers[8].id, // Sam Taylor follows Demo University Admin
+      followingId: insertedUsers[2].id,
+    },
+    {
+      followerId: insertedUsers[9].id, // Chris Anderson follows Demo University Admin
+      followingId: insertedUsers[2].id,
+    },
+    // Students following industry professionals  
+    {
+      followerId: insertedUsers[5].id, // Alex Rivera follows TechCorp recruiter
       followingId: insertedUsers[7].id,
     },
     {
-      followerId: insertedUsers[7].id, // Maya Patel follows Alex Rivera
+      followerId: insertedUsers[8].id, // Sam Taylor follows TechCorp recruiter
+      followingId: insertedUsers[7].id,
+    },
+    {
+      followerId: insertedUsers[9].id, // Chris Anderson follows TechCorp recruiter
+      followingId: insertedUsers[7].id,
+    },
+    // Cross-student following
+    {
+      followerId: insertedUsers[5].id, // Alex Rivera follows Jordan Chen
+      followingId: insertedUsers[8].id,
+    },
+    {
+      followerId: insertedUsers[8].id, // Sam Taylor follows Chris Anderson
+      followingId: insertedUsers[9].id,
+    },
+    {
+      followerId: insertedUsers[9].id, // Chris Anderson follows Alex Rivera
       followingId: insertedUsers[5].id,
     },
   ];

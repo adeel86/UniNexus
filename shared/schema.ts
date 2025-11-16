@@ -79,6 +79,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   postBoosts: many(postBoosts),
   messagesSent: many(messages),
   groupMemberships: many(groupMembers),
+  educationRecords: many(educationRecords),
 }));
 
 export type User = typeof users.$inferSelect;
@@ -1155,3 +1156,38 @@ export const insertUserProfileSchema = createInsertSchema(userProfiles).omit({
 
 export type UserProfile = typeof userProfiles.$inferSelect;
 export type InsertUserProfile = z.infer<typeof insertUserProfileSchema>;
+
+// ============================================================================
+// EDUCATION RECORDS
+// ============================================================================
+
+export const educationRecords = pgTable("education_records", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  institution: varchar("institution", { length: 200 }).notNull(), // University/School name
+  degree: varchar("degree", { length: 100 }), // Bachelor's, Master's, PhD, etc.
+  fieldOfStudy: varchar("field_of_study", { length: 100 }), // Major/specialization
+  startDate: varchar("start_date"), // Format: "YYYY-MM" or "YYYY"
+  endDate: varchar("end_date"), // Format: "YYYY-MM" or "YYYY" or "Present"
+  grade: varchar("grade"), // GPA, Honours, etc.
+  description: text("description"), // Additional details, achievements
+  isCurrent: boolean("is_current").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const educationRecordsRelations = relations(educationRecords, ({ one }) => ({
+  user: one(users, {
+    fields: [educationRecords.userId],
+    references: [users.id],
+  }),
+}));
+
+export const insertEducationRecordSchema = createInsertSchema(educationRecords).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type EducationRecord = typeof educationRecords.$inferSelect;
+export type InsertEducationRecord = z.infer<typeof insertEducationRecordSchema>;
