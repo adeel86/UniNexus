@@ -18,7 +18,8 @@ import {
   Award,
   Bot,
   CheckCircle,
-  HelpCircle
+  HelpCircle,
+  Sparkles
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
@@ -30,6 +31,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { TeacherAIChat } from "@/components/TeacherAIChat";
 
 type CourseDetails = {
   id: string;
@@ -86,6 +88,7 @@ export default function CourseDetail() {
   const [careerBotMessages, setCareerBotMessages] = useState<Array<{ role: string; content: string }>>([]);
   const [careerBotInput, setCareerBotInput] = useState("");
   const [isCareerBotLoading, setIsCareerBotLoading] = useState(false);
+  const [showTeacherAI, setShowTeacherAI] = useState(false);
 
   // Fetch course details
   const { data: course, isLoading: courseLoading } = useQuery<CourseDetails>({
@@ -236,89 +239,100 @@ export default function CourseDetail() {
                 </Badge>
               </div>
             </div>
-            <Dialog open={showCareerBot} onOpenChange={setShowCareerBot}>
-              <DialogTrigger asChild>
-                <Button variant="default" className="gap-2" data-testid="button-careerbot">
-                  <Bot className="w-4 h-4" />
-                  Learning Assistant
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
-                <DialogHeader>
-                  <DialogTitle className="flex items-center gap-2">
-                    <Bot className="w-5 h-5" />
-                    CareerBot - Learning Assistant
-                  </DialogTitle>
-                  <DialogDescription>
-                    Ask questions about {course.title}, career paths, and learning outcomes
-                  </DialogDescription>
-                </DialogHeader>
-                <ScrollArea className="flex-1 pr-4">
-                  <div className="space-y-4">
-                    {careerBotMessages.length === 0 ? (
-                      <div className="text-center text-muted-foreground py-8">
-                        <Bot className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                        <p>Start a conversation about this course!</p>
-                      </div>
-                    ) : (
-                      careerBotMessages.map((msg, idx) => (
-                        <div
-                          key={idx}
-                          className={`flex gap-3 ${
-                            msg.role === "user" ? "justify-end" : "justify-start"
-                          }`}
-                        >
-                          {msg.role === "assistant" && (
-                            <Avatar className="h-8 w-8">
-                              <AvatarFallback>
-                                <Bot className="w-4 h-4" />
-                              </AvatarFallback>
-                            </Avatar>
-                          )}
+            <div className="flex gap-2">
+              <Button
+                variant="default"
+                className="gap-2"
+                onClick={() => setShowTeacherAI(true)}
+                data-testid="button-teacher-ai"
+              >
+                <Sparkles className="w-4 h-4" />
+                Ask Teacher's AI
+              </Button>
+              <Dialog open={showCareerBot} onOpenChange={setShowCareerBot}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="gap-2" data-testid="button-careerbot">
+                    <Bot className="w-4 h-4" />
+                    Career Guide
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <Bot className="w-5 h-5" />
+                      CareerBot - Learning Assistant
+                    </DialogTitle>
+                    <DialogDescription>
+                      Ask questions about {course.title}, career paths, and learning outcomes
+                    </DialogDescription>
+                  </DialogHeader>
+                  <ScrollArea className="flex-1 pr-4">
+                    <div className="space-y-4">
+                      {careerBotMessages.length === 0 ? (
+                        <div className="text-center text-muted-foreground py-8">
+                          <Bot className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                          <p>Start a conversation about this course!</p>
+                        </div>
+                      ) : (
+                        careerBotMessages.map((msg, idx) => (
                           <div
-                            className={`max-w-[80%] rounded-lg p-3 ${
-                              msg.role === "user"
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-muted"
+                            key={idx}
+                            className={`flex gap-3 ${
+                              msg.role === "user" ? "justify-end" : "justify-start"
                             }`}
                           >
-                            <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                            {msg.role === "assistant" && (
+                              <Avatar className="h-8 w-8">
+                                <AvatarFallback>
+                                  <Bot className="w-4 h-4" />
+                                </AvatarFallback>
+                              </Avatar>
+                            )}
+                            <div
+                              className={`max-w-[80%] rounded-lg p-3 ${
+                                msg.role === "user"
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-muted"
+                              }`}
+                            >
+                              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                      {isCareerBotLoading && (
+                        <div className="flex gap-3">
+                          <Avatar className="h-8 w-8">
+                            <AvatarFallback>
+                              <Bot className="w-4 h-4" />
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="bg-muted rounded-lg p-3">
+                            <p className="text-sm text-muted-foreground">Thinking...</p>
                           </div>
                         </div>
-                      ))
-                    )}
-                    {isCareerBotLoading && (
-                      <div className="flex gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback>
-                            <Bot className="w-4 h-4" />
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="bg-muted rounded-lg p-3">
-                          <p className="text-sm text-muted-foreground">Thinking...</p>
-                        </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
+                  </ScrollArea>
+                  <div className="flex gap-2 pt-4 border-t">
+                    <Input
+                      placeholder="Ask about this course..."
+                      value={careerBotInput}
+                      onChange={(e) => setCareerBotInput(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleCareerBotSend()}
+                      data-testid="input-careerbot-message"
+                    />
+                    <Button
+                      onClick={handleCareerBotSend}
+                      disabled={!careerBotInput.trim() || isCareerBotLoading}
+                      data-testid="button-send-careerbot"
+                    >
+                      <Send className="w-4 h-4" />
+                    </Button>
                   </div>
-                </ScrollArea>
-                <div className="flex gap-2 pt-4 border-t">
-                  <Input
-                    placeholder="Ask about this course..."
-                    value={careerBotInput}
-                    onChange={(e) => setCareerBotInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleCareerBotSend()}
-                    data-testid="input-careerbot-message"
-                  />
-                  <Button
-                    onClick={handleCareerBotSend}
-                    disabled={!careerBotInput.trim() || isCareerBotLoading}
-                    data-testid="button-send-careerbot"
-                  >
-                    <Send className="w-4 h-4" />
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
         </CardHeader>
       </Card>
@@ -541,6 +555,15 @@ export default function CourseDetail() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Teacher AI Chat Modal */}
+      <TeacherAIChat
+        open={showTeacherAI}
+        onOpenChange={setShowTeacherAI}
+        teacherId={course.instructor.id}
+        courseId={courseId}
+        teacherName={`${course.instructor.firstName} ${course.instructor.lastName}`}
+      />
     </div>
   );
 }
