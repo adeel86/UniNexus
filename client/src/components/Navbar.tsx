@@ -26,6 +26,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
   const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey: ["/api/notifications"],
     enabled: !!user,
+    refetchInterval: 5000, // Poll every 5 seconds for real-time updates
   });
 
   const { data: conversations = [] } = useQuery<any[]>({

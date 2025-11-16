@@ -15,6 +15,7 @@ export default function Notifications() {
   
   const { data: notifications = [], isLoading } = useQuery<Notification[]>({
     queryKey: ['/api/notifications'],
+    refetchInterval: 5000, // Poll every 5 seconds for real-time updates
   });
 
   const getNotificationIcon = (type: string) => {

@@ -703,6 +703,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .where(eq(users.id, req.user.id));
 
+      // Get the post to notify the author
+      const [post] = await db
+        .select()
+        .from(posts)
+        .where(eq(posts.id, validatedData.postId));
+
+      // Create notification for post author (only if not commenting on own post)
+      if (post && post.authorId !== req.user.id) {
+        await db.insert(notifications).values({
+          userId: post.authorId,
+          type: "comment",
+          title: "New Comment",
+          message: `${req.user.firstName} ${req.user.lastName} commented on your post`,
+          link: `/feed`,
+        });
+      }
+
       res.json(newComment);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
@@ -750,6 +767,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
           engagementScore: sql`${users.engagementScore} + 2`,
         })
         .where(eq(users.id, req.user.id));
+
+      // Get the post to notify the author
+      const [post] = await db
+        .select()
+        .from(posts)
+        .where(eq(posts.id, validatedData.postId));
+
+      // Create notification for post author (only if not reacting to own post)
+      if (post && post.authorId !== req.user.id) {
+        await db.insert(notifications).values({
+          userId: post.authorId,
+          type: "reaction",
+          title: "New Reaction",
+          message: `${req.user.firstName} ${req.user.lastName} reacted to your post`,
+          link: `/feed`,
+        });
+      }
 
       res.json(newReaction);
     } catch (error: any) {
@@ -2947,6 +2981,31 @@ Make it personalized, constructive, and actionable. Use a professional but encou
       });
 
       const [newAnnouncement] = await db.insert(announcements).values(validatedData).returning();
+
+      // Get all students from this university to notify them
+      const studentsToNotify = await db
+        .select()
+        .from(users)
+        .where(
+          and(
+            eq(users.role, 'student'),
+            sql`${users.university} = ${validatedData.university}`
+          )
+        );
+
+      // Create notifications for all students in the university
+      if (studentsToNotify.length > 0) {
+        const notificationValues = studentsToNotify.map(student => ({
+          userId: student.id,
+          type: 'announcement',
+          title: 'New Announcement',
+          message: `${req.user.university}: ${validatedData.title}`,
+          link: '/announcements',
+        }));
+
+        await db.insert(notifications).values(notificationValues);
+      }
+
       res.json(newAnnouncement);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
