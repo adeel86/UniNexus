@@ -652,14 +652,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/posts", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
     try {
       const validatedData = insertPostSchema.parse({
         ...req.body,
-        authorId: req.user!.id,
+        authorId: req.user.id,
       });
 
       const [newPost] = await db.insert(posts).values(validatedData).returning();
@@ -670,7 +670,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .set({
           engagementScore: sql`${users.engagementScore} + 10`,
         })
-        .where(eq(users.id, req.user!.id));
+        .where(eq(users.id, req.user.id));
 
       res.json(newPost);
     } catch (error: any) {
@@ -683,14 +683,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
 
   app.post("/api/comments", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
     try {
       const validatedData = insertCommentSchema.parse({
         ...req.body,
-        authorId: req.user!.id,
+        authorId: req.user.id,
       });
 
       const [newComment] = await db.insert(comments).values(validatedData).returning();
@@ -701,7 +701,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .set({
           engagementScore: sql`${users.engagementScore} + 5`,
         })
-        .where(eq(users.id, req.user!.id));
+        .where(eq(users.id, req.user.id));
 
       res.json(newComment);
     } catch (error: any) {
@@ -714,14 +714,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
 
   app.post("/api/reactions", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
     try {
       const validatedData = insertReactionSchema.parse({
         ...req.body,
-        userId: req.user!.id,
+        userId: req.user.id,
       });
 
       // Check if reaction already exists
@@ -731,7 +731,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(
           and(
             eq(reactions.postId, validatedData.postId),
-            eq(reactions.userId, req.user!.id),
+            eq(reactions.userId, req.user.id),
             eq(reactions.type, validatedData.type)
           )
         )
@@ -749,7 +749,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .set({
           engagementScore: sql`${users.engagementScore} + 2`,
         })
-        .where(eq(users.id, req.user!.id));
+        .where(eq(users.id, req.user.id));
 
       res.json(newReaction);
     } catch (error: any) {
@@ -819,13 +819,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Issue a new certification
   app.post("/api/certifications", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
     // Only teachers, university admins, and master admins can issue certificates
     const authorizedRoles = ['teacher', 'university_admin', 'master_admin'];
-    if (!authorizedRoles.includes(req.user!.role)) {
+    if (!authorizedRoles.includes(req.user.role)) {
       return res.status(403).json({ 
         error: "Forbidden: Only teachers and administrators can issue certificates" 
       });
@@ -835,14 +835,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertCertificationSchema.parse(req.body);
 
       // Set issuer name from authenticated user (cannot be spoofed)
-      const issuerName = `${req.user!.firstName} ${req.user!.lastName}`;
+      const issuerName = `${req.user.firstName} ${req.user.lastName}`;
 
       // Generate verification hash using crypto
       const crypto = await import('crypto');
       const hashData = JSON.stringify({
         ...validatedData,
         timestamp: Date.now(),
-        issuerId: req.user!.id,
+        issuerId: req.user.id,
         issuerName,
       });
       const verificationHash = crypto.createHash('sha256').update(hashData).digest('hex');
@@ -851,7 +851,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .insert(certifications)
         .values({
           ...validatedData,
-          issuerId: req.user!.id,
+          issuerId: req.user.id,
           issuerName,
           verificationHash,
         })
@@ -1037,12 +1037,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Submit recruiter feedback (industry professionals only)
   app.post("/api/recruiter-feedback", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
     // Only industry professionals can submit recruiter feedback
-    if (req.user!.role !== 'industry_professional') {
+    if (req.user.role !== 'industry_professional') {
       return res.status(403).json({ 
         error: "Forbidden: Only industry professionals can submit recruiter feedback" 
       });
@@ -1051,7 +1051,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const validatedData = insertRecruiterFeedbackSchema.parse({
         ...req.body,
-        recruiterId: req.user!.id,
+        recruiterId: req.user.id,
       });
 
       const [newFeedback] = await db
@@ -1065,7 +1065,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userId: newFeedback.studentId,
           type: 'recruiter_feedback',
           title: 'New Recruiter Feedback',
-          message: `${req.user!.company || 'A recruiter'} has left feedback on your ${newFeedback.category} skills`,
+          message: `${req.user.company || 'A recruiter'} has left feedback on your ${newFeedback.category} skills`,
           link: `/profile?userId=${newFeedback.studentId}`,
         });
       }
@@ -1135,11 +1135,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get talent insights for industry recruiters (view feedback they've given)
   app.get("/api/recruiter-feedback/my-feedback", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
-    if (req.user!.role !== 'industry_professional') {
+    if (req.user.role !== 'industry_professional') {
       return res.status(403).json({ error: "Forbidden: Only industry professionals can access this endpoint" });
     }
 
@@ -1165,7 +1165,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .from(recruiterFeedback)
         .leftJoin(users, eq(recruiterFeedback.studentId, users.id))
-        .where(eq(recruiterFeedback.recruiterId, req.user!.id))
+        .where(eq(recruiterFeedback.recruiterId, req.user.id))
         .orderBy(desc(recruiterFeedback.createdAt));
 
       res.json(myFeedback);
@@ -1213,14 +1213,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/endorsements", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
     try {
       const validatedData = insertEndorsementSchema.parse({
         ...req.body,
-        endorserId: req.user!.id,
+        endorserId: req.user.id,
       });
 
       const [newEndorsement] = await db.insert(endorsements).values(validatedData).returning();
@@ -1239,7 +1239,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: validatedData.endorsedUserId,
         type: "endorsement",
         title: "New Endorsement!",
-        message: `${req.user!.firstName} ${req.user!.lastName} endorsed you`,
+        message: `${req.user.firstName} ${req.user.lastName} endorsed you`,
         link: "/profile",
       });
 
@@ -1309,14 +1309,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Add education record
   app.post("/api/education", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
     try {
       const validated = insertEducationRecordSchema.parse({
         ...req.body,
-        userId: req.user!.id,
+        userId: req.user.id,
       });
 
       const [record] = await db
@@ -1332,7 +1332,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Update education record
   app.patch("/api/education/:id", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -1350,7 +1350,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Education record not found" });
       }
 
-      if (existing.userId !== req.user!.id) {
+      if (existing.userId !== req.user.id) {
         return res.status(403).json({ error: "Not authorized to update this record" });
       }
 
@@ -1368,7 +1368,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Delete education record
   app.delete("/api/education/:id", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -1386,7 +1386,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Education record not found" });
       }
 
-      if (existing.userId !== req.user!.id) {
+      if (existing.userId !== req.user.id) {
         return res.status(403).json({ error: "Not authorized to delete this record" });
       }
 
@@ -1406,7 +1406,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Add skill to user profile
   app.post("/api/users/skills", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -1422,7 +1422,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .select()
         .from(userSkills)
         .where(and(
-          eq(userSkills.userId, req.user!.id),
+          eq(userSkills.userId, req.user.id),
           eq(userSkills.skillId, skillId)
         ));
 
@@ -1433,7 +1433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const [userSkill] = await db
         .insert(userSkills)
         .values({
-          userId: req.user!.id,
+          userId: req.user.id,
           skillId,
           level: level || 'beginner',
         })
@@ -1447,7 +1447,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Update skill level
   app.patch("/api/users/skills/:id", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -1466,7 +1466,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "User skill not found" });
       }
 
-      if (existing.userId !== req.user!.id) {
+      if (existing.userId !== req.user.id) {
         return res.status(403).json({ error: "Not authorized" });
       }
 
@@ -1484,7 +1484,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Remove skill from user profile
   app.delete("/api/users/skills/:id", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -1502,7 +1502,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "User skill not found" });
       }
 
-      if (existing.userId !== req.user!.id) {
+      if (existing.userId !== req.user.id) {
         return res.status(403).json({ error: "Not authorized" });
       }
 
@@ -1820,14 +1820,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Create a new discussion
   app.post("/api/discussions", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
     try {
       const validatedData = insertCourseDiscussionSchema.parse({
         ...req.body,
-        authorId: req.user!.id,
+        authorId: req.user.id,
       });
 
       const newDiscussion = await storage.createDiscussion(validatedData);
@@ -1836,10 +1836,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await db
         .update(users)
         .set({ engagementScore: sql`${users.engagementScore} + 5` })
-        .where(eq(users.id, req.user!.id));
+        .where(eq(users.id, req.user.id));
 
       // Check and award course badges
-      await checkAndAwardCourseBadges(req.user!.id, validatedData.courseId);
+      await checkAndAwardCourseBadges(req.user.id, validatedData.courseId);
 
       res.json(newDiscussion);
     } catch (error: any) {
@@ -1869,14 +1869,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Create a reply
   app.post("/api/replies", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
     try {
       const validatedData = insertDiscussionReplySchema.parse({
         ...req.body,
-        authorId: req.user!.id,
+        authorId: req.user.id,
       });
 
       const newReply = await storage.createReply(validatedData);
@@ -1885,7 +1885,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await db
         .update(users)
         .set({ engagementScore: sql`${users.engagementScore} + 3` })
-        .where(eq(users.id, req.user!.id));
+        .where(eq(users.id, req.user.id));
 
       // Get the discussion to notify the author
       const [discussion] = await db
@@ -1893,19 +1893,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(courseDiscussions)
         .where(eq(courseDiscussions.id, validatedData.discussionId));
 
-      if (discussion && discussion.authorId !== req.user!.id) {
+      if (discussion && discussion.authorId !== req.user.id) {
         await db.insert(notifications).values({
           userId: discussion.authorId,
           type: "comment",
           title: "New Reply",
-          message: `${req.user!.firstName} ${req.user!.lastName} replied to your discussion`,
+          message: `${req.user.firstName} ${req.user.lastName} replied to your discussion`,
           link: `/forums/${discussion.courseId}/${discussion.id}`,
         });
       }
 
       // Check and award course badges
       if (discussion) {
-        await checkAndAwardCourseBadges(req.user!.id, discussion.courseId);
+        await checkAndAwardCourseBadges(req.user.id, discussion.courseId);
       }
 
       res.json(newReply);
@@ -1916,13 +1916,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Toggle upvote on discussion
   app.post("/api/discussions/:discussionId/upvote", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
     try {
       const upvoted = await storage.toggleDiscussionUpvote(
-        req.user!.id,
+        req.user.id,
         req.params.discussionId
       );
 
@@ -1934,13 +1934,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Toggle upvote on reply
   app.post("/api/replies/:replyId/upvote", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
     try {
       const upvoted = await storage.toggleReplyUpvote(
-        req.user!.id,
+        req.user.id,
         req.params.replyId
       );
 
@@ -1970,14 +1970,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/challenges", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
     try {
       const validatedData = insertChallengeSchema.parse({
         ...req.body,
-        organizerId: req.user!.id,
+        organizerId: req.user.id,
       });
 
       const [newChallenge] = await db.insert(challenges).values(validatedData).returning();
@@ -1989,7 +1989,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get challenge milestones for a user
   app.get("/api/users/:userId/challenge-milestones", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -2088,7 +2088,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
 
   app.get("/api/notifications", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -2096,7 +2096,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userNotifications = await db
         .select()
         .from(notifications)
-        .where(eq(notifications.userId, req.user!.id))
+        .where(eq(notifications.userId, req.user.id))
         .orderBy(desc(notifications.createdAt))
         .limit(20);
 
@@ -2111,7 +2111,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
 
   app.post("/api/careerbot/chat", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -2134,7 +2134,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .from(userSkills)
         .leftJoin(skills, eq(userSkills.skillId, skills.id))
-        .where(eq(userSkills.userId, req.user!.id));
+        .where(eq(userSkills.userId, req.user.id));
 
       const skillsList = userSkillsData.map(s => `${s.skill?.name} (${s.level})`).join(', ') || 'None listed';
       const userInterests = (req.user as any).interests?.join(', ') || 'Not specified';
@@ -2152,7 +2152,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .from(recruiterFeedback)
         .leftJoin(users, eq(recruiterFeedback.recruiterId, users.id))
         .where(and(
-          eq(recruiterFeedback.studentId, req.user!.id),
+          eq(recruiterFeedback.studentId, req.user.id),
           eq(recruiterFeedback.isPublic, true) // Only public feedback
         ))
         .orderBy(desc(recruiterFeedback.createdAt))
@@ -2181,14 +2181,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 6. **Industry Feedback Integration**: Leverage real recruiter feedback to provide highly personalized guidance
 
 User Profile:
-- Name: ${req.user!.firstName} ${req.user!.lastName}
-- Major: ${req.user!.major || "Not specified"}
-- University: ${req.user!.university || "Not specified"}
+- Name: ${req.user.firstName} ${req.user.lastName}
+- Major: ${req.user.major || "Not specified"}
+- University: ${req.user.university || "Not specified"}
 - Interests: ${userInterests}
 - Current Skills: ${skillsList}
-- Engagement Score: ${req.user!.engagementScore} (indicates platform activity level)
-- Problem Solver Score: ${req.user!.problemSolverScore} (indicates problem-solving abilities)
-- Endorsement Score: ${req.user!.endorsementScore} (indicates peer recognition)${recruiterInsights}
+- Engagement Score: ${req.user.engagementScore} (indicates platform activity level)
+- Problem Solver Score: ${req.user.problemSolverScore} (indicates problem-solving abilities)
+- Endorsement Score: ${req.user.endorsementScore} (indicates peer recognition)${recruiterInsights}
 
 Guidelines:
 - Provide actionable, specific advice tailored to their profile
@@ -2227,7 +2227,7 @@ Example responses:
         .set({
           engagementScore: sql`${users.engagementScore} + 3`,
         })
-        .where(eq(users.id, req.user!.id));
+        .where(eq(users.id, req.user.id));
 
       res.json({ message: assistantMessage });
     } catch (error: any) {
@@ -2241,7 +2241,7 @@ Example responses:
   // ========================================================================
 
   app.get("/api/ai/suggest-posts", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -2256,8 +2256,8 @@ Example responses:
       const systemPrompt = `You are a creative content generator for a Gen Z student social platform. Generate 3 engaging post ideas that would resonate with university students. The posts should be inspiring, educational, or thought-provoking.
 
 User Profile:
-- Name: ${req.user!.firstName} ${req.user!.lastName}
-- Major: ${req.user!.major || "Not specified"}
+- Name: ${req.user.firstName} ${req.user.lastName}
+- Major: ${req.user.major || "Not specified"}
 - Interests: ${interestsText}
 
 Generate 3 diverse post ideas (one academic, one social/community, one project/achievement related) that would be interesting to this user. Each post should be:
@@ -2305,7 +2305,7 @@ Format your response as a JSON array of objects with fields: category (academic/
   // ========================================================================
 
   app.post("/api/ai/moderate-content", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -2374,13 +2374,13 @@ Be lenient with academic discussions, debates, and Gen Z slang. Only flag clearl
   // ========================================================================
 
   app.get("/api/ai/career-summary/:userId", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
     // Only teachers, university admins, and master admins can view career summaries
     const authorizedRoles = ['teacher', 'university_admin', 'master_admin'];
-    if (!authorizedRoles.includes(req.user!.role)) {
+    if (!authorizedRoles.includes(req.user.role)) {
       return res.status(403).json({ 
         error: "Forbidden: Only teachers and administrators can view career summaries" 
       });
@@ -2545,7 +2545,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
   });
 
   app.post("/api/challenges/:challengeId/join", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -2558,7 +2558,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         .where(
           and(
             eq(challengeParticipants.challengeId, challengeId),
-            eq(challengeParticipants.userId, req.user!.id)
+            eq(challengeParticipants.userId, req.user.id)
           )
         )
         .limit(1);
@@ -2569,7 +2569,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
       const [participant] = await db.insert(challengeParticipants).values({
         challengeId,
-        userId: req.user!.id,
+        userId: req.user.id,
       }).returning();
 
       await db
@@ -2584,10 +2584,10 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         .set({
           engagementScore: sql`${users.engagementScore} + 10`,
         })
-        .where(eq(users.id, req.user!.id));
+        .where(eq(users.id, req.user.id));
 
       await db.insert(notifications).values({
-        userId: req.user!.id,
+        userId: req.user.id,
         type: 'challenge',
         title: 'Challenge Joined!',
         message: 'You have successfully joined a new challenge. Good luck!',
@@ -2601,7 +2601,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
   });
 
   app.post("/api/challenges/:challengeId/submit", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -2619,7 +2619,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         .where(
           and(
             eq(challengeParticipants.challengeId, challengeId),
-            eq(challengeParticipants.userId, req.user!.id)
+            eq(challengeParticipants.userId, req.user.id)
           )
         )
         .limit(1);
@@ -2638,7 +2638,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         .returning();
 
       // Award points for submission using the new helper
-      await applyPointDelta(req.user!.id, {
+      await applyPointDelta(req.user.id, {
         engagementDelta: 20,
         problemSolverDelta: 15,
       });
@@ -2653,11 +2653,11 @@ Make it personalized, constructive, and actionable. Use a professional but encou
       if (challenge) {
         // Automatically issue participation certificate
         const verificationHash = createHash('sha256')
-          .update(`${req.user!.id}-${challengeId}-${Date.now()}`)
+          .update(`${req.user.id}-${challengeId}-${Date.now()}`)
           .digest('hex');
         
         await db.insert(certifications).values({
-          userId: req.user!.id,
+          userId: req.user.id,
           title: `${challenge.title} - Participation`,
           description: `Successfully participated and submitted a solution for the ${challenge.title} challenge`,
           issuerName: 'UniNexus Platform',
@@ -2673,7 +2673,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         });
 
         await db.insert(notifications).values({
-          userId: req.user!.id,
+          userId: req.user.id,
           type: 'achievement',
           title: 'Certificate Earned!',
           message: `You've earned a participation certificate for ${challenge.title}!`,
@@ -2682,7 +2682,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
       }
 
       await db.insert(notifications).values({
-        userId: req.user!.id,
+        userId: req.user.id,
         type: 'challenge',
         title: 'Submission Received!',
         message: 'Your challenge submission has been recorded successfully.',
@@ -2723,7 +2723,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Award challenge points when ranks are assigned
   app.post("/api/challenges/:participantId/award-rank-points", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -2819,7 +2819,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Recalculate user rank tier (admin/cron endpoint)
   app.post("/api/users/:userId/recalculate-rank", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -2827,7 +2827,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
       const { userId } = req.params;
       
       // Only allow admins or the user themselves
-      if (req.user!.role !== 'master_admin' && req.user!.id !== userId) {
+      if (req.user.role !== 'master_admin' && req.user.id !== userId) {
         return res.status(403).json({ error: "Unauthorized" });
       }
 
@@ -2850,7 +2850,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
   });
 
   app.get("/api/challenges/my-participations", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -2868,7 +2868,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         })
         .from(challengeParticipants)
         .leftJoin(challenges, eq(challengeParticipants.challengeId, challenges.id))
-        .where(eq(challengeParticipants.userId, req.user!.id))
+        .where(eq(challengeParticipants.userId, req.user.id))
         .orderBy(desc(challengeParticipants.joinedAt));
 
       res.json(myParticipations);
@@ -2882,7 +2882,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
   // ========================================================================
 
   app.get("/api/admin/users", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || req.user!.role !== 'master_admin') {
+    if (!req.isAuthenticated() || req.user.role !== 'master_admin') {
       return res.status(403).send("Forbidden");
     }
 
@@ -2895,7 +2895,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
   });
 
   app.get("/api/admin/posts", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || req.user!.role !== 'master_admin') {
+    if (!req.isAuthenticated() || req.user.role !== 'master_admin') {
       return res.status(403).send("Forbidden");
     }
 
@@ -2936,14 +2936,14 @@ Make it personalized, constructive, and actionable. Use a professional but encou
   });
 
   app.post("/api/announcements", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || req.user!.role !== 'university_admin') {
+    if (!req.isAuthenticated() || req.user.role !== 'university_admin') {
       return res.status(403).send("Forbidden");
     }
 
     try {
       const validatedData = insertAnnouncementSchema.parse({
         ...req.body,
-        authorId: req.user!.id,
+        authorId: req.user.id,
       });
 
       const [newAnnouncement] = await db.insert(announcements).values(validatedData).returning();
@@ -2959,7 +2959,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get Challenge Participation & Badge Metrics for Retention Overview
   app.get("/api/university/retention/overview", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !['university_admin', 'master_admin'].includes(req.user!.role)) {
+    if (!req.isAuthenticated() || !['university_admin', 'master_admin'].includes(req.user.role)) {
       return res.status(403).send("Forbidden");
     }
 
@@ -3066,7 +3066,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get Career Pathway & Employability Metrics
   app.get("/api/university/retention/career", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !['university_admin', 'master_admin'].includes(req.user!.role)) {
+    if (!req.isAuthenticated() || !['university_admin', 'master_admin'].includes(req.user.role)) {
       return res.status(403).send("Forbidden");
     }
 
@@ -3181,7 +3181,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Search for users (for network discovery)
   app.get("/api/users/search", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3200,7 +3200,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         .from(users)
         .where(
           and(
-            sql`${users.id} != ${req.user!.id}`, // Exclude current user
+            sql`${users.id} != ${req.user.id}`, // Exclude current user
             or(
               sql`${users.firstName} ILIKE ${searchPattern}`,
               sql`${users.lastName} ILIKE ${searchPattern}`,
@@ -3221,7 +3221,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Send connection request
   app.post("/api/connections/request", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3232,7 +3232,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         return res.status(400).json({ error: "Receiver ID is required" });
       }
 
-      if (receiverId === req.user!.id) {
+      if (receiverId === req.user.id) {
         return res.status(400).json({ error: "Cannot connect with yourself" });
       }
 
@@ -3243,12 +3243,12 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         .where(
           or(
             and(
-              eq(userConnections.requesterId, req.user!.id),
+              eq(userConnections.requesterId, req.user.id),
               eq(userConnections.receiverId, receiverId)
             ),
             and(
               eq(userConnections.requesterId, receiverId),
-              eq(userConnections.receiverId, req.user!.id)
+              eq(userConnections.receiverId, req.user.id)
             )
           )
         );
@@ -3261,7 +3261,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
       const [connection] = await db
         .insert(userConnections)
         .values({
-          requesterId: req.user!.id,
+          requesterId: req.user.id,
           receiverId,
           status: 'pending',
         })
@@ -3272,7 +3272,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         userId: receiverId,
         type: 'connection',
         title: 'New Connection Request',
-        message: `${req.user!.firstName} ${req.user!.lastName} wants to connect with you`,
+        message: `${req.user.firstName} ${req.user.lastName} wants to connect with you`,
         link: '/network',
       });
 
@@ -3284,7 +3284,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Accept/reject connection request
   app.patch("/api/connections/:id", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3306,7 +3306,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         return res.status(404).json({ error: "Connection request not found" });
       }
 
-      if (connection.receiverId !== req.user!.id) {
+      if (connection.receiverId !== req.user.id) {
         return res.status(403).json({ error: "You can only respond to requests sent to you" });
       }
 
@@ -3326,7 +3326,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
           userId: connection.requesterId,
           type: 'connection',
           title: 'Connection Accepted',
-          message: `${req.user!.firstName} ${req.user!.lastName} accepted your connection request`,
+          message: `${req.user.firstName} ${req.user.lastName} accepted your connection request`,
           link: '/network',
         });
       }
@@ -3339,13 +3339,13 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get user's connections
   app.get("/api/connections", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
     try {
       const { status } = req.query;
-      const userId = req.user!.id;
+      const userId = req.user.id;
 
       let query = db
         .select({
@@ -3388,13 +3388,13 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get connection status with a specific user
   app.get("/api/connections/status/:userId", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
     try {
       const { userId } = req.params;
-      const currentUserId = req.user!.id;
+      const currentUserId = req.user.id;
 
       const [connection] = await db
         .select()
@@ -3429,7 +3429,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Follow a user
   app.post("/api/follow", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3440,7 +3440,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         return res.status(400).json({ error: "Following user ID is required" });
       }
 
-      if (followingId === req.user!.id) {
+      if (followingId === req.user.id) {
         return res.status(400).json({ error: "Cannot follow yourself" });
       }
 
@@ -3450,7 +3450,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         .from(followers)
         .where(
           and(
-            eq(followers.followerId, req.user!.id),
+            eq(followers.followerId, req.user.id),
             eq(followers.followingId, followingId)
           )
         );
@@ -3463,7 +3463,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
       const [follow] = await db
         .insert(followers)
         .values({
-          followerId: req.user!.id,
+          followerId: req.user.id,
           followingId,
         })
         .returning();
@@ -3473,8 +3473,8 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         userId: followingId,
         type: 'follow',
         title: 'New Follower',
-        message: `${req.user!.firstName} ${req.user!.lastName} started following you`,
-        link: `/profile?userId=${req.user!.id}`,
+        message: `${req.user.firstName} ${req.user.lastName} started following you`,
+        link: `/profile?userId=${req.user.id}`,
       });
 
       res.json(follow);
@@ -3485,7 +3485,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Unfollow a user
   app.delete("/api/follow/:userId", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3496,7 +3496,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         .delete(followers)
         .where(
           and(
-            eq(followers.followerId, req.user!.id),
+            eq(followers.followerId, req.user.id),
             eq(followers.followingId, userId)
           )
         );
@@ -3509,7 +3509,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get followers for a user
   app.get("/api/followers/:userId", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3534,7 +3534,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get following for a user
   app.get("/api/following/:userId", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3559,7 +3559,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Check if following a user
   app.get("/api/follow/status/:userId", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3571,7 +3571,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         .from(followers)
         .where(
           and(
-            eq(followers.followerId, req.user!.id),
+            eq(followers.followerId, req.user.id),
             eq(followers.followingId, userId)
           )
         );
@@ -3588,7 +3588,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Share a post
   app.post("/api/posts/:postId/share", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3611,7 +3611,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         .insert(postShares)
         .values({
           postId,
-          userId: req.user!.id,
+          userId: req.user.id,
           comment: comment || null,
         })
         .returning();
@@ -3623,12 +3623,12 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         .where(eq(posts.id, postId));
 
       // Create notification for post author
-      if (post.authorId !== req.user!.id) {
+      if (post.authorId !== req.user.id) {
         await db.insert(notifications).values({
           userId: post.authorId,
           type: 'share',
           title: 'Post Shared',
-          message: `${req.user!.firstName} ${req.user!.lastName} shared your post`,
+          message: `${req.user.firstName} ${req.user.lastName} shared your post`,
           link: `/feed`,
         });
       }
@@ -3639,7 +3639,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         .set({
           engagementScore: sql`${users.engagementScore} + 5`,
         })
-        .where(eq(users.id, req.user!.id));
+        .where(eq(users.id, req.user.id));
 
       res.json(share);
     } catch (error: any) {
@@ -3649,7 +3649,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get shares for a post
   app.get("/api/posts/:postId/shares", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3678,7 +3678,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Create or get existing conversation
   app.post("/api/conversations", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3690,7 +3690,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
       }
 
       // Add current user to participants if not included
-      const allParticipants = Array.from(new Set([req.user!.id, ...participantIds]));
+      const allParticipants = Array.from(new Set([req.user.id, ...participantIds]));
 
       // For non-group chats, check if conversation already exists
       if (!isGroup && allParticipants.length === 2) {
@@ -3729,12 +3729,12 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get user's conversations
   app.get("/api/conversations", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
     try {
-      const userId = req.user!.id;
+      const userId = req.user.id;
 
       const allConversations = await db
         .select()
@@ -3793,13 +3793,13 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get messages in a conversation
   app.get("/api/conversations/:id/messages", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
     try {
       const { id } = req.params;
-      const userId = req.user!.id;
+      const userId = req.user.id;
 
       // Verify user is participant
       const [conversation] = await db
@@ -3834,14 +3834,14 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Send a message
   app.post("/api/conversations/:id/messages", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
     try {
       const { id } = req.params;
       const { content, imageUrl } = req.body;
-      const userId = req.user!.id;
+      const userId = req.user.id;
 
       if (!content && !imageUrl) {
         return res.status(400).json({ error: "Message content or image is required" });
@@ -3887,7 +3887,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
           userId: participantId,
           type: 'message',
           title: 'New Message',
-          message: `${req.user!.firstName} ${req.user!.lastName} sent you a message`,
+          message: `${req.user.firstName} ${req.user.lastName} sent you a message`,
           link: `/messages?conversation=${id}`,
         });
       }
@@ -3900,13 +3900,13 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Mark messages as read
   app.patch("/api/conversations/:id/read", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
     try {
       const { id } = req.params;
-      const userId = req.user!.id;
+      const userId = req.user.id;
 
       // Get all unread messages in conversation
       const unreadMessages = await db
@@ -3940,7 +3940,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
   // ========================================================================
 
   app.post("/api/ai/moderate-image", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4004,7 +4004,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Boost a post
   app.post("/api/posts/:postId/boost", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4028,7 +4028,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         .where(
           and(
             eq(postBoosts.postId, postId),
-            eq(postBoosts.userId, req.user!.id)
+            eq(postBoosts.userId, req.user.id)
           )
         );
 
@@ -4041,17 +4041,17 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         .insert(postBoosts)
         .values({
           postId,
-          userId: req.user!.id,
+          userId: req.user.id,
         })
         .returning();
 
       // Create notification for post author
-      if (post.authorId !== req.user!.id) {
+      if (post.authorId !== req.user.id) {
         await db.insert(notifications).values({
           userId: post.authorId,
           type: 'boost',
           title: 'Post Boosted',
-          message: `${req.user!.firstName} ${req.user!.lastName} boosted your post`,
+          message: `${req.user.firstName} ${req.user.lastName} boosted your post`,
           link: `/feed`,
         });
       }
@@ -4062,7 +4062,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         .set({
           engagementScore: sql`${users.engagementScore} + 3`,
         })
-        .where(eq(users.id, req.user!.id));
+        .where(eq(users.id, req.user.id));
 
       res.json(boost);
     } catch (error: any) {
@@ -4072,7 +4072,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Remove boost from a post
   app.delete("/api/posts/:postId/boost", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4084,7 +4084,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         .where(
           and(
             eq(postBoosts.postId, postId),
-            eq(postBoosts.userId, req.user!.id)
+            eq(postBoosts.userId, req.user.id)
           )
         );
 
@@ -4096,7 +4096,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get boosts for a post
   app.get("/api/posts/:postId/boosts", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4121,7 +4121,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Check if user has boosted a post
   app.get("/api/posts/:postId/boost/status", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4134,7 +4134,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         .where(
           and(
             eq(postBoosts.postId, postId),
-            eq(postBoosts.userId, req.user!.id)
+            eq(postBoosts.userId, req.user.id)
           )
         );
 
@@ -4150,14 +4150,14 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Create a group
   app.post("/api/groups", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
     try {
       const validatedData = insertGroupSchema.parse({
         ...req.body,
-        creatorId: req.user!.id,
+        creatorId: req.user.id,
       });
 
       const [group] = await db
@@ -4168,7 +4168,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
       // Automatically add creator as admin member
       await db.insert(groupMembers).values({
         groupId: group.id,
-        userId: req.user!.id,
+        userId: req.user.id,
         role: 'admin',
       });
 
@@ -4186,7 +4186,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get all groups (with optional filters)
   app.get("/api/groups", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4232,7 +4232,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get group by ID
   app.get("/api/groups/:id", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4266,7 +4266,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         .where(
           and(
             eq(groupMembers.groupId, id),
-            eq(groupMembers.userId, req.user!.id)
+            eq(groupMembers.userId, req.user.id)
           )
         );
 
@@ -4284,7 +4284,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Join a group
   app.post("/api/groups/:id/join", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4308,7 +4308,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         .where(
           and(
             eq(groupMembers.groupId, id),
-            eq(groupMembers.userId, req.user!.id)
+            eq(groupMembers.userId, req.user.id)
           )
         );
 
@@ -4321,7 +4321,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         .insert(groupMembers)
         .values({
           groupId: id,
-          userId: req.user!.id,
+          userId: req.user.id,
           role: 'member',
         })
         .returning();
@@ -4340,7 +4340,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Leave a group
   app.delete("/api/groups/:id/leave", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4354,7 +4354,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         .where(
           and(
             eq(groupMembers.groupId, id),
-            eq(groupMembers.userId, req.user!.id)
+            eq(groupMembers.userId, req.user.id)
           )
         );
 
@@ -4385,7 +4385,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         .where(
           and(
             eq(groupMembers.groupId, id),
-            eq(groupMembers.userId, req.user!.id)
+            eq(groupMembers.userId, req.user.id)
           )
         );
 
@@ -4403,7 +4403,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get group members
   app.get("/api/groups/:id/members", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4428,7 +4428,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get user's groups
   app.get("/api/users/groups", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4440,7 +4440,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         })
         .from(groupMembers)
         .leftJoin(groups, eq(groupMembers.groupId, groups.id))
-        .where(eq(groupMembers.userId, req.user!.id))
+        .where(eq(groupMembers.userId, req.user.id))
         .orderBy(desc(groupMembers.joinedAt));
 
       res.json(results);
@@ -4451,7 +4451,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Post to a group
   app.post("/api/groups/:id/posts", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4465,7 +4465,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         .where(
           and(
             eq(groupMembers.groupId, id),
-            eq(groupMembers.userId, req.user!.id)
+            eq(groupMembers.userId, req.user.id)
           )
         );
 
@@ -4476,7 +4476,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
       const validatedData = insertGroupPostSchema.parse({
         ...req.body,
         groupId: id,
-        authorId: req.user!.id,
+        authorId: req.user.id,
       });
 
       const [post] = await db
@@ -4492,7 +4492,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get posts from a group
   app.get("/api/groups/:id/posts", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4516,7 +4516,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
           .where(
             and(
               eq(groupMembers.groupId, id),
-              eq(groupMembers.userId, req.user!.id)
+              eq(groupMembers.userId, req.user.id)
             )
           );
 
@@ -4548,7 +4548,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get trending posts based on engagement
   app.get("/api/trending/posts", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4590,7 +4590,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get trending groups
   app.get("/api/trending/groups", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4625,12 +4625,12 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // AI-powered friend recommendations
   app.get("/api/recommendations/friends", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
     try {
-      const userId = req.user!.id;
+      const userId = req.user.id;
       const { limit = 10 } = req.query;
 
       // Get user's interests and university
@@ -4700,7 +4700,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Cross-university discovery
   app.get("/api/discovery/universities", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4718,7 +4718,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         .where(
           and(
             eq(users.role, 'student'),
-            sql`${users.university} != ${req.user!.university}`,
+            sql`${users.university} != ${req.user.university}`,
             sql`${users.isVerified} = true`
           )
         )
@@ -4734,12 +4734,12 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Update user verification status (admin only)
   app.patch("/api/users/:userId/verify", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
     // Only master_admin and university_admin can verify users
-    if (req.user!.role !== 'master_admin' && req.user!.role !== 'university_admin') {
+    if (req.user.role !== 'master_admin' && req.user.role !== 'university_admin') {
       return res.status(403).json({ error: "Insufficient permissions" });
     }
 
@@ -4846,7 +4846,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Upload image endpoint
   app.post("/api/upload/image", imageUpload.single('image'), async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4864,7 +4864,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Upload video endpoint
   app.post("/api/upload/video", videoUpload.single('video'), async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4882,7 +4882,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Upload multiple images endpoint (for galleries/posts with multiple images)
   app.post("/api/upload/images", imageUpload.array('images', 10), async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4904,7 +4904,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get user profile by userId
   app.get("/api/user-profiles/:userId", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4925,12 +4925,12 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Create or update user profile
   app.post("/api/user-profiles", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
     try {
-      const userId = req.user!.id;
+      const userId = req.user.id;
       const profileData = { ...req.body, userId };
 
       // Upsert profile
@@ -4999,12 +4999,12 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Upload teacher content document
   app.post("/api/teacher-content/upload", documentUpload.single('document'), async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
     // Check if user is a teacher
-    if (req.user!.role !== 'teacher' && req.user!.role !== 'master_admin') {
+    if (req.user.role !== 'teacher' && req.user.role !== 'master_admin') {
       return res.status(403).json({ error: "Only teachers can upload content" });
     }
 
@@ -5032,7 +5032,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
       const [content] = await db
         .insert(teacherContent)
         .values({
-          teacherId: req.user!.id,
+          teacherId: req.user.id,
           title: title || req.file.originalname,
           description: description || null,
           courseId: courseId || null,
@@ -5052,19 +5052,19 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Create text-based teacher content (notes, guidelines)
   app.post("/api/teacher-content", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
     // Check if user is a teacher
-    if (req.user!.role !== 'teacher' && req.user!.role !== 'master_admin') {
+    if (req.user.role !== 'teacher' && req.user.role !== 'master_admin') {
       return res.status(403).json({ error: "Only teachers can create content" });
     }
 
     try {
       const validatedData = insertTeacherContentSchema.parse({
         ...req.body,
-        teacherId: req.user!.id,
+        teacherId: req.user.id,
       });
 
       const [content] = await db
@@ -5080,7 +5080,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get all teacher content for a specific teacher
   app.get("/api/teacher-content/teacher/:teacherId", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -5101,7 +5101,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get teacher content for a specific course
   app.get("/api/teacher-content/course/:courseId", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -5122,7 +5122,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Delete teacher content
   app.delete("/api/teacher-content/:id", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -5140,7 +5140,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
       }
 
       // Check if user is the owner or admin
-      if (content.teacherId !== req.user!.id && req.user!.role !== 'master_admin') {
+      if (content.teacherId !== req.user.id && req.user.role !== 'master_admin') {
         return res.status(403).json({ error: "Not authorized to delete this content" });
       }
 
@@ -5166,7 +5166,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Chat with AI using teacher's uploaded materials
   app.post("/api/teacher-ai/chat", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Unauthorized");
     }
 
