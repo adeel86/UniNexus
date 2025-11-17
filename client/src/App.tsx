@@ -28,6 +28,7 @@ import Notifications from "@/pages/Notifications";
 import Discovery from "@/pages/Discovery";
 import EthicsDashboard from "@/pages/EthicsDashboard";
 import TransparencyReport from "@/pages/TransparencyReport";
+import Settings from "@/pages/Settings";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -90,6 +91,7 @@ function Router() {
           <Route path="/challenges" component={Challenges} />
           <Route path="/challenges/map" component={GlobalChallengeMap} />
           <Route path="/profile" component={Profile} />
+          <Route path="/settings" component={Settings} />
           <Route path="/courses/:courseId" component={CourseDetail} />
           
           {/* Public verification route */}
