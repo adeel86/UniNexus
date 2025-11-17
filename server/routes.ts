@@ -3023,77 +3023,69 @@ Make it personalized, constructive, and actionable. Use a professional but encou
     }
 
     try {
-      // Get all students
-      const allStudents = await db
-        .select()
+      // Get total students count using DB COUNT
+      const totalStudentsResult = await db
+        .select({ count: sql<number>`COUNT(*)::int` })
         .from(users)
         .where(eq(users.role, 'student'));
+      const totalStudents = Number(totalStudentsResult[0]?.count) || 0;
 
-      const totalStudents = allStudents.length;
-
-      // Get active challenges (upcoming or active status)
-      const activeChallenges = await db
-        .select()
+      // Get active challenges count using DB COUNT
+      const activeChallengesResult = await db
+        .select({ count: sql<number>`COUNT(*)::int` })
         .from(challenges)
         .where(or(
           eq(challenges.status, 'active'),
           eq(challenges.status, 'upcoming')
         ));
+      const activeChallengesCount = Number(activeChallengesResult[0]?.count) || 0;
 
-      // Get all challenge participants
-      const allParticipants = await db
-        .select({
-          userId: challengeParticipants.userId,
-          challengeId: challengeParticipants.challengeId,
-          joinedAt: challengeParticipants.joinedAt,
-          category: challenges.category,
-        })
-        .from(challengeParticipants)
-        .leftJoin(challenges, eq(challengeParticipants.challengeId, challenges.id));
+      // Get unique participating students count using DB COUNT DISTINCT
+      const participatingStudentsResult = await db
+        .select({ count: sql<number>`COUNT(DISTINCT ${challengeParticipants.userId})::int` })
+        .from(challengeParticipants);
+      const participatingStudents = Number(participatingStudentsResult[0]?.count) || 0;
 
-      // Calculate unique participants
-      const uniqueParticipantIds = new Set(allParticipants.map(p => p.userId));
-      const participatingStudents = uniqueParticipantIds.size;
       const participationRate = totalStudents > 0 ? Math.round((participatingStudents / totalStudents) * 100) : 0;
 
-      // Get badge statistics
-      const allUserBadges = await db
-        .select({
-          userId: userBadges.userId,
-          badgeId: userBadges.badgeId,
-          tier: badges.tier,
-          category: badges.category,
-        })
-        .from(userBadges)
-        .leftJoin(badges, eq(userBadges.badgeId, badges.id))
-        .leftJoin(users, eq(userBadges.userId, users.id))
-        .where(eq(users.role, 'student'));
-
-      // Badge progress bands (how many students have 0, 1-2, 3-5, 6+ badges)
-      const badgeCountsByUser = allUserBadges.reduce((acc, ub) => {
-        acc[ub.userId] = (acc[ub.userId] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
+      // Get badge progress bands using SQL aggregation
+      const badgeBandsResult = await db.execute(sql`
+        WITH student_badge_counts AS (
+          SELECT 
+            u.id as user_id,
+            COUNT(ub.id)::int as badge_count
+          FROM ${users} u
+          LEFT JOIN ${userBadges} ub ON u.id = ub.user_id
+          WHERE u.role = 'student'
+          GROUP BY u.id
+        )
+        SELECT 
+          COUNT(CASE WHEN badge_count = 0 THEN 1 END)::int as none,
+          COUNT(CASE WHEN badge_count >= 1 AND badge_count <= 2 THEN 1 END)::int as low,
+          COUNT(CASE WHEN badge_count >= 3 AND badge_count <= 5 THEN 1 END)::int as medium,
+          COUNT(CASE WHEN badge_count >= 6 THEN 1 END)::int as high
+        FROM student_badge_counts
+      `);
 
       const badgeBands = {
-        none: 0,
-        low: 0,      // 1-2 badges
-        medium: 0,   // 3-5 badges
-        high: 0,     // 6+ badges
+        none: Number(badgeBandsResult.rows[0]?.none) || 0,
+        low: Number(badgeBandsResult.rows[0]?.low) || 0,
+        medium: Number(badgeBandsResult.rows[0]?.medium) || 0,
+        high: Number(badgeBandsResult.rows[0]?.high) || 0,
       };
 
-      allStudents.forEach(student => {
-        const count = badgeCountsByUser[student.id] || 0;
-        if (count === 0) badgeBands.none++;
-        else if (count <= 2) badgeBands.low++;
-        else if (count <= 5) badgeBands.medium++;
-        else badgeBands.high++;
-      });
+      // Get participation by category using SQL GROUP BY
+      const participationByCategoryResult = await db.execute(sql`
+        SELECT 
+          COALESCE(c.category, 'other') as category,
+          COUNT(*)::int as count
+        FROM ${challengeParticipants} cp
+        LEFT JOIN ${challenges} c ON cp.challenge_id = c.id
+        GROUP BY c.category
+      `);
 
-      // Challenge participation by category
-      const participationByCategory = allParticipants.reduce((acc, p) => {
-        const cat = p.category || 'other';
-        acc[cat] = (acc[cat] || 0) + 1;
+      const participationByCategory = participationByCategoryResult.rows.reduce((acc, row: any) => {
+        acc[row.category] = Number(row.count);
         return acc;
       }, {} as Record<string, number>);
 
@@ -3112,7 +3104,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
           totalStudents,
           participatingStudents,
           participationRate,
-          activeChallenges: activeChallenges.length,
+          activeChallenges: activeChallengesCount,
         },
         badgeProgress: badgeBands,
         participationByCategory,
@@ -3130,87 +3122,111 @@ Make it personalized, constructive, and actionable. Use a professional but encou
     }
 
     try {
-      // Get all students with their scores
-      const allStudents = await db
-        .select()
+      // Get total students count using DB COUNT
+      const totalStudentsResult = await db
+        .select({ count: sql<number>`COUNT(*)::int` })
         .from(users)
         .where(eq(users.role, 'student'));
+      const totalStudents = Number(totalStudentsResult[0]?.count) || 0;
 
-      // Calculate AI readiness score (average of engagement, problem solving, and endorsement scores)
-      const readinessScores = allStudents.map(s => {
-        const engagement = s.engagementScore || 0;
-        const problemSolver = s.problemSolverScore || 0;
-        const endorsement = s.endorsementScore || 0;
-        return Math.round((engagement + problemSolver + endorsement) / 3);
-      });
+      // Calculate AI readiness score and cohorts using SQL aggregation
+      const readinessResult = await db.execute(sql`
+        WITH student_readiness AS (
+          SELECT 
+            id,
+            ROUND((COALESCE(engagement_score, 0) + COALESCE(problem_solver_score, 0) + COALESCE(endorsement_score, 0)) / 3.0) as readiness_score
+          FROM ${users}
+          WHERE role = 'student'
+        )
+        SELECT 
+          ROUND(AVG(readiness_score))::int as avg_readiness,
+          COUNT(CASE WHEN readiness_score < 30 THEN 1 END)::int as low,
+          COUNT(CASE WHEN readiness_score >= 30 AND readiness_score < 70 THEN 1 END)::int as medium,
+          COUNT(CASE WHEN readiness_score >= 70 THEN 1 END)::int as high
+        FROM student_readiness
+      `);
 
-      const avgReadiness = readinessScores.length > 0 
-        ? Math.round(readinessScores.reduce((sum, score) => sum + score, 0) / readinessScores.length)
-        : 0;
-
-      // Readiness cohorts
+      const avgReadiness = Number(readinessResult.rows[0]?.avg_readiness) || 0;
       const readinessCohorts = {
-        low: readinessScores.filter(s => s < 30).length,
-        medium: readinessScores.filter(s => s >= 30 && s < 70).length,
-        high: readinessScores.filter(s => s >= 70).length,
+        low: Number(readinessResult.rows[0]?.low) || 0,
+        medium: Number(readinessResult.rows[0]?.medium) || 0,
+        high: Number(readinessResult.rows[0]?.high) || 0,
       };
 
-      // Get skill distribution
-      const allUserSkills = await db
-        .select({
-          userId: userSkills.userId,
-          skillId: userSkills.skillId,
-          level: userSkills.level,
-          category: skills.category,
-        })
+      // Get skill distribution by level using SQL GROUP BY
+      const skillsByLevelResult = await db.execute(sql`
+        SELECT 
+          COALESCE(us.level, 'beginner') as level,
+          COUNT(*)::int as count
+        FROM ${userSkills} us
+        INNER JOIN ${users} u ON us.user_id = u.id
+        WHERE u.role = 'student'
+        GROUP BY us.level
+      `);
+
+      const skillsByLevel = skillsByLevelResult.rows.reduce((acc, row: any) => {
+        acc[row.level] = Number(row.count);
+        return acc;
+      }, {} as Record<string, number>);
+
+      // Get skill distribution by category using SQL GROUP BY
+      const skillsByCategoryResult = await db.execute(sql`
+        SELECT 
+          COALESCE(s.category, 'other') as category,
+          COUNT(*)::int as count
+        FROM ${userSkills} us
+        INNER JOIN ${skills} s ON us.skill_id = s.id
+        INNER JOIN ${users} u ON us.user_id = u.id
+        WHERE u.role = 'student'
+        GROUP BY s.category
+      `);
+
+      const skillsByCategory = skillsByCategoryResult.rows.reduce((acc, row: any) => {
+        acc[row.category] = Number(row.count);
+        return acc;
+      }, {} as Record<string, number>);
+
+      // Get total skills count using DB COUNT
+      const totalSkillsResult = await db
+        .select({ count: sql<number>`COUNT(*)::int` })
         .from(userSkills)
-        .leftJoin(skills, eq(userSkills.skillId, skills.id))
-        .leftJoin(users, eq(userSkills.userId, users.id))
+        .innerJoin(users, eq(userSkills.userId, users.id))
         .where(eq(users.role, 'student'));
+      const totalSkills = Number(totalSkillsResult[0]?.count) || 0;
 
-      // Skills by level
-      const skillsByLevel = allUserSkills.reduce((acc, us) => {
-        const level = us.level || 'beginner';
-        acc[level] = (acc[level] || 0) + 1;
+      // Get certification statistics using SQL aggregation
+      const certificationStatsResult = await db.execute(sql`
+        SELECT 
+          COUNT(*)::int as total,
+          COUNT(DISTINCT c.user_id)::int as students_with_certs,
+          COUNT(CASE WHEN c.expires_at IS NULL OR c.expires_at > NOW() THEN 1 END)::int as active
+        FROM ${certifications} c
+        INNER JOIN ${users} u ON c.user_id = u.id
+        WHERE u.role = 'student'
+      `);
+
+      const certTotal = Number(certificationStatsResult.rows[0]?.total) || 0;
+      const studentsWithCerts = Number(certificationStatsResult.rows[0]?.students_with_certs) || 0;
+      const certActive = Number(certificationStatsResult.rows[0]?.active) || 0;
+
+      // Get certifications by type using SQL GROUP BY
+      const certByTypeResult = await db.execute(sql`
+        SELECT 
+          COALESCE(c.type, 'other') as type,
+          COUNT(*)::int as count
+        FROM ${certifications} c
+        INNER JOIN ${users} u ON c.user_id = u.id
+        WHERE u.role = 'student'
+        GROUP BY c.type
+      `);
+
+      const byType = certByTypeResult.rows.reduce((acc, row: any) => {
+        acc[row.type] = Number(row.count);
         return acc;
       }, {} as Record<string, number>);
 
-      // Skills by category
-      const skillsByCategory = allUserSkills.reduce((acc, us) => {
-        const cat = us.category || 'other';
-        acc[cat] = (acc[cat] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-
-      // Get certification statistics
-      const allCertifications = await db
-        .select({
-          id: certifications.id,
-          userId: certifications.userId,
-          type: certifications.type,
-          issuedAt: certifications.issuedAt,
-          expiresAt: certifications.expiresAt,
-        })
-        .from(certifications)
-        .leftJoin(users, eq(certifications.userId, users.id))
-        .where(eq(users.role, 'student'));
-
-      const certificationStats = {
-        total: allCertifications.length,
-        byType: allCertifications.reduce((acc, cert) => {
-          const type = cert.type || 'other';
-          acc[type] = (acc[type] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>),
-        active: allCertifications.filter(cert => 
-          !cert.expiresAt || new Date(cert.expiresAt) > new Date()
-        ).length,
-      };
-
-      // Students with certifications
-      const studentsWithCerts = new Set(allCertifications.map(c => c.userId)).size;
-      const certificationRate = allStudents.length > 0 
-        ? Math.round((studentsWithCerts / allStudents.length) * 100)
+      const certificationRate = totalStudents > 0 
+        ? Math.round((studentsWithCerts / totalStudents) * 100)
         : 0;
 
       res.json({
@@ -3221,10 +3237,12 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         skills: {
           byLevel: skillsByLevel,
           byCategory: skillsByCategory,
-          totalSkills: allUserSkills.length,
+          totalSkills,
         },
         certifications: {
-          ...certificationStats,
+          total: certTotal,
+          byType,
+          active: certActive,
           certificationRate,
           studentsWithCertifications: studentsWithCerts,
         },
