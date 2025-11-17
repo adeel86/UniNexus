@@ -13,12 +13,7 @@ type PostWithAuthor = Post & {
 
 export function TrendingWidget() {
   const { data: trendingPosts = [], isLoading } = useQuery<PostWithAuthor[]>({
-    queryKey: ["/api/feed/trending"],
-    queryFn: async () => {
-      const response = await fetch("/api/feed/trending?limit=5");
-      if (!response.ok) throw new Error("Failed to fetch trending posts");
-      return response.json();
-    },
+    queryKey: ["/api/feed/trending?limit=5"],
     refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
   });
 

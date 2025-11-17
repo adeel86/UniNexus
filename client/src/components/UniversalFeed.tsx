@@ -25,31 +25,22 @@ export function UniversalFeed({ role, initialCategory = "social" }: UniversalFee
   const [feedType, setFeedType] = useState<'personalized' | 'following'>('personalized');
 
   // Personalized AI-curated feed
+  const personalizedUrl = selectedCategory && selectedCategory !== 'all'
+    ? `/api/feed/personalized?limit=20&category=${selectedCategory}`
+    : `/api/feed/personalized?limit=20`;
+  
   const { data: personalizedPosts = [], isLoading: isLoadingPersonalized } = useQuery<PostWithAuthor[]>({
-    queryKey: ["/api/feed/personalized", selectedCategory],
-    queryFn: async () => {
-      const params = new URLSearchParams({ 
-        limit: '20',
-        ...(selectedCategory && selectedCategory !== 'all' ? { category: selectedCategory } : {})
-      });
-      const response = await fetch(`/api/feed/personalized?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch personalized feed');
-      return response.json();
-    },
+    queryKey: [personalizedUrl],
     enabled: feedType === 'personalized',
   });
 
   // Following feed (chronological from followed users only)
+  const followingUrl = selectedCategory && selectedCategory !== 'all'
+    ? `/api/feed/following?category=${selectedCategory}`
+    : `/api/feed/following`;
+  
   const { data: followingPosts = [], isLoading: isLoadingFollowing } = useQuery<PostWithAuthor[]>({
-    queryKey: ["/api/feed/following", selectedCategory],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        ...(selectedCategory && selectedCategory !== 'all' ? { category: selectedCategory } : {})
-      });
-      const response = await fetch(`/api/feed/following?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch following feed');
-      return response.json();
-    },
+    queryKey: [followingUrl],
     enabled: feedType === 'following',
   });
 

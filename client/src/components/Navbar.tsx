@@ -74,40 +74,43 @@ export function Navbar({ onMenuClick }: NavbarProps) {
 
           {/* Navigation Links - Available to all roles */}
           <div className="hidden md:flex items-center gap-2">
-            <Link href="/network">
-              <a>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={`text-white hover:bg-white/20 gap-2 ${location === '/network' ? 'bg-white/20' : ''}`}
-                  data-testid="nav-link-network"
-                >
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className={`text-white hover:bg-white/20 gap-2 ${location === '/network' ? 'bg-white/20' : ''}`}
+              data-testid="nav-link-network"
+            >
+              <Link href="/network">
+                <a>
                   <Users className="h-4 w-4" />
                   <span>My Network</span>
-                </Button>
-              </a>
-            </Link>
-            <Link href="/discovery">
-              <a>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={`text-white hover:bg-white/20 gap-2 ${location === '/discovery' ? 'bg-white/20' : ''}`}
-                  data-testid="nav-link-discovery"
-                >
+                </a>
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className={`text-white hover:bg-white/20 gap-2 ${location === '/discovery' ? 'bg-white/20' : ''}`}
+              data-testid="nav-link-discovery"
+            >
+              <Link href="/discovery">
+                <a>
                   <Compass className="h-4 w-4" />
                   <span>Discover</span>
-                </Button>
-              </a>
-            </Link>
-            <Link href="/messages">
-              <a>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={`text-white hover:bg-white/20 gap-2 relative ${location === '/messages' ? 'bg-white/20' : ''}`}
-                  data-testid="nav-link-messages"
-                >
+                </a>
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className={`text-white hover:bg-white/20 gap-2 relative ${location === '/messages' ? 'bg-white/20' : ''}`}
+              data-testid="nav-link-messages"
+            >
+              <Link href="/messages">
+                <a>
                   <MessageCircle className="h-4 w-4" />
                   <span>Messages</span>
                   {unreadMessages > 0 && (
@@ -118,52 +121,55 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                       {unreadMessages > 9 ? "9+" : unreadMessages}
                     </Badge>
                   )}
-                </Button>
-              </a>
-            </Link>
-            <Link href="/groups">
-              <a>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={`text-white hover:bg-white/20 gap-2 ${location === '/groups' ? 'bg-white/20' : ''}`}
-                  data-testid="nav-link-groups"
-                >
+                </a>
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="ghost"
+              size="sm"
+              className={`text-white hover:bg-white/20 gap-2 ${location === '/groups' ? 'bg-white/20' : ''}`}
+              data-testid="nav-link-groups"
+            >
+              <Link href="/groups">
+                <a>
                   <UsersRound className="h-4 w-4" />
                   <span>Groups</span>
-                </Button>
-              </a>
-            </Link>
+                </a>
+              </Link>
+            </Button>
             
             {/* Student-specific links */}
             {isStudent && (
               <>
-                <Link href="/leaderboard">
-                  <a>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={`text-white hover:bg-white/20 gap-2 ${location === '/leaderboard' ? 'bg-white/20' : ''}`}
-                      data-testid="nav-link-leaderboard"
-                    >
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className={`text-white hover:bg-white/20 gap-2 ${location === '/leaderboard' ? 'bg-white/20' : ''}`}
+                  data-testid="nav-link-leaderboard"
+                >
+                  <Link href="/leaderboard">
+                    <a>
                       <Trophy className="h-4 w-4" />
                       <span>Leaderboard</span>
-                    </Button>
-                  </a>
-                </Link>
-                <Link href="/challenges">
-                  <a>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={`text-white hover:bg-white/20 gap-2 ${location === '/challenges' ? 'bg-white/20' : ''}`}
-                      data-testid="nav-link-challenges"
-                    >
+                    </a>
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className={`text-white hover:bg-white/20 gap-2 ${location === '/challenges' ? 'bg-white/20' : ''}`}
+                  data-testid="nav-link-challenges"
+                >
+                  <Link href="/challenges">
+                    <a>
                       <Target className="h-4 w-4" />
                       <span>Challenges</span>
-                    </Button>
-                  </a>
-                </Link>
+                    </a>
+                  </Link>
+                </Button>
               </>
             )}
           </div>
