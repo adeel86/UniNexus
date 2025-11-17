@@ -273,6 +273,98 @@ async function seedUsers() {
 
   const usersToCreate: any[] = [];
 
+  // ========================================================================
+  // DEMO ACCOUNTS (Password: demo123 for all)
+  // ========================================================================
+  
+  usersToCreate.push({
+    firebaseUid: "demo_student_uid",
+    email: "demo.student@uninexus.app",
+    firstName: "Demo",
+    lastName: "Student",
+    displayName: "Demo Student",
+    profileImageUrl: "https://i.pravatar.cc/150?img=10",
+    role: "student",
+    bio: "Demo student account to explore the social feed, gamification, and AI CareerBot features.",
+    university: "MIT",
+    major: "Computer Science",
+    graduationYear: 2026,
+    interests: ["Web Development", "AI", "React", "JavaScript", "Python"],
+    engagementScore: 500,
+    problemSolverScore: 300,
+    endorsementScore: 25,
+    challengePoints: 0,
+    totalPoints: 825,
+    rankTier: "bronze" as const,
+    streak: 7,
+    isVerified: true,
+    verifiedAt: new Date(),
+  });
+
+  usersToCreate.push({
+    firebaseUid: "demo_teacher_uid",
+    email: "demo.teacher@uninexus.app",
+    firstName: "Demo",
+    lastName: "Teacher",
+    displayName: "Demo Teacher",
+    profileImageUrl: "https://i.pravatar.cc/150?img=11",
+    role: "teacher",
+    bio: "Demo teacher account to access student analytics and endorsement tools.",
+    university: "MIT",
+    position: "Instructor",
+    interests: ["Teaching", "Technology", "Student Success"],
+    isVerified: true,
+    verifiedAt: new Date(),
+  });
+
+  usersToCreate.push({
+    firebaseUid: "demo_university_uid",
+    email: "demo.university@uninexus.app",
+    firstName: "Demo",
+    lastName: "Admin",
+    displayName: "Demo University Admin",
+    profileImageUrl: "https://i.pravatar.cc/150?img=12",
+    role: "university_admin",
+    bio: "Demo university admin account to view retention metrics and institutional insights.",
+    university: "MIT",
+    position: "Administrator",
+    interests: ["Education", "Analytics", "Student Success"],
+    isVerified: true,
+    verifiedAt: new Date(),
+  });
+
+  usersToCreate.push({
+    firebaseUid: "demo_industry_uid",
+    email: "demo.industry@uninexus.app",
+    firstName: "Demo",
+    lastName: "Partner",
+    displayName: "Demo Industry Partner",
+    profileImageUrl: "https://i.pravatar.cc/150?img=13",
+    role: "industry_professional",
+    bio: "Demo industry partner account to discover talent and post challenges.",
+    company: "Demo Tech Inc",
+    position: "Talent Acquisition Manager",
+    interests: ["Innovation", "Talent", "Technology"],
+    isVerified: true,
+    verifiedAt: new Date(),
+  });
+
+  usersToCreate.push({
+    firebaseUid: "demo_master_uid",
+    email: "demo.master@uninexus.app",
+    firstName: "Demo",
+    lastName: "Master",
+    displayName: "Demo Master Admin",
+    profileImageUrl: "https://i.pravatar.cc/150?img=14",
+    role: "master_admin",
+    bio: "Demo master admin account with full platform access.",
+    interests: ["Platform Management", "Analytics", "System Admin"],
+    isVerified: true,
+    verifiedAt: new Date(),
+  });
+
+  console.log("  ✓ Added 5 demo accounts");
+
   // Create students
   for (const university of CONFIG.UNIVERSITIES) {
     for (let i = 0; i < CONFIG.STUDENTS_PER_UNIVERSITY; i++) {
