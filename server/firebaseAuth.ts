@@ -114,8 +114,9 @@ export async function setupAuth(app: Express): Promise<void> {
     const token = authHeader.split('Bearer ')[1];
 
     try {
-      // Development JWT authentication bypass (non-fatal)
-      if (!firebaseAdmin && DEV_AUTH_ENABLED && token.startsWith('dev-')) {
+      // Development JWT authentication bypass (priority: check dev token first)
+      // Process dev tokens regardless of whether Firebase Admin is initialized
+      if (DEV_AUTH_ENABLED && token.startsWith('dev-')) {
         const devToken = token.substring(4);
         if (!DEV_JWT_SECRET) {
           console.error('DEV_JWT_SECRET missing while DEV_AUTH_ENABLED is true');
@@ -215,8 +216,9 @@ export const verifyToken = async (
   const token = authHeader.split('Bearer ')[1];
 
   try {
-    // Development JWT authentication bypass
-    if (!firebaseAdmin && DEV_AUTH_ENABLED && token.startsWith('dev-')) {
+    // Development JWT authentication bypass (priority: check dev token first)
+    // Process dev tokens regardless of whether Firebase Admin is initialized
+    if (DEV_AUTH_ENABLED && token.startsWith('dev-')) {
       const devToken = token.substring(4); // Remove 'dev-' prefix
       
       // DEV_JWT_SECRET is validated at startup when DEV_AUTH_ENABLED is true
