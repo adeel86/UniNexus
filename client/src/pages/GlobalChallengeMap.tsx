@@ -37,7 +37,7 @@ export default function GlobalChallengeMap() {
     );
   }
 
-  if (!data) {
+  if (!data || !data.universityCounts) {
     return (
       <div className="container mx-auto px-4 py-6 max-w-7xl">
         <Card className="p-12 text-center">
@@ -49,7 +49,7 @@ export default function GlobalChallengeMap() {
     );
   }
 
-  const universities = Object.entries(data.universityCounts).sort((a, b) => b[1].total - a[1].total);
+  const universities = Object.entries(data.universityCounts || {}).sort((a, b) => b[1].total - a[1].total);
   
   const filteredChallenges = selectedUniversity
     ? data.universityCounts[selectedUniversity]?.challenges || []
