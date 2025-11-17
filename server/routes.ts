@@ -652,7 +652,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/posts", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -683,7 +683,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
 
   app.post("/api/comments", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -731,7 +731,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
 
   app.post("/api/reactions", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -853,7 +853,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Issue a new certification
   app.post("/api/certifications", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -1071,7 +1071,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Submit recruiter feedback (industry professionals only)
   app.post("/api/recruiter-feedback", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -1169,7 +1169,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get talent insights for industry recruiters (view feedback they've given)
   app.get("/api/recruiter-feedback/my-feedback", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -1247,7 +1247,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/endorsements", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -1343,7 +1343,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Add education record
   app.post("/api/education", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -1366,7 +1366,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Update education record
   app.patch("/api/education/:id", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -1402,7 +1402,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Delete education record
   app.delete("/api/education/:id", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -1440,7 +1440,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Add skill to user profile
   app.post("/api/users/skills", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -1481,7 +1481,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Update skill level
   app.patch("/api/users/skills/:id", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -1518,7 +1518,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Remove skill from user profile
   app.delete("/api/users/skills/:id", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -1854,7 +1854,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Create a new discussion
   app.post("/api/discussions", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -1903,7 +1903,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Create a reply
   app.post("/api/replies", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -1950,7 +1950,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Toggle upvote on discussion
   app.post("/api/discussions/:discussionId/upvote", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -1968,7 +1968,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Toggle upvote on reply
   app.post("/api/replies/:replyId/upvote", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -2004,7 +2004,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.post("/api/challenges", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -2023,7 +2023,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get challenge milestones for a user
   app.get("/api/users/:userId/challenge-milestones", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -2122,7 +2122,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
 
   app.get("/api/notifications", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -2145,7 +2145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
 
   app.post("/api/careerbot/chat", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -2275,7 +2275,7 @@ Example responses:
   // ========================================================================
 
   app.get("/api/ai/suggest-posts", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -2339,7 +2339,7 @@ Format your response as a JSON array of objects with fields: category (academic/
   // ========================================================================
 
   app.post("/api/ai/moderate-content", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -2408,7 +2408,7 @@ Be lenient with academic discussions, debates, and Gen Z slang. Only flag clearl
   // ========================================================================
 
   app.get("/api/ai/career-summary/:userId", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -2579,7 +2579,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
   });
 
   app.post("/api/challenges/:challengeId/join", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -2635,7 +2635,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
   });
 
   app.post("/api/challenges/:challengeId/submit", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -2757,7 +2757,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Award challenge points when ranks are assigned
   app.post("/api/challenges/:participantId/award-rank-points", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -2853,7 +2853,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Recalculate user rank tier (admin/cron endpoint)
   app.post("/api/users/:userId/recalculate-rank", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -2884,7 +2884,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
   });
 
   app.get("/api/challenges/my-participations", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3258,7 +3258,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Search for users (for network discovery)
   app.get("/api/users/search", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3298,7 +3298,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Send connection request
   app.post("/api/connections/request", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3361,7 +3361,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Accept/reject connection request
   app.patch("/api/connections/:id", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3416,7 +3416,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get user's connections
   app.get("/api/connections", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3465,7 +3465,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get connection status with a specific user
   app.get("/api/connections/status/:userId", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3506,7 +3506,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Follow a user
   app.post("/api/follow", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3562,7 +3562,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Unfollow a user
   app.delete("/api/follow/:userId", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3586,7 +3586,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get followers for a user
   app.get("/api/followers/:userId", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3611,7 +3611,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get following for a user
   app.get("/api/following/:userId", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3636,7 +3636,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Check if following a user
   app.get("/api/follow/status/:userId", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3665,7 +3665,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Share a post
   app.post("/api/posts/:postId/share", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3726,7 +3726,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get shares for a post
   app.get("/api/posts/:postId/shares", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3755,7 +3755,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Create or get existing conversation
   app.post("/api/conversations", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3806,7 +3806,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get user's conversations
   app.get("/api/conversations", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3870,7 +3870,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get messages in a conversation
   app.get("/api/conversations/:id/messages", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3911,7 +3911,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Send a message
   app.post("/api/conversations/:id/messages", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -3977,7 +3977,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Mark messages as read
   app.patch("/api/conversations/:id/read", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4017,7 +4017,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
   // ========================================================================
 
   app.post("/api/ai/moderate-image", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4081,7 +4081,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Boost a post
   app.post("/api/posts/:postId/boost", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4149,7 +4149,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Remove boost from a post
   app.delete("/api/posts/:postId/boost", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4173,7 +4173,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get boosts for a post
   app.get("/api/posts/:postId/boosts", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4198,7 +4198,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Check if user has boosted a post
   app.get("/api/posts/:postId/boost/status", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4227,7 +4227,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Create a group
   app.post("/api/groups", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4263,7 +4263,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get all groups (with optional filters)
   app.get("/api/groups", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4309,7 +4309,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get group by ID
   app.get("/api/groups/:id", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4361,7 +4361,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Join a group
   app.post("/api/groups/:id/join", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4417,7 +4417,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Leave a group
   app.delete("/api/groups/:id/leave", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4480,7 +4480,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get group members
   app.get("/api/groups/:id/members", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4505,7 +4505,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get user's groups
   app.get("/api/users/groups", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4528,7 +4528,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Post to a group
   app.post("/api/groups/:id/posts", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4569,7 +4569,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get posts from a group
   app.get("/api/groups/:id/posts", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4625,7 +4625,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get trending posts based on engagement
   app.get("/api/trending/posts", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4667,7 +4667,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get trending groups
   app.get("/api/trending/groups", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4702,7 +4702,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // AI-powered friend recommendations
   app.get("/api/recommendations/friends", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4777,7 +4777,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Cross-university discovery
   app.get("/api/discovery/universities", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4811,7 +4811,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Update user verification status (admin only)
   app.patch("/api/users/:userId/verify", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4923,7 +4923,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Upload image endpoint
   app.post("/api/upload/image", imageUpload.single('image'), async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4941,7 +4941,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Upload video endpoint
   app.post("/api/upload/video", videoUpload.single('video'), async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4959,7 +4959,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Upload multiple images endpoint (for galleries/posts with multiple images)
   app.post("/api/upload/images", imageUpload.array('images', 10), async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -4981,7 +4981,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get user profile by userId
   app.get("/api/user-profiles/:userId", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -5002,7 +5002,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Create or update user profile
   app.post("/api/user-profiles", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -5076,7 +5076,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Upload teacher content document
   app.post("/api/teacher-content/upload", documentUpload.single('document'), async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -5129,7 +5129,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Create text-based teacher content (notes, guidelines)
   app.post("/api/teacher-content", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -5157,7 +5157,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get all teacher content for a specific teacher
   app.get("/api/teacher-content/teacher/:teacherId", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -5178,7 +5178,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Get teacher content for a specific course
   app.get("/api/teacher-content/course/:courseId", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -5199,7 +5199,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Delete teacher content
   app.delete("/api/teacher-content/:id", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
@@ -5243,7 +5243,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
   // Chat with AI using teacher's uploaded materials
   app.post("/api/teacher-ai/chat", async (req: Request, res: Response) => {
-    if (!req.isAuthenticated() || !req.user) {
+    if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
