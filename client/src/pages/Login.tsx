@@ -117,6 +117,36 @@ export default function Login() {
               Sign up
             </Link>
           </div>
+
+          <div className="border-t pt-4">
+            <p className="text-sm font-medium mb-2">Quick Demo Access:</p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { email: "demo.student@uninexus.app", label: "Student" },
+                { email: "demo.teacher@uninexus.app", label: "Teacher" },
+                { email: "demo.university@uninexus.app", label: "Univ Admin" },
+                { email: "demo.industry@uninexus.app", label: "Industry" },
+                { email: "demo.admin@uninexus.app", label: "Admin" },
+              ].map((demo) => (
+                <Button
+                  key={demo.email}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    form.setValue('email', demo.email);
+                    form.setValue('password', 'demo123');
+                  }}
+                  data-testid={`button-demo-${demo.label.toLowerCase().replace(/\s+/g, '-')}`}
+                >
+                  {demo.label}
+                </Button>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              All demo accounts use password: <code className="bg-muted px-1 py-0.5 rounded">demo123</code>
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

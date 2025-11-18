@@ -60,7 +60,7 @@ export default function Landing() {
           </p>
 
           <GradientButton
-            onClick={() => window.location.href = '/api/login'}
+            onClick={() => window.location.href = '/login'}
             className="text-lg px-8 py-6 rounded-xl"
             data-testid="button-login"
           >
@@ -81,7 +81,7 @@ export default function Landing() {
                 <Card
                   key={account.role}
                   className="p-6 hover-elevate active-elevate-2 cursor-pointer transition-all"
-                  onClick={() => window.location.href = '/api/login'}
+                  onClick={() => window.location.href = '/login'}
                   data-testid={`card-demo-${account.role.toLowerCase().replace(/\s+/g, '-')}`}
                 >
                   <div className={`h-12 w-12 rounded-xl bg-gradient-to-br ${account.gradient} flex items-center justify-center mb-4`}>
