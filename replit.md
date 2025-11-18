@@ -8,6 +8,23 @@ The application provides a social feed for students to share posts and engage wi
 
 ## Recent Changes (November 2025)
 
+### Comprehensive Database Seed Enhancement (November 18, 2025)
+Enhanced seed script with 633 lines of realistic, interconnected mock data across ALL UniNexus features:
+- **Endorsements (90)**: Teachers, industry professionals, and peers endorsing students with skill-specific comments
+- **Certifications (30)**: NFT-style digital certificates with verification hashes, issuer tracking, and rich metadata
+- **Discussion Upvotes (13)**: Engagement metrics for course discussions and replies
+- **Groups (24)**: React Community, Data Science Study, UI/UX Hub, CS Majors, Career Prep, AI Ethics with descriptions
+- **Group Members (116)**: Admin, moderator, and member roles with realistic distribution
+- **Group Posts (42)**: Pinned announcements, discussions, questions, and community content
+- **Conversations (12)**: 1-on-1 and group chat threads with realistic conversation flow
+- **Messages (30)**: Complete conversation threads with read status and timestamps
+- **Post Shares/Boosts (18 each)**: Social engagement features with user interactions
+- **AI Interaction Events (10)**: Career bot queries and post suggestions with structured metadata
+- **Moderation Actions (6)**: Hide/warn/suspend actions with detailed reasons and moderator notes
+- **Recruiter Feedback (8)**: Industry professional feedback with ratings, categories, and context
+- **Enhanced Data Integrity**: All records use proper foreign key relationships, schema-compliant field names, and realistic content
+- **Multi-Role Coverage**: Every dashboard (Student, Teacher, University Admin, Industry Professional, Master Admin) now loads with complete data
+
 ### React Native Mobile App (November 15, 2025)
 Implemented cross-platform mobile application for iOS and Android:
 - **Mobile App Structure**: React Native Expo app in `/mobile` directory with TypeScript

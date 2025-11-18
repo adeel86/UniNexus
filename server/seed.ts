@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { sql } from "drizzle-orm";
 import {
   users,
   posts,
@@ -1165,7 +1166,801 @@ async function seedDatabase() {
   const insertedFollowers = await db.insert(followers).values(mockFollowers).onConflictDoNothing().returning();
   console.log(`Inserted ${insertedFollowers.length} followers`);
 
+  // ============================================================================
+  // ENDORSEMENTS
+  // ============================================================================
+
+  const mockEndorsements = [
+    // Demo Teacher endorsing students
+    {
+      endorserId: insertedUsers[1].id, // Demo Teacher
+      endorsedUserId: insertedUsers[0].id, // Demo Student
+      skillId: insertedSkills[0].id, // JavaScript
+      comment: "Excellent work on the React project! Shows strong understanding of modern web development.",
+    },
+    {
+      endorserId: insertedUsers[1].id, // Demo Teacher
+      endorsedUserId: insertedUsers[5].id, // Alex Rivera
+      skillId: insertedSkills[4].id, // Python
+      comment: "Outstanding AI project presentation. Deep knowledge of machine learning concepts.",
+    },
+    {
+      endorserId: insertedUsers[1].id, // Demo Teacher
+      endorsedUserId: insertedUsers[6].id, // Jordan Chen
+      skillId: insertedSkills[1].id, // React
+      comment: "Impressive UI/UX design skills demonstrated throughout the semester.",
+    },
+    // Dr. Sarah Smith endorsing students
+    {
+      endorserId: insertedUsers[8].id, // Dr. Sarah Smith
+      endorsedUserId: insertedUsers[0].id, // Demo Student
+      skillId: insertedSkills[4].id, // Python
+      comment: "Consistent strong performance in data structures course. Great problem-solving abilities!",
+    },
+    {
+      endorserId: insertedUsers[8].id, // Dr. Sarah Smith
+      endorsedUserId: insertedUsers[5].id, // Alex Rivera
+      skillId: insertedSkills[5].id, // Communication
+      comment: "Excellent teamwork and communication during group projects.",
+    },
+    {
+      endorserId: insertedUsers[8].id, // Dr. Sarah Smith
+      endorsedUserId: insertedUsers[7].id, // Maya Patel
+      skillId: insertedSkills[3].id, // Data Analysis
+      comment: "Exceptional analytical skills shown in the capstone project.",
+    },
+    // Prof. Michael Johnson endorsing students
+    {
+      endorserId: insertedUsers[9].id, // Prof. Michael Johnson
+      endorsedUserId: insertedUsers[7].id, // Maya Patel
+      skillId: insertedSkills[3].id, // Data Analysis
+      comment: "Top performer in Advanced Statistics. Natural talent for data visualization!",
+    },
+    {
+      endorserId: insertedUsers[9].id, // Prof. Michael Johnson
+      endorsedUserId: insertedUsers[6].id, // Jordan Chen
+      skillId: insertedSkills[6].id, // Problem Solving
+      comment: "Creative problem-solving approach in data science projects.",
+    },
+    // Industry professional endorsements
+    {
+      endorserId: insertedUsers[3].id, // Demo Industry Partner
+      endorsedUserId: insertedUsers[0].id, // Demo Student
+      skillId: insertedSkills[5].id, // Communication
+      comment: "Great collaboration skills during the internship program. Would recommend!",
+    },
+    {
+      endorserId: insertedUsers[3].id, // Demo Industry Partner
+      endorsedUserId: insertedUsers[5].id, // Alex Rivera
+      skillId: insertedSkills[0].id, // JavaScript
+      comment: "Strong technical skills demonstrated in real-world projects.",
+    },
+    {
+      endorserId: insertedUsers[11].id, // David Williams (TechCorp)
+      endorsedUserId: insertedUsers[6].id, // Jordan Chen
+      skillId: insertedSkills[2].id, // UI/UX Design
+      comment: "Exceptional design thinking and user-centered approach.",
+    },
+    {
+      endorserId: insertedUsers[11].id, // David Williams
+      endorsedUserId: insertedUsers[7].id, // Maya Patel
+      skillId: insertedSkills[4].id, // Python
+      comment: "Impressive technical capabilities shown during interview process.",
+    },
+    // Peer endorsements
+    {
+      endorserId: insertedUsers[5].id, // Alex Rivera
+      endorsedUserId: insertedUsers[0].id, // Demo Student
+      skillId: insertedSkills[1].id, // React
+      comment: "Amazing mentor! Helped me understand hooks and state management.",
+    },
+    {
+      endorserId: insertedUsers[6].id, // Jordan Chen
+      endorsedUserId: insertedUsers[5].id, // Alex Rivera
+      skillId: insertedSkills[6].id, // Problem Solving
+      comment: "Best teammate I've worked with. Always finds creative solutions!",
+    },
+    {
+      endorserId: insertedUsers[7].id, // Maya Patel
+      endorsedUserId: insertedUsers[6].id, // Jordan Chen
+      skillId: insertedSkills[2].id, // UI/UX Design
+      comment: "Incredible eye for design. Our project UI wouldn't be the same without you!",
+    },
+  ];
+
+  console.log("Inserting endorsements...");
+  const insertedEndorsements = await db.insert(endorsements).values(mockEndorsements).onConflictDoNothing().returning();
+  console.log(`Inserted ${insertedEndorsements.length} endorsements`);
+
+  // ============================================================================
+  // CERTIFICATIONS
+  // ============================================================================
+
+  const mockCertifications = [
+    {
+      userId: insertedUsers[0].id, // Demo Student
+      issuerName: "Demo University",
+      issuerId: insertedUsers[2].id, // Demo University Admin
+      type: "completion",
+      title: "Full Stack Web Development Certificate",
+      description: "Successfully completed comprehensive full-stack development program covering React, Node.js, databases, and deployment.",
+      metadata: JSON.stringify({ course: "CS401", grade: "A", hours: 240 }),
+      imageUrl: "https://via.placeholder.com/600x400/667eea/ffffff?text=Full+Stack+Certificate",
+      verificationHash: crypto.createHash('sha256').update(`demo-student-fullstack-${Date.now()}`).digest('hex'),
+      isPublic: true,
+    },
+    {
+      userId: insertedUsers[0].id, // Demo Student
+      issuerName: "Demo Teacher",
+      issuerId: insertedUsers[1].id, // Demo Teacher
+      type: "achievement",
+      title: "Outstanding Student Award",
+      description: "Recognized for exceptional academic performance and active participation in the Fall 2024 semester.",
+      metadata: JSON.stringify({ semester: "Fall 2024", gpa: 3.9 }),
+      verificationHash: crypto.createHash('sha256').update(`demo-student-award-${Date.now()}`).digest('hex'),
+      isPublic: true,
+    },
+    {
+      userId: insertedUsers[5].id, // Alex Rivera
+      issuerName: "Tech University",
+      issuerId: insertedUsers[8].id, // Dr. Sarah Smith
+      type: "completion",
+      title: "Machine Learning Specialization",
+      description: "Completed advanced machine learning curriculum including supervised learning, neural networks, and deep learning.",
+      metadata: JSON.stringify({ courses: ["ML101", "ML201", "DL301"], finalProject: "Image Classification Model" }),
+      imageUrl: "https://via.placeholder.com/600x400/764ba2/ffffff?text=ML+Specialization",
+      verificationHash: crypto.createHash('sha256').update(`alex-ml-${Date.now()}`).digest('hex'),
+      isPublic: true,
+    },
+    {
+      userId: insertedUsers[5].id, // Alex Rivera
+      issuerName: "Demo Industry Partner",
+      issuerId: insertedUsers[3].id, // Demo Industry Partner
+      type: "skill",
+      title: "Python Programming Expert",
+      description: "Demonstrated advanced proficiency in Python programming through project work and assessments.",
+      metadata: JSON.stringify({ skills: ["Python", "NumPy", "Pandas", "Scikit-learn"], level: "Advanced" }),
+      verificationHash: crypto.createHash('sha256').update(`alex-python-${Date.now()}`).digest('hex'),
+      isPublic: true,
+    },
+    {
+      userId: insertedUsers[6].id, // Jordan Chen
+      issuerName: "Tech University",
+      issuerId: insertedUsers[2].id, // Demo University Admin
+      type: "completion",
+      title: "UI/UX Design Professional Certificate",
+      description: "Comprehensive UI/UX design training covering user research, wireframing, prototyping, and usability testing.",
+      metadata: JSON.stringify({ tools: ["Figma", "Adobe XD", "Sketch"], projects: 12 }),
+      imageUrl: "https://via.placeholder.com/600x400/f093fb/ffffff?text=UI/UX+Certificate",
+      verificationHash: crypto.createHash('sha256').update(`jordan-uiux-${Date.now()}`).digest('hex'),
+      isPublic: true,
+    },
+    {
+      userId: insertedUsers[7].id, // Maya Patel
+      issuerName: "Tech University",
+      issuerId: insertedUsers[9].id, // Prof. Michael Johnson
+      type: "achievement",
+      title: "Data Science Excellence Award",
+      description: "Top student in Data Science program. Recognized for outstanding capstone project on predictive analytics.",
+      metadata: JSON.stringify({ year: 2024, ranking: 1, totalStudents: 150 }),
+      verificationHash: crypto.createHash('sha256').update(`maya-award-${Date.now()}`).digest('hex'),
+      isPublic: true,
+      expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
+    },
+  ];
+
+  console.log("Inserting certifications...");
+  const insertedCertifications = await db.insert(certifications).values(mockCertifications).onConflictDoNothing().returning();
+  console.log(`Inserted ${insertedCertifications.length} certifications`);
+
+  // ============================================================================
+  // DISCUSSION UPVOTES
+  // ============================================================================
+
+  // Fetch existing discussions and replies for upvotes
+  const existingDiscussions = await db.select().from(courseDiscussions).limit(10);
+  const existingReplies = await db.select().from(discussionReplies).limit(10);
+
+  if (existingDiscussions.length > 0 && existingReplies.length > 0) {
+    const mockUpvotes = [
+      // Upvotes on first discussion
+      {
+        discussionId: existingDiscussions[0].id,
+        userId: insertedUsers[1].id,
+      },
+      {
+        discussionId: existingDiscussions[0].id,
+        userId: insertedUsers[3].id,
+      },
+      {
+        discussionId: existingDiscussions[0].id,
+        userId: insertedUsers[5].id,
+      },
+      // Upvotes on second discussion
+      ...(existingDiscussions.length > 1 ? [
+        {
+          discussionId: existingDiscussions[1].id,
+          userId: insertedUsers[0].id,
+        },
+        {
+          discussionId: existingDiscussions[1].id,
+          userId: insertedUsers[2].id,
+        },
+        {
+          discussionId: existingDiscussions[1].id,
+          userId: insertedUsers[6].id,
+        },
+        {
+          discussionId: existingDiscussions[1].id,
+          userId: insertedUsers[7].id,
+        },
+      ] : []),
+      // Upvotes on replies
+      {
+        replyId: existingReplies[0].id,
+        userId: insertedUsers[0].id,
+      },
+      {
+        replyId: existingReplies[0].id,
+        userId: insertedUsers[1].id,
+      },
+      {
+        replyId: existingReplies[0].id,
+        userId: insertedUsers[5].id,
+      },
+      {
+        replyId: existingReplies[0].id,
+        userId: insertedUsers[6].id,
+      },
+      ...(existingReplies.length > 1 ? [
+        {
+          replyId: existingReplies[1].id,
+          userId: insertedUsers[0].id,
+        },
+        {
+          replyId: existingReplies[1].id,
+          userId: insertedUsers[2].id,
+        },
+      ] : []),
+    ];
+
+    console.log("Inserting discussion upvotes...");
+    const insertedUpvotes = await db.insert(discussionUpvotes).values(mockUpvotes).onConflictDoNothing().returning();
+    console.log(`Inserted ${insertedUpvotes.length} discussion upvotes`);
+  }
+
+  // ============================================================================
+  // GROUPS
+  // ============================================================================
+
+  const mockGroups = [
+    {
+      name: "React Developers Community",
+      description: "A community for React enthusiasts to share knowledge, projects, and best practices. All skill levels welcome!",
+      groupType: "skill",
+      category: "Tech",
+      university: "Tech University",
+      coverImageUrl: "https://via.placeholder.com/1200x400/61dafb/000000?text=React+Community",
+      isPrivate: false,
+      creatorId: insertedUsers[0].id,
+    },
+    {
+      name: "Data Science Study Group",
+      description: "Weekly discussions on data science topics, paper reviews, and collaborative projects. Focus on machine learning and statistics.",
+      groupType: "study_group",
+      category: "Science",
+      university: "Tech University",
+      coverImageUrl: "https://via.placeholder.com/1200x400/ff6f00/ffffff?text=Data+Science+Group",
+      isPrivate: false,
+      creatorId: insertedUsers[7].id,
+    },
+    {
+      name: "UI/UX Design Hub",
+      description: "Share designs, get feedback, and learn about the latest trends in user interface and user experience design.",
+      groupType: "skill",
+      category: "Design",
+      university: "Tech University",
+      coverImageUrl: "https://via.placeholder.com/1200x400/9c27b0/ffffff?text=UI/UX+Hub",
+      isPrivate: false,
+      creatorId: insertedUsers[6].id,
+    },
+    {
+      name: "Tech University CS Majors",
+      description: "Official group for Computer Science students. Share resources, discuss courses, and network with fellow CS majors.",
+      groupType: "university",
+      category: "Academic",
+      university: "Tech University",
+      isPrivate: false,
+      creatorId: insertedUsers[2].id,
+    },
+    {
+      name: "Tech Career Prep",
+      description: "Preparing for tech interviews, resume reviews, and career advice. Connect with industry professionals and fellow job seekers.",
+      groupType: "hobby",
+      category: "Career",
+      coverImageUrl: "https://via.placeholder.com/1200x400/00bcd4/ffffff?text=Career+Prep",
+      isPrivate: false,
+      creatorId: insertedUsers[5].id,
+    },
+    {
+      name: "AI Ethics & Society",
+      description: "Discussing the ethical implications of artificial intelligence, bias in ML models, and responsible AI development.",
+      groupType: "subject",
+      category: "Tech",
+      university: "Tech University",
+      isPrivate: false,
+      creatorId: insertedUsers[8].id,
+    },
+  ];
+
+  console.log("Inserting groups...");
+  const insertedGroups = await db.insert(groups).values(mockGroups).onConflictDoNothing().returning();
+  console.log(`Inserted ${insertedGroups.length} groups`);
+
+  // ============================================================================
+  // GROUP MEMBERS
+  // ============================================================================
+
+  if (insertedGroups.length > 0) {
+    const mockGroupMembers = [
+      // React Developers Community members
+      { groupId: insertedGroups[0].id, userId: insertedUsers[0].id, role: "admin" }, // Creator
+      { groupId: insertedGroups[0].id, userId: insertedUsers[5].id, role: "member" },
+      { groupId: insertedGroups[0].id, userId: insertedUsers[6].id, role: "member" },
+      { groupId: insertedGroups[0].id, userId: insertedUsers[1].id, role: "moderator" },
+      { groupId: insertedGroups[0].id, userId: insertedUsers[8].id, role: "member" },
+      // Data Science Study Group members
+      { groupId: insertedGroups[1].id, userId: insertedUsers[7].id, role: "admin" }, // Creator
+      { groupId: insertedGroups[1].id, userId: insertedUsers[0].id, role: "member" },
+      { groupId: insertedGroups[1].id, userId: insertedUsers[5].id, role: "member" },
+      { groupId: insertedGroups[1].id, userId: insertedUsers[9].id, role: "moderator" },
+      // UI/UX Design Hub members
+      { groupId: insertedGroups[2].id, userId: insertedUsers[6].id, role: "admin" }, // Creator
+      { groupId: insertedGroups[2].id, userId: insertedUsers[0].id, role: "member" },
+      { groupId: insertedGroups[2].id, userId: insertedUsers[7].id, role: "member" },
+      // Tech University CS Majors members
+      { groupId: insertedGroups[3].id, userId: insertedUsers[2].id, role: "admin" }, // Creator
+      { groupId: insertedGroups[3].id, userId: insertedUsers[0].id, role: "member" },
+      { groupId: insertedGroups[3].id, userId: insertedUsers[5].id, role: "member" },
+      { groupId: insertedGroups[3].id, userId: insertedUsers[6].id, role: "member" },
+      { groupId: insertedGroups[3].id, userId: insertedUsers[7].id, role: "member" },
+      { groupId: insertedGroups[3].id, userId: insertedUsers[8].id, role: "moderator" },
+      // Tech Career Prep members
+      { groupId: insertedGroups[4].id, userId: insertedUsers[5].id, role: "admin" }, // Creator
+      { groupId: insertedGroups[4].id, userId: insertedUsers[0].id, role: "member" },
+      { groupId: insertedGroups[4].id, userId: insertedUsers[6].id, role: "member" },
+      { groupId: insertedGroups[4].id, userId: insertedUsers[7].id, role: "member" },
+      { groupId: insertedGroups[4].id, userId: insertedUsers[3].id, role: "moderator" }, // Industry partner
+      { groupId: insertedGroups[4].id, userId: insertedUsers[11].id, role: "member" }, // Recruiter
+      // AI Ethics & Society members
+      { groupId: insertedGroups[5].id, userId: insertedUsers[8].id, role: "admin" }, // Creator
+      { groupId: insertedGroups[5].id, userId: insertedUsers[0].id, role: "member" },
+      { groupId: insertedGroups[5].id, userId: insertedUsers[5].id, role: "member" },
+      { groupId: insertedGroups[5].id, userId: insertedUsers[7].id, role: "member" },
+      { groupId: insertedGroups[5].id, userId: insertedUsers[9].id, role: "member" },
+    ];
+
+    console.log("Inserting group members...");
+    const insertedGroupMembers = await db.insert(groupMembers).values(mockGroupMembers).onConflictDoNothing().returning();
+    console.log(`Inserted ${insertedGroupMembers.length} group members`);
+
+    // Update member counts for groups
+    for (const group of insertedGroups) {
+      const memberCount = mockGroupMembers.filter(m => m.groupId === group.id).length;
+      await db.update(groups).set({ memberCount }).where(sql`${groups.id} = ${group.id}`);
+    }
+  }
+
+  // ============================================================================
+  // GROUP POSTS
+  // ============================================================================
+
+  if (insertedGroups.length > 0) {
+    const mockGroupPosts = [
+      // React Developers Community posts
+      {
+        groupId: insertedGroups[0].id,
+        authorId: insertedUsers[0].id,
+        content: "Just finished refactoring my project to use custom hooks. The code is so much cleaner now! Anyone else love how hooks simplify state management?",
+        isPinned: true,
+      },
+      {
+        groupId: insertedGroups[0].id,
+        authorId: insertedUsers[5].id,
+        content: "Quick tip: Use React.memo() for components that render often but don't need to re-render on every parent update. Huge performance boost!",
+      },
+      {
+        groupId: insertedGroups[0].id,
+        authorId: insertedUsers[6].id,
+        content: "Working on a drag-and-drop feature with React DnD. Anyone have experience with this library? Would love to hear best practices!",
+      },
+      // Data Science Study Group posts
+      {
+        groupId: insertedGroups[1].id,
+        authorId: insertedUsers[7].id,
+        content: "This week we're discussing dimensionality reduction techniques. I've prepared a Jupyter notebook comparing PCA, t-SNE, and UMAP. Who's joining our Monday session?",
+        isPinned: true,
+      },
+      {
+        groupId: insertedGroups[1].id,
+        authorId: insertedUsers[0].id,
+        content: "Found an amazing dataset on Kaggle for practicing time series forecasting. Perfect for our group project! Link in the comments.",
+      },
+      {
+        groupId: insertedGroups[1].id,
+        authorId: insertedUsers[5].id,
+        content: "Just read a fascinating paper on transformer architectures in NLP. The attention mechanism is mind-blowing! Happy to discuss if anyone's interested.",
+      },
+      // UI/UX Design Hub posts
+      {
+        groupId: insertedGroups[2].id,
+        authorId: insertedUsers[6].id,
+        content: "Sharing my latest design system for a fintech app. Focused on accessibility and clean aesthetics. Feedback welcome!",
+        imageUrl: "https://via.placeholder.com/800x600/9c27b0/ffffff?text=Design+System",
+        isPinned: true,
+      },
+      {
+        groupId: insertedGroups[2].id,
+        authorId: insertedUsers[0].id,
+        content: "Anyone using Figma's new variables feature? Game changer for maintaining design consistency across themes!",
+      },
+      // Tech University CS Majors posts
+      {
+        groupId: insertedGroups[3].id,
+        authorId: insertedUsers[2].id,
+        content: "Reminder: Career fair is next Friday! Update your resumes and prepare your elevator pitches. Let's make a great impression!",
+        isPinned: true,
+      },
+      {
+        groupId: insertedGroups[3].id,
+        authorId: insertedUsers[5].id,
+        content: "Looking for a partner for the algorithms project. Anyone interested in working on graph optimization problems?",
+      },
+      // Tech Career Prep posts
+      {
+        groupId: insertedGroups[4].id,
+        authorId: insertedUsers[5].id,
+        content: "Starting a weekly mock interview series! Each week we'll focus on different topics: system design, coding, behavioral. Who's in?",
+        isPinned: true,
+      },
+      {
+        groupId: insertedGroups[4].id,
+        authorId: insertedUsers[3].id,
+        content: "As a recruiter, here's my #1 tip: Tailor your resume for each application. Generic resumes rarely make it past the first screening.",
+      },
+      // AI Ethics & Society posts
+      {
+        groupId: insertedGroups[5].id,
+        authorId: insertedUsers[8].id,
+        content: "Let's discuss: What are the ethical implications of using AI in hiring decisions? How do we ensure fairness and prevent bias?",
+        isPinned: true,
+      },
+      {
+        groupId: insertedGroups[5].id,
+        authorId: insertedUsers[0].id,
+        content: "Read an interesting article on explainable AI. We need to understand how models make decisions, especially in critical applications like healthcare.",
+      },
+    ];
+
+    console.log("Inserting group posts...");
+    const insertedGroupPosts = await db.insert(groupPosts).values(mockGroupPosts).onConflictDoNothing().returning();
+    console.log(`Inserted ${insertedGroupPosts.length} group posts`);
+  }
+
+  // ============================================================================
+  // POST SHARES & BOOSTS
+  // ============================================================================
+
+  if (insertedPosts.length > 0) {
+    const mockShares = [
+      { postId: insertedPosts[0].id, userId: insertedUsers[1].id },
+      { postId: insertedPosts[0].id, userId: insertedUsers[5].id },
+      { postId: insertedPosts[1].id, userId: insertedUsers[0].id },
+      { postId: insertedPosts[1].id, userId: insertedUsers[6].id },
+      { postId: insertedPosts[2].id, userId: insertedUsers[7].id },
+      { postId: insertedPosts[3].id, userId: insertedUsers[0].id },
+    ];
+
+    console.log("Inserting post shares...");
+    const insertedShares = await db.insert(postShares).values(mockShares).onConflictDoNothing().returning();
+    console.log(`Inserted ${insertedShares.length} post shares`);
+
+    const mockBoosts = [
+      { postId: insertedPosts[0].id, userId: insertedUsers[2].id },
+      { postId: insertedPosts[0].id, userId: insertedUsers[3].id },
+      { postId: insertedPosts[1].id, userId: insertedUsers[1].id },
+      { postId: insertedPosts[2].id, userId: insertedUsers[0].id },
+      { postId: insertedPosts[2].id, userId: insertedUsers[5].id },
+      { postId: insertedPosts[3].id, userId: insertedUsers[6].id },
+    ];
+
+    console.log("Inserting post boosts...");
+    const insertedBoosts = await db.insert(postBoosts).values(mockBoosts).onConflictDoNothing().returning();
+    console.log(`Inserted ${insertedBoosts.length} post boosts`);
+  }
+
+  // ============================================================================
+  // CONVERSATIONS & MESSAGES
+  // ============================================================================
+
+  const mockConversations = [
+    {
+      participantIds: [insertedUsers[0].id, insertedUsers[5].id],
+      isGroup: false,
+      lastMessageAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 hours ago
+    },
+    {
+      participantIds: [insertedUsers[0].id, insertedUsers[1].id],
+      isGroup: false,
+      lastMessageAt: new Date(Date.now() - 5 * 60 * 60 * 1000), // 5 hours ago
+    },
+    {
+      participantIds: [insertedUsers[0].id, insertedUsers[6].id, insertedUsers[7].id],
+      isGroup: true,
+      groupName: "Project Team",
+      lastMessageAt: new Date(Date.now() - 1 * 60 * 60 * 1000), // 1 hour ago
+    },
+    {
+      participantIds: [insertedUsers[5].id, insertedUsers[6].id],
+      isGroup: false,
+      lastMessageAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
+    },
+  ];
+
+  console.log("Inserting conversations...");
+  const insertedConversations = await db.insert(conversations).values(mockConversations).onConflictDoNothing().returning();
+  console.log(`Inserted ${insertedConversations.length} conversations`);
+
+  if (insertedConversations.length > 0) {
+    const mockMessages = [
+      // Conversation 1: Demo Student & Alex Rivera
+      {
+        conversationId: insertedConversations[0].id,
+        senderId: insertedUsers[5].id,
+        content: "Hey! Did you finish the React assignment?",
+        isRead: true,
+        readBy: [insertedUsers[0].id],
+        createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000),
+      },
+      {
+        conversationId: insertedConversations[0].id,
+        senderId: insertedUsers[0].id,
+        content: "Yeah, just submitted it! How about you?",
+        isRead: true,
+        readBy: [insertedUsers[5].id],
+        createdAt: new Date(Date.now() - 2.5 * 60 * 60 * 1000),
+      },
+      {
+        conversationId: insertedConversations[0].id,
+        senderId: insertedUsers[5].id,
+        content: "Almost done. Can you help me with the custom hooks part?",
+        isRead: true,
+        readBy: [insertedUsers[0].id],
+        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+      },
+      // Conversation 2: Demo Student & Demo Teacher
+      {
+        conversationId: insertedConversations[1].id,
+        senderId: insertedUsers[0].id,
+        content: "Hi Professor! I have a question about the lecture on algorithms.",
+        isRead: true,
+        readBy: [insertedUsers[1].id],
+        createdAt: new Date(Date.now() - 6 * 60 * 60 * 1000),
+      },
+      {
+        conversationId: insertedConversations[1].id,
+        senderId: insertedUsers[1].id,
+        content: "Of course! What would you like to know?",
+        isRead: true,
+        readBy: [insertedUsers[0].id],
+        createdAt: new Date(Date.now() - 5.5 * 60 * 60 * 1000),
+      },
+      {
+        conversationId: insertedConversations[1].id,
+        senderId: insertedUsers[0].id,
+        content: "Could you explain the time complexity of quicksort in the worst case?",
+        isRead: true,
+        readBy: [insertedUsers[1].id],
+        createdAt: new Date(Date.now() - 5 * 60 * 60 * 1000),
+      },
+      // Conversation 3: Group chat
+      {
+        conversationId: insertedConversations[2].id,
+        senderId: insertedUsers[0].id,
+        content: "Team meeting at 3pm today?",
+        isRead: true,
+        readBy: [insertedUsers[6].id, insertedUsers[7].id],
+        createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+      },
+      {
+        conversationId: insertedConversations[2].id,
+        senderId: insertedUsers[6].id,
+        content: "Works for me!",
+        isRead: true,
+        readBy: [insertedUsers[0].id, insertedUsers[7].id],
+        createdAt: new Date(Date.now() - 1.5 * 60 * 60 * 1000),
+      },
+      {
+        conversationId: insertedConversations[2].id,
+        senderId: insertedUsers[7].id,
+        content: "I'll be there. Bringing my analysis results to share.",
+        isRead: false,
+        readBy: [],
+        createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000),
+      },
+      // Conversation 4: Alex & Jordan
+      {
+        conversationId: insertedConversations[3].id,
+        senderId: insertedUsers[5].id,
+        content: "Love the new design you shared in the group!",
+        isRead: true,
+        readBy: [insertedUsers[6].id],
+        createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      },
+    ];
+
+    console.log("Inserting messages...");
+    const insertedMessages = await db.insert(messages).values(mockMessages).onConflictDoNothing().returning();
+    console.log(`Inserted ${insertedMessages.length} messages`);
+  }
+
+  // ============================================================================
+  // AI INTERACTION EVENTS
+  // ============================================================================
+
+  const mockAIEvents = [
+    {
+      type: "careerbot_query",
+      userId: insertedUsers[0].id,
+      metadata: JSON.stringify({ 
+        sessionId: "session-1", 
+        messageCount: 3,
+        query: "How can I prepare for software engineering interviews?",
+        response: "Focus on data structures, algorithms, system design, and behavioral questions. Practice on LeetCode and participate in mock interviews."
+      }),
+    },
+    {
+      type: "post_suggestion",
+      userId: insertedUsers[0].id,
+      metadata: JSON.stringify({ 
+        interests: ["Web Development", "AI", "React"],
+        query: "Suggest posts based on my interests",
+        response: "Generated 3 personalized post suggestions about Web Development, AI, and React"
+      }),
+    },
+    {
+      type: "careerbot_query",
+      userId: insertedUsers[5].id,
+      metadata: JSON.stringify({ 
+        sessionId: "session-2", 
+        messageCount: 5,
+        query: "What skills should I learn for machine learning jobs?",
+        response: "Essential skills include Python, TensorFlow/PyTorch, statistics, linear algebra, and experience with real-world datasets. Also focus on communication skills to explain models to non-technical stakeholders."
+      }),
+    },
+    {
+      type: "post_suggestion",
+      userId: insertedUsers[6].id,
+      metadata: JSON.stringify({ 
+        interests: ["UI/UX", "Web Design", "Figma"],
+        query: "Generate post ideas",
+        response: "Generated suggestions about UI/UX Design, Frontend, and Animation"
+      }),
+    },
+    {
+      type: "careerbot_query",
+      userId: insertedUsers[7].id,
+      metadata: JSON.stringify({ 
+        sessionId: "session-3", 
+        messageCount: 2,
+        query: "Career paths for data scientists",
+        response: "Data scientists can pursue roles like ML Engineer, Data Analyst, Research Scientist, or AI Product Manager. Each has different focus areas and skill requirements."
+      }),
+    },
+  ];
+
+  console.log("Inserting AI interaction events...");
+  const insertedAIEvents = await db.insert(aiInteractionEvents).values(mockAIEvents).onConflictDoNothing().returning();
+  console.log(`Inserted ${insertedAIEvents.length} AI interaction events`);
+
+  // ============================================================================
+  // MODERATION ACTIONS
+  // ============================================================================
+
+  const mockModerationActions = [
+    {
+      moderatorId: insertedUsers[4].id, // Demo Master Admin
+      targetType: "post",
+      targetId: "flagged-post-id-1",
+      action: "hide",
+      reason: "Inappropriate content flagged by automated moderation",
+      notes: "Post contained spam links. User notified via email.",
+    },
+    {
+      moderatorId: insertedUsers[4].id,
+      targetType: "comment",
+      targetId: "flagged-comment-id-1",
+      action: "warn",
+      reason: "Violation of community guidelines - hostile language",
+      notes: "First warning issued. User account flagged for review.",
+    },
+    {
+      moderatorId: insertedUsers[4].id,
+      targetType: "user",
+      targetId: "suspended-user-id-1",
+      action: "suspend",
+      reason: "Multiple violations of community standards",
+      notes: "7-day suspension. User can appeal through support.",
+    },
+  ];
+
+  console.log("Inserting moderation actions...");
+  const insertedModerationActions = await db.insert(moderationActions).values(mockModerationActions).onConflictDoNothing().returning();
+  console.log(`Inserted ${insertedModerationActions.length} moderation actions`);
+
+  // ============================================================================
+  // RECRUITER FEEDBACK
+  // ============================================================================
+
+  const mockRecruiterFeedback = [
+    {
+      recruiterId: insertedUsers[3].id, // Demo Industry Partner
+      studentId: insertedUsers[0].id, // Demo Student
+      rating: 5,
+      category: "technical_skills",
+      feedback: "Strong technical skills demonstrated. Excellent communication abilities and great cultural fit. Would recommend for internship program and potentially full-time role after graduation. Could benefit from more exposure to system design concepts.",
+      context: "interview",
+      isPublic: false,
+    },
+    {
+      recruiterId: insertedUsers[11].id, // David Williams (TechCorp)
+      studentId: insertedUsers[5].id, // Alex Rivera
+      rating: 5,
+      category: "technical_skills",
+      feedback: "Outstanding problem-solving abilities and deep knowledge of ML algorithms. Strong portfolio demonstrates real-world experience. Top candidate - highly recommend for our ML Engineering team. Already extended offer.",
+      context: "interview",
+      isPublic: false,
+    },
+    {
+      recruiterId: insertedUsers[3].id,
+      studentId: insertedUsers[6].id, // Jordan Chen
+      rating: 4,
+      category: "soft_skills",
+      feedback: "Exceptional design skills and creative problem-solving approach. Great team player with excellent collaboration abilities. Perfect fit for UI/UX design roles. Would love to have on our design team.",
+      context: "project_review",
+      isPublic: false,
+    },
+    {
+      recruiterId: insertedUsers[11].id,
+      studentId: insertedUsers[7].id, // Maya Patel
+      rating: 5,
+      category: "communication",
+      feedback: "Excellent analytical skills with strong data visualization abilities. Clear and effective communicator. Great candidate for data analyst and data scientist roles. Strong potential for growth. Would benefit from more cloud computing experience.",
+      context: "interview",
+      isPublic: false,
+    },
+  ];
+
+  console.log("Inserting recruiter feedback...");
+  const insertedRecruiterFeedback = await db.insert(recruiterFeedback).values(mockRecruiterFeedback).onConflictDoNothing().returning();
+  console.log(`Inserted ${insertedRecruiterFeedback.length} recruiter feedback records`);
+
   console.log("Database seed completed successfully!");
+  console.log("=".repeat(80));
+  console.log("SEED SUMMARY:");
+  console.log(`- Users: ${insertedUsers.length}`);
+  console.log(`- Posts: ${insertedPosts.length}`);
+  console.log(`- Badges: ${insertedBadges.length}`);
+  console.log(`- Skills: ${insertedSkills.length}`);
+  console.log(`- Courses: ${insertedCourses.length}`);
+  console.log(`- Challenges: ${insertedChallenges.length}`);
+  console.log(`- Groups: ${insertedGroups.length}`);
+  console.log(`- Endorsements: ${insertedEndorsements.length}`);
+  console.log(`- Certifications: ${insertedCertifications.length}`);
+  console.log(`- Conversations: ${insertedConversations.length}`);
+  console.log(`- Followers: ${insertedFollowers.length}`);
+  console.log(`- Connections: ${insertedConnections.length}`);
+  console.log("=".repeat(80));
 }
 
 seedDatabase().catch((error) => {
