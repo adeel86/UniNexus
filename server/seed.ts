@@ -1454,6 +1454,52 @@ async function seedDatabase() {
       isPrivate: false,
       creatorId: insertedUsers[8].id,
     },
+    {
+      name: "Startup Founders Circle",
+      description: "Connect with fellow entrepreneurs, share startup experiences, pitch ideas, and get mentorship from successful founders.",
+      groupType: "hobby",
+      category: "Business",
+      coverImageUrl: "https://via.placeholder.com/1200x400/4caf50/ffffff?text=Startup+Founders",
+      isPrivate: false,
+      creatorId: insertedUsers[3].id,
+    },
+    {
+      name: "Creative Writing Workshop",
+      description: "Share your creative writing, get constructive feedback, participate in writing challenges, and discuss literature.",
+      groupType: "hobby",
+      category: "Arts",
+      coverImageUrl: "https://via.placeholder.com/1200x400/e91e63/ffffff?text=Creative+Writing",
+      isPrivate: false,
+      creatorId: insertedUsers[1].id,
+    },
+    {
+      name: "Campus Esports League",
+      description: "Competitive gaming community for students. Organize tournaments, form teams, and discuss strategy for popular esports titles.",
+      groupType: "hobby",
+      category: "Gaming",
+      university: "Tech University",
+      coverImageUrl: "https://via.placeholder.com/1200x400/673ab7/ffffff?text=Esports+League",
+      isPrivate: false,
+      creatorId: insertedUsers[5].id,
+    },
+    {
+      name: "Fitness & Wellness Squad",
+      description: "Share workout routines, nutrition tips, mental health resources, and support each other's wellness journeys.",
+      groupType: "hobby",
+      category: "Health",
+      coverImageUrl: "https://via.placeholder.com/1200x400/ff5722/ffffff?text=Fitness+Squad",
+      isPrivate: false,
+      creatorId: insertedUsers[6].id,
+    },
+    {
+      name: "Blockchain & Web3 Innovators",
+      description: "Explore decentralized technologies, discuss crypto projects, NFTs, and build the future of the web together.",
+      groupType: "skill",
+      category: "Tech",
+      coverImageUrl: "https://via.placeholder.com/1200x400/ffc107/000000?text=Web3+Innovators",
+      isPrivate: false,
+      creatorId: insertedUsers[9].id,
+    },
   ];
 
   console.log("Inserting groups...");
@@ -1501,6 +1547,32 @@ async function seedDatabase() {
       { groupId: insertedGroups[5].id, userId: insertedUsers[5].id, role: "member" },
       { groupId: insertedGroups[5].id, userId: insertedUsers[7].id, role: "member" },
       { groupId: insertedGroups[5].id, userId: insertedUsers[9].id, role: "member" },
+      // Startup Founders Circle members
+      { groupId: insertedGroups[6].id, userId: insertedUsers[3].id, role: "admin" }, // Creator
+      { groupId: insertedGroups[6].id, userId: insertedUsers[0].id, role: "member" },
+      { groupId: insertedGroups[6].id, userId: insertedUsers[5].id, role: "member" },
+      { groupId: insertedGroups[6].id, userId: insertedUsers[11].id, role: "member" },
+      // Creative Writing Workshop members
+      { groupId: insertedGroups[7].id, userId: insertedUsers[1].id, role: "admin" }, // Creator
+      { groupId: insertedGroups[7].id, userId: insertedUsers[0].id, role: "member" },
+      { groupId: insertedGroups[7].id, userId: insertedUsers[6].id, role: "member" },
+      { groupId: insertedGroups[7].id, userId: insertedUsers[8].id, role: "moderator" },
+      // Campus Esports League members
+      { groupId: insertedGroups[8].id, userId: insertedUsers[5].id, role: "admin" }, // Creator
+      { groupId: insertedGroups[8].id, userId: insertedUsers[0].id, role: "member" },
+      { groupId: insertedGroups[8].id, userId: insertedUsers[2].id, role: "member" },
+      { groupId: insertedGroups[8].id, userId: insertedUsers[7].id, role: "member" },
+      { groupId: insertedGroups[8].id, userId: insertedUsers[9].id, role: "member" },
+      // Fitness & Wellness Squad members
+      { groupId: insertedGroups[9].id, userId: insertedUsers[6].id, role: "admin" }, // Creator
+      { groupId: insertedGroups[9].id, userId: insertedUsers[0].id, role: "member" },
+      { groupId: insertedGroups[9].id, userId: insertedUsers[1].id, role: "member" },
+      { groupId: insertedGroups[9].id, userId: insertedUsers[5].id, role: "member" },
+      // Blockchain & Web3 Innovators members
+      { groupId: insertedGroups[10].id, userId: insertedUsers[9].id, role: "admin" }, // Creator
+      { groupId: insertedGroups[10].id, userId: insertedUsers[0].id, role: "member" },
+      { groupId: insertedGroups[10].id, userId: insertedUsers[3].id, role: "member" },
+      { groupId: insertedGroups[10].id, userId: insertedUsers[7].id, role: "moderator" },
     ];
 
     console.log("Inserting group members...");
