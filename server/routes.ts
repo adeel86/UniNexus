@@ -796,7 +796,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ========================================================================
 
   app.get("/api/user-badges/:userId", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
     try {
+      const { userId } = req.params;
+      
+      // Check if the target user is a student or teacher
+      const [targetUser] = await db
+        .select({ role: users.role })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!targetUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Only students and teachers have badges
+      if (targetUser.role !== 'student' && targetUser.role !== 'teacher') {
+        return res.json([]); // Return empty array for other roles
+      }
+
+      // Authorization: Only allow student/teacher requesters (regardless of viewing own or other profiles)
+      if (req.user.role !== 'student' && req.user.role !== 'teacher') {
+        return res.status(403).json({ error: "Access denied: Badges are only available for student and teacher roles" });
+      }
+
       const userBadgesData = await db
         .select({
           id: userBadges.id,
@@ -807,7 +834,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .from(userBadges)
         .leftJoin(badges, eq(userBadges.badgeId, badges.id))
-        .where(eq(userBadges.userId, req.params.userId))
+        .where(eq(userBadges.userId, userId))
         .orderBy(desc(userBadges.earnedAt));
 
       res.json(userBadgesData);
@@ -822,7 +849,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get user certifications
   app.get("/api/certifications/user/:userId", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
     try {
+      const { userId } = req.params;
+      
+      // Check if the target user is a student or teacher
+      const [targetUser] = await db
+        .select({ role: users.role })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!targetUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Only students and teachers have certifications
+      if (targetUser.role !== 'student' && targetUser.role !== 'teacher') {
+        return res.json([]); // Return empty array for other roles
+      }
+
+      // Authorization: Only allow student/teacher requesters (regardless of viewing own or other profiles)
+      if (req.user.role !== 'student' && req.user.role !== 'teacher') {
+        return res.status(403).json({ error: "Access denied: Certifications are only available for student and teacher roles" });
+      }
+
       const userCertifications = await db
         .select({
           id: certifications.id,
@@ -1222,7 +1276,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/endorsements/:userId", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
     try {
+      const { userId } = req.params;
+      
+      // Check if the target user is a student or teacher
+      const [targetUser] = await db
+        .select({ role: users.role })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!targetUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Only students and teachers have endorsements
+      if (targetUser.role !== 'student' && targetUser.role !== 'teacher') {
+        return res.json([]); // Return empty array for other roles
+      }
+
+      // Authorization: Only allow student/teacher requesters (regardless of viewing own or other profiles)
+      if (req.user.role !== 'student' && req.user.role !== 'teacher') {
+        return res.status(403).json({ error: "Access denied: Endorsements are only available for student and teacher roles" });
+      }
+
       const userEndorsements = await db
         .select({
           id: endorsements.id,
@@ -1327,8 +1408,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Get education records for a user
   app.get("/api/users/:userId/education", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
     try {
       const { userId } = req.params;
+
+      // Check if the target user is a student or teacher
+      const [targetUser] = await db
+        .select({ role: users.role })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!targetUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Only students and teachers have education records
+      if (targetUser.role !== 'student' && targetUser.role !== 'teacher') {
+        return res.json([]); // Return empty array for other roles
+      }
+
+      // Authorization: Only allow student/teacher requesters (regardless of viewing own or other profiles)
+      if (req.user.role !== 'student' && req.user.role !== 'teacher') {
+        return res.status(403).json({ error: "Access denied: Education records are only available for student and teacher roles" });
+      }
+
       const records = await db
         .select()
         .from(educationRecords)
@@ -1545,6 +1652,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(userSkills.id, id));
 
       res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get user skills for a specific user
+  app.get("/api/user-skills/:userId", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { userId } = req.params;
+
+      // Check if the target user is a student or teacher
+      const [targetUser] = await db
+        .select({ role: users.role })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!targetUser) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Only students and teachers have skills
+      if (targetUser.role !== 'student' && targetUser.role !== 'teacher') {
+        return res.json([]); // Return empty array for other roles
+      }
+
+      // Authorization: Only allow student/teacher requesters (regardless of viewing own or other profiles)
+      if (req.user.role !== 'student' && req.user.role !== 'teacher') {
+        return res.status(403).json({ error: "Access denied: Skills are only available for student and teacher roles" });
+      }
+
+      const userSkillsData = await db
+        .select({
+          id: userSkills.id,
+          userId: userSkills.userId,
+          skillId: userSkills.skillId,
+          level: userSkills.level,
+          skill: skills,
+        })
+        .from(userSkills)
+        .leftJoin(skills, eq(userSkills.skillId, skills.id))
+        .where(eq(userSkills.userId, userId))
+        .orderBy(skills.name);
+
+      res.json(userSkillsData);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

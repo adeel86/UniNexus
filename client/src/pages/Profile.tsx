@@ -46,19 +46,23 @@ export default function Profile() {
   // Use currentUser if viewing own profile, otherwise use viewedUser
   const user = isViewingOwnProfile ? currentUser : viewedUser;
 
+  // Only fetch student/teacher-specific features if the CURRENT USER (viewer) is a student or teacher
+  // This ensures admins/industry professionals cannot see these features even when viewing student profiles
+  const isStudentOrTeacher = currentUser && (currentUser.role === "student" || currentUser.role === "teacher");
+
   const { data: userBadges = [] } = useQuery<(UserBadge & { badge: BadgeType })[]>({
     queryKey: [`/api/user-badges/${targetUserId}`],
-    enabled: !!targetUserId,
+    enabled: !!targetUserId && !!isStudentOrTeacher,
   });
 
   const { data: endorsements = [] } = useQuery<(Endorsement & { endorser: User, skill?: Skill })[]>({
     queryKey: [`/api/endorsements/${targetUserId}`],
-    enabled: !!targetUserId,
+    enabled: !!targetUserId && !!isStudentOrTeacher,
   });
 
   const { data: certifications = [] } = useQuery<Certification[]>({
     queryKey: [`/api/certifications/user/${targetUserId}`],
-    enabled: !!targetUserId,
+    enabled: !!targetUserId && !!isStudentOrTeacher,
   });
 
   // Fetch followers and following
@@ -115,16 +119,16 @@ export default function Profile() {
     enabled: !!targetUserId,
   });
 
-  // Fetch education records
+  // Fetch education records (only for students/teachers)
   const { data: educationRecords = [] } = useQuery<EducationRecord[]>({
     queryKey: [`/api/users/${targetUserId}/education`],
-    enabled: !!targetUserId,
+    enabled: !!targetUserId && !!isStudentOrTeacher,
   });
 
-  // Fetch user skills
+  // Fetch user skills (only for students/teachers)
   const { data: userSkills = [] } = useQuery<(UserSkill & { skill: Skill })[]>({
     queryKey: [`/api/user-skills/${targetUserId}`],
-    enabled: !!targetUserId,
+    enabled: !!targetUserId && !!isStudentOrTeacher,
   });
 
   if (userLoading || !user) {
@@ -349,111 +353,116 @@ export default function Profile() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Badges */}
-        <Card className="p-6">
-          <h2 className="font-heading text-xl font-semibold mb-4 flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-yellow-600" />
-            Achievements ({userBadges.length})
-          </h2>
-          {userBadges.length > 0 ? (
-            <div className="grid grid-cols-3 gap-4">
-              {userBadges.map((ub) => (
-                <div key={ub.id} className="flex flex-col items-center gap-2">
-                  <BadgeIcon badge={ub.badge} size="lg" />
-                  <div className="text-xs text-center font-medium">{ub.badge.name}</div>
+      {/* Only show achievements, endorsements, certificates, education, and skills for students and teachers */}
+      {user && (user.role === "student" || user.role === "teacher") && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Badges */}
+            <Card className="p-6">
+              <h2 className="font-heading text-xl font-semibold mb-4 flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-yellow-600" />
+                Achievements ({userBadges.length})
+              </h2>
+              {userBadges.length > 0 ? (
+                <div className="grid grid-cols-3 gap-4">
+                  {userBadges.map((ub) => (
+                    <div key={ub.id} className="flex flex-col items-center gap-2">
+                      <BadgeIcon badge={ub.badge} size="lg" />
+                      <div className="text-xs text-center font-medium">{ub.badge.name}</div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <Trophy className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>No badges earned yet</p>
-              <p className="text-sm">Keep engaging to unlock achievements!</p>
-            </div>
-          )}
-        </Card>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Trophy className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>No badges earned yet</p>
+                  <p className="text-sm">Keep engaging to unlock achievements!</p>
+                </div>
+              )}
+            </Card>
 
-        {/* Endorsements */}
-        <Card className="p-6">
-          <h2 className="font-heading text-xl font-semibold mb-4 flex items-center gap-2">
-            <Award className="h-5 w-5 text-purple-600" />
-            Endorsements ({endorsements.length})
-          </h2>
-          {endorsements.length > 0 ? (
-            <div className="space-y-3">
-              {endorsements.slice(0, 5).map((endorsement) => (
-                <div key={endorsement.id} className="border-l-2 border-primary pl-3 py-2">
-                  <div className="flex items-center gap-2 mb-1">
-                    <UserAvatar user={endorsement.endorser} size="sm" />
-                    <div>
-                      <div className="font-medium text-sm">
-                        {endorsement.endorser.firstName} {endorsement.endorser.lastName}
+            {/* Endorsements */}
+            <Card className="p-6">
+              <h2 className="font-heading text-xl font-semibold mb-4 flex items-center gap-2">
+                <Award className="h-5 w-5 text-purple-600" />
+                Endorsements ({endorsements.length})
+              </h2>
+              {endorsements.length > 0 ? (
+                <div className="space-y-3">
+                  {endorsements.slice(0, 5).map((endorsement) => (
+                    <div key={endorsement.id} className="border-l-2 border-primary pl-3 py-2">
+                      <div className="flex items-center gap-2 mb-1">
+                        <UserAvatar user={endorsement.endorser} size="sm" />
+                        <div>
+                          <div className="font-medium text-sm">
+                            {endorsement.endorser.firstName} {endorsement.endorser.lastName}
+                          </div>
+                          {endorsement.skill && (
+                            <Badge variant="secondary" className="text-xs mt-1">
+                              {endorsement.skill.name}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                      {endorsement.skill && (
-                        <Badge variant="secondary" className="text-xs mt-1">
-                          {endorsement.skill.name}
-                        </Badge>
+                      {endorsement.comment && (
+                        <p className="text-sm text-muted-foreground mt-2">
+                          "{endorsement.comment}"
+                        </p>
                       )}
                     </div>
-                  </div>
-                  {endorsement.comment && (
-                    <p className="text-sm text-muted-foreground mt-2">
-                      "{endorsement.comment}"
-                    </p>
-                  )}
+                  ))}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <Award className="h-12 w-12 mx-auto mb-3 opacity-50" />
-              <p>No endorsements yet</p>
-              <p className="text-sm">Keep up the great work!</p>
-            </div>
-          )}
-        </Card>
-      </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Award className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>No endorsements yet</p>
+                  <p className="text-sm">Keep up the great work!</p>
+                </div>
+              )}
+            </Card>
+          </div>
 
-      {/* Achievement Timeline */}
-      <Card className="p-6 mt-6">
-        <h2 className="font-heading text-xl font-semibold mb-6 flex items-center gap-2">
-          <Clock className="h-5 w-5 text-blue-600" />
-          Achievement Timeline
-        </h2>
-        <AchievementTimeline 
-          userBadges={userBadges}
-          endorsements={endorsements}
-          engagementScore={user.engagementScore || 0}
-        />
-      </Card>
+          {/* Achievement Timeline */}
+          <Card className="p-6 mt-6">
+            <h2 className="font-heading text-xl font-semibold mb-6 flex items-center gap-2">
+              <Clock className="h-5 w-5 text-blue-600" />
+              Achievement Timeline
+            </h2>
+            <AchievementTimeline 
+              userBadges={userBadges}
+              endorsements={endorsements}
+              engagementScore={user.engagementScore || 0}
+            />
+          </Card>
 
-      {/* Digital Certificates (NFT-Style) */}
-      <div className="mt-6">
-        <h2 className="font-heading text-2xl font-semibold mb-4 flex items-center gap-2">
-          <Shield className="h-6 w-6 text-purple-600" />
-          Digital Certificates ({certifications.length})
-        </h2>
-        <CertificateShowcase certifications={certifications} />
-      </div>
+          {/* Digital Certificates (NFT-Style) */}
+          <div className="mt-6">
+            <h2 className="font-heading text-2xl font-semibold mb-4 flex items-center gap-2">
+              <Shield className="h-6 w-6 text-purple-600" />
+              Digital Certificates ({certifications.length})
+            </h2>
+            <CertificateShowcase certifications={certifications} />
+          </div>
 
-      {/* Education Section */}
-      <div className="mt-6">
-        <EducationSection
-          educationRecords={educationRecords}
-          isOwnProfile={isViewingOwnProfile}
-          userId={targetUserId!}
-        />
-      </div>
+          {/* Education Section */}
+          <div className="mt-6">
+            <EducationSection
+              educationRecords={educationRecords}
+              isOwnProfile={isViewingOwnProfile}
+              userId={targetUserId!}
+            />
+          </div>
 
-      {/* Skills Section */}
-      <div className="mt-6">
-        <SkillsSection
-          userSkills={userSkills}
-          isOwnProfile={isViewingOwnProfile}
-          userId={targetUserId!}
-        />
-      </div>
+          {/* Skills Section */}
+          <div className="mt-6">
+            <SkillsSection
+              userSkills={userSkills}
+              isOwnProfile={isViewingOwnProfile}
+              userId={targetUserId!}
+            />
+          </div>
+        </>
+      )}
 
       {/* Extended Profile Information */}
       {extendedProfile && (

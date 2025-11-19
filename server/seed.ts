@@ -360,14 +360,14 @@ async function seedDatabase() {
   console.log(`Using ${insertedBadges.length} badges`);
 
   if (insertedUsers.length > 0 && insertedBadges.length > 0) {
+    // Only assign badges to student and teacher roles (not university_admin, industry_professional, master_admin)
     const userBadgeAssignments = [
-      { userId: insertedUsers[0].id, badgeId: insertedBadges[0].id },
-      { userId: insertedUsers[0].id, badgeId: insertedBadges[1].id },
-      { userId: insertedUsers[1].id, badgeId: insertedBadges[0].id },
-      { userId: insertedUsers[1].id, badgeId: insertedBadges[1].id },
-      { userId: insertedUsers[1].id, badgeId: insertedBadges[4].id },
-      { userId: insertedUsers[2].id, badgeId: insertedBadges[0].id },
-      { userId: insertedUsers[2].id, badgeId: insertedBadges[3].id },
+      { userId: insertedUsers[0].id, badgeId: insertedBadges[0].id }, // Demo Student
+      { userId: insertedUsers[0].id, badgeId: insertedBadges[1].id }, // Demo Student
+      { userId: insertedUsers[1].id, badgeId: insertedBadges[0].id }, // Demo Teacher
+      { userId: insertedUsers[1].id, badgeId: insertedBadges[1].id }, // Demo Teacher
+      { userId: insertedUsers[1].id, badgeId: insertedBadges[4].id }, // Demo Teacher
+      // Removed: insertedUsers[2] (university_admin), [3] (industry_professional), [4] (master_admin)
     ];
 
     console.log("Assigning badges to users...");
@@ -399,16 +399,15 @@ async function seedDatabase() {
   console.log(`Using ${insertedSkills.length} skills`);
 
   if (insertedUsers.length > 0 && insertedSkills.length > 0) {
+    // Only assign skills to student and teacher roles (not university_admin, industry_professional, master_admin)
     const userSkillAssignments = [
-      { userId: insertedUsers[0].id, skillId: insertedSkills[0].id, level: "advanced" },
-      { userId: insertedUsers[0].id, skillId: insertedSkills[1].id, level: "intermediate" },
-      { userId: insertedUsers[0].id, skillId: insertedSkills[2].id, level: "advanced" },
-      { userId: insertedUsers[1].id, skillId: insertedSkills[3].id, level: "expert" },
-      { userId: insertedUsers[1].id, skillId: insertedSkills[0].id, level: "intermediate" },
-      { userId: insertedUsers[1].id, skillId: insertedSkills[9].id, level: "expert" },
-      { userId: insertedUsers[2].id, skillId: insertedSkills[1].id, level: "expert" },
-      { userId: insertedUsers[2].id, skillId: insertedSkills[4].id, level: "advanced" },
-      { userId: insertedUsers[2].id, skillId: insertedSkills[5].id, level: "intermediate" },
+      { userId: insertedUsers[0].id, skillId: insertedSkills[0].id, level: "advanced" }, // Demo Student
+      { userId: insertedUsers[0].id, skillId: insertedSkills[1].id, level: "intermediate" }, // Demo Student
+      { userId: insertedUsers[0].id, skillId: insertedSkills[2].id, level: "advanced" }, // Demo Student
+      { userId: insertedUsers[1].id, skillId: insertedSkills[3].id, level: "expert" }, // Demo Teacher
+      { userId: insertedUsers[1].id, skillId: insertedSkills[0].id, level: "intermediate" }, // Demo Teacher
+      { userId: insertedUsers[1].id, skillId: insertedSkills[9].id, level: "expert" }, // Demo Teacher
+      // Removed: insertedUsers[2] (university_admin), [3] (industry_professional), [4] (master_admin)
     ];
 
     console.log("Assigning skills to users...");
@@ -417,9 +416,10 @@ async function seedDatabase() {
   }
 
   if (insertedUsers.length > 0) {
+    // Only create education records for student and teacher roles (not university_admin, industry_professional, master_admin)
     const mockEducationRecords = [
       {
-        userId: insertedUsers[0].id,
+        userId: insertedUsers[0].id, // Demo Student
         institution: "Tech University",
         degree: "Bachelor of Science",
         fieldOfStudy: "Computer Science",
@@ -428,7 +428,7 @@ async function seedDatabase() {
         description: "Focused on software engineering, AI, and web development. Active member of the coding club and participated in multiple hackathons."
       },
       {
-        userId: insertedUsers[0].id,
+        userId: insertedUsers[0].id, // Demo Student
         institution: "Online Learning Platform",
         degree: "Certificate",
         fieldOfStudy: "Full-Stack Web Development",
@@ -437,7 +437,7 @@ async function seedDatabase() {
         description: "Completed comprehensive program covering React, Node.js, PostgreSQL, and modern web development practices."
       },
       {
-        userId: insertedUsers[1].id,
+        userId: insertedUsers[1].id, // Demo Teacher
         institution: "Design Institute",
         degree: "Bachelor of Arts",
         fieldOfStudy: "UI/UX Design",
@@ -445,42 +445,7 @@ async function seedDatabase() {
         endDate: "2025-05-31",
         description: "Specialized in user-centered design, visual design principles, and prototyping. Led design projects for local startups."
       },
-      {
-        userId: insertedUsers[2].id,
-        institution: "Tech University",
-        degree: "Bachelor of Science",
-        fieldOfStudy: "Data Science",
-        startDate: "2022-09-01",
-        endDate: "2026-05-31",
-        description: "Focus on machine learning, statistical analysis, and data visualization. Research assistant in the AI lab."
-      },
-      {
-        userId: insertedUsers[3].id,
-        institution: "State University",
-        degree: "Bachelor of Science",
-        fieldOfStudy: "Computer Science",
-        startDate: "2023-09-01",
-        endDate: "2027-05-31",
-        description: "First-year student exploring various areas of CS, with particular interest in mobile development and cybersecurity."
-      },
-      {
-        userId: insertedUsers[4].id,
-        institution: "Tech University",
-        degree: "Master of Science",
-        fieldOfStudy: "Computer Science",
-        startDate: "2015-09-01",
-        endDate: "2017-05-31",
-        description: "Specialized in distributed systems and cloud computing. Thesis on scalable web architectures."
-      },
-      {
-        userId: insertedUsers[4].id,
-        institution: "State University",
-        degree: "Bachelor of Science",
-        fieldOfStudy: "Computer Engineering",
-        startDate: "2011-09-01",
-        endDate: "2015-05-31",
-        description: "Foundation in hardware and software engineering with focus on embedded systems."
-      },
+      // Removed: insertedUsers[2] (university_admin), [3] (industry_professional), [4] (master_admin)
     ];
 
     console.log("Inserting education records...");
