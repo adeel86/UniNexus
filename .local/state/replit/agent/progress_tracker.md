@@ -30,6 +30,18 @@
 [x] 30. Gen Z gradient design rendering correctly
 [x] 31. All progress tracker items marked with [x] ✓
 [x] 32. Import migration to Replit environment 100% COMPLETE ✓
+
+## Teacher Role Refinement - Started November 19, 2025
+
+[x] 33. Remove student-exclusive features (Achievements, Endorsements, Timeline) from Teachers
+  - ✅ Updated Profile.tsx to only show achievements/endorsements/timeline for students
+  - ✅ Updated data fetching queries to only fetch these for students
+  - ✅ Updated profile stats to hide student-specific metrics for teachers
+  - ✅ Teachers now show Engagement and Streak stats only
+[•] 34. Update certificate validation - Teachers receive from Universities/Industries only
+[•] 35. Add Job Experience for Teachers
+[•] 36. Add Create Group feature for non-admin roles
+[•] 37. Populate mock groups in seed files
 [x] 5. Generate comprehensive mock data for all features
 [x] 6. Apply Gen Z interface with neon gradients (purple-blue-pink)
 [x] 7. Implement interest-based filtering for social feed

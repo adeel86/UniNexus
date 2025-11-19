@@ -46,18 +46,18 @@ export default function Profile() {
   // Use currentUser if viewing own profile, otherwise use viewedUser
   const user = isViewingOwnProfile ? currentUser : viewedUser;
 
-  // Only fetch student/teacher-specific features if the CURRENT USER (viewer) is a student or teacher
-  // This ensures admins/industry professionals cannot see these features even when viewing student profiles
+  // Only fetch student-exclusive features (achievements, endorsements, timeline) for students
+  const isStudent = user?.role === "student";
   const isStudentOrTeacher = currentUser && (currentUser.role === "student" || currentUser.role === "teacher");
 
   const { data: userBadges = [] } = useQuery<(UserBadge & { badge: BadgeType })[]>({
     queryKey: [`/api/user-badges/${targetUserId}`],
-    enabled: !!targetUserId && !!isStudentOrTeacher,
+    enabled: !!targetUserId && !!isStudent,
   });
 
   const { data: endorsements = [] } = useQuery<(Endorsement & { endorser: User, skill?: Skill })[]>({
     queryKey: [`/api/endorsements/${targetUserId}`],
-    enabled: !!targetUserId && !!isStudentOrTeacher,
+    enabled: !!targetUserId && !!isStudent,
   });
 
   const { data: certifications = [] } = useQuery<Certification[]>({
@@ -254,39 +254,60 @@ export default function Profile() {
           )}
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-          <div className="bg-white/20 backdrop-blur rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingUp className="h-5 w-5" />
-              <span className="text-sm">Engagement</span>
+        {/* Stats - show student-specific stats only for students */}
+        {user.role === "student" ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+            <div className="bg-white/20 backdrop-blur rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <TrendingUp className="h-5 w-5" />
+                <span className="text-sm">Engagement</span>
+              </div>
+              <div className="text-2xl font-bold">{user.engagementScore || 0}</div>
             </div>
-            <div className="text-2xl font-bold">{user.engagementScore || 0}</div>
-          </div>
 
-          <div className="bg-white/20 backdrop-blur rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Trophy className="h-5 w-5" />
-              <span className="text-sm">Problem Solver</span>
+            <div className="bg-white/20 backdrop-blur rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Trophy className="h-5 w-5" />
+                <span className="text-sm">Problem Solver</span>
+              </div>
+              <div className="text-2xl font-bold">{user.problemSolverScore || 0}</div>
             </div>
-            <div className="text-2xl font-bold">{user.problemSolverScore || 0}</div>
-          </div>
 
-          <div className="bg-white/20 backdrop-blur rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Award className="h-5 w-5" />
-              <span className="text-sm">Endorsements</span>
+            <div className="bg-white/20 backdrop-blur rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Award className="h-5 w-5" />
+                <span className="text-sm">Endorsements</span>
+              </div>
+              <div className="text-2xl font-bold">{user.endorsementScore || 0}</div>
             </div>
-            <div className="text-2xl font-bold">{user.endorsementScore || 0}</div>
-          </div>
 
-          <div className="bg-white/20 backdrop-blur rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Zap className="h-5 w-5" />
-              <span className="text-sm">Streak</span>
+            <div className="bg-white/20 backdrop-blur rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Zap className="h-5 w-5" />
+                <span className="text-sm">Streak</span>
+              </div>
+              <div className="text-2xl font-bold">{user.streak || 0} days</div>
             </div>
-            <div className="text-2xl font-bold">{user.streak || 0} days</div>
           </div>
-        </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-4 mt-6">
+            <div className="bg-white/20 backdrop-blur rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <TrendingUp className="h-5 w-5" />
+                <span className="text-sm">Engagement</span>
+              </div>
+              <div className="text-2xl font-bold">{user.engagementScore || 0}</div>
+            </div>
+
+            <div className="bg-white/20 backdrop-blur rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Zap className="h-5 w-5" />
+                <span className="text-sm">Streak</span>
+              </div>
+              <div className="text-2xl font-bold">{user.streak || 0} days</div>
+            </div>
+          </div>
+        )}
       </Card>
 
       {/* Followers List */}
@@ -353,8 +374,8 @@ export default function Profile() {
         </Card>
       )}
 
-      {/* Only show achievements, endorsements, certificates, education, and skills for students and teachers */}
-      {user && (user.role === "student" || user.role === "teacher") && (
+      {/* Student-exclusive features: Achievements, Endorsements, Achievement Timeline */}
+      {user && user.role === "student" && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Badges */}
@@ -434,6 +455,12 @@ export default function Profile() {
               engagementScore={user.engagementScore || 0}
             />
           </Card>
+        </>
+      )}
+
+      {/* Features available for both students and teachers */}
+      {user && (user.role === "student" || user.role === "teacher") && (
+        <>
 
           {/* Digital Certificates (NFT-Style) */}
           <div className="mt-6">
