@@ -12,12 +12,14 @@ import { CertificateShowcase } from "@/components/CertificateShowcase";
 import { RankTierBadge } from "@/components/RankTierBadge";
 import { PostCard } from "@/components/PostCard";
 import { EditProfileModal } from "@/components/EditProfileModal";
+import { JobExperienceModal } from "@/components/JobExperienceModal";
 import { EducationSection } from "@/components/EducationSection";
 import { SkillsSection } from "@/components/SkillsSection";
-import { Award, TrendingUp, Zap, Trophy, Clock, Shield, Users, UserPlus, UserMinus, CheckCircle, Edit, Mail, Phone, Globe, Briefcase, GraduationCap } from "lucide-react";
+import { Award, TrendingUp, Zap, Trophy, Clock, Shield, Users, UserPlus, UserMinus, CheckCircle, Edit, Mail, Phone, Globe, Briefcase, GraduationCap, Plus, Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState } from "react";
 import type { UserProfile, EducationRecord } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
 
 type PostWithAuthor = Post & {
   author: User;
@@ -112,6 +114,46 @@ export default function Profile() {
   const [showFollowers, setShowFollowers] = useState(false);
   const [showFollowing, setShowFollowing] = useState(false);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [jobExperienceModalOpen, setJobExperienceModalOpen] = useState(false);
+  const [selectedJobExperience, setSelectedJobExperience] = useState<any>(null);
+  const { toast } = useToast();
+
+  // Delete job experience mutation with optimistic updates
+  const deleteJobExperienceMutation = useMutation({
+    mutationFn: async (experienceId: number) => {
+      return apiRequest('DELETE', `/api/job-experience/${experienceId}`, {});
+    },
+    onMutate: async (experienceId) => {
+      await queryClient.cancelQueries({ queryKey: [`/api/users/${targetUserId}/job-experience`] });
+      
+      const previousExperiences = queryClient.getQueryData<any[]>([`/api/users/${targetUserId}/job-experience`]);
+      
+      queryClient.setQueryData<any[]>(
+        [`/api/users/${targetUserId}/job-experience`],
+        (old = []) => old.filter(exp => exp.id !== experienceId)
+      );
+      
+      return { previousExperiences };
+    },
+    onError: (err, experienceId, context) => {
+      queryClient.setQueryData(
+        [`/api/users/${targetUserId}/job-experience`],
+        context?.previousExperiences
+      );
+      toast({
+        title: 'Error',
+        description: 'Failed to delete job experience',
+        variant: 'destructive',
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${targetUserId}/job-experience`] });
+      toast({
+        title: 'Success',
+        description: 'Job experience deleted successfully',
+      });
+    },
+  });
 
   // Fetch extended profile data
   const { data: extendedProfile } = useQuery<UserProfile>({
@@ -584,27 +626,76 @@ export default function Profile() {
             </Card>
           )}
 
-          {user.role === "teacher" && jobExperiences && jobExperiences.length > 0 && (
+          {user.role === "teacher" && (jobExperiences.length > 0 || isViewingOwnProfile) && (
             <Card className="p-6 mt-6">
-              <h2 className="font-heading text-xl font-semibold mb-4 flex items-center gap-2">
-                <Briefcase className="h-5 w-5 text-blue-600" />
-                Professional Experience
-              </h2>
-              <div className="space-y-4">
-                {jobExperiences.map((exp, index) => (
-                  <div key={exp.id || index} className="border-l-2 border-muted pl-4">
-                    <h3 className="font-semibold">{exp.position}</h3>
-                    <p className="text-sm text-muted-foreground">{exp.organization}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {exp.startDate} - {exp.endDate || 'Present'}
-                      {exp.isCurrent && <Badge variant="secondary" className="ml-2">Current</Badge>}
-                    </p>
-                    {exp.description && (
-                      <p className="text-sm mt-2 whitespace-pre-wrap">{exp.description}</p>
-                    )}
-                  </div>
-                ))}
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-heading text-xl font-semibold flex items-center gap-2">
+                  <Briefcase className="h-5 w-5 text-blue-600" />
+                  Professional Experience
+                </h2>
+                {isViewingOwnProfile && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedJobExperience(null);
+                      setJobExperienceModalOpen(true);
+                    }}
+                    data-testid="button-add-job-experience"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Experience
+                  </Button>
+                )}
               </div>
+              {jobExperiences.length > 0 ? (
+                <div className="space-y-4">
+                  {jobExperiences.map((exp, index) => (
+                    <div key={exp.id || index} className="border-l-2 border-muted pl-4 relative group">
+                      {isViewingOwnProfile && (
+                        <div className="absolute top-0 right-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setSelectedJobExperience(exp);
+                              setJobExperienceModalOpen(true);
+                            }}
+                            data-testid={`button-edit-job-experience-${exp.id}`}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              if (confirm('Are you sure you want to delete this job experience?')) {
+                                deleteJobExperienceMutation.mutate(exp.id);
+                              }
+                            }}
+                            data-testid={`button-delete-job-experience-${exp.id}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                      <h3 className="font-semibold">{exp.position}</h3>
+                      <p className="text-sm text-muted-foreground">{exp.organization}</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {exp.startDate} - {exp.endDate || 'Present'}
+                        {exp.isCurrent && <Badge variant="secondary" className="ml-2">Current</Badge>}
+                      </p>
+                      {exp.description && (
+                        <p className="text-sm mt-2 whitespace-pre-wrap">{exp.description}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : isViewingOwnProfile ? (
+                <p className="text-sm text-muted-foreground">
+                  No job experience added yet. Click "Add Experience" to get started.
+                </p>
+              ) : null}
             </Card>
           )}
 
@@ -737,6 +828,17 @@ export default function Profile() {
         onOpenChange={setEditProfileOpen}
         userId={targetUserId || ""}
         userRole={user.role}
+      />
+
+      {/* Job Experience Modal */}
+      <JobExperienceModal
+        open={jobExperienceModalOpen}
+        onOpenChange={(open) => {
+          setJobExperienceModalOpen(open);
+          if (!open) setSelectedJobExperience(null);
+        }}
+        experience={selectedJobExperience}
+        userId={targetUserId!}
       />
     </div>
   );
