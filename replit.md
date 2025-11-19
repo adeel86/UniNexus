@@ -1,216 +1,44 @@
 # UniNexus - Gen Z Social Learning & Engagement Platform
 
 ## Overview
-
-UniNexus is a vibrant, Gen Z-focused social learning and engagement platform that combines social networking, gamification, career development, and AI-powered features. The platform serves multiple user roles (students, teachers, university admins, industry professionals, and master admins), each with customized dashboards and features.
-
-The application provides a social feed for students to share posts and engage with content, gamified profiles with badges and achievement timelines, AI-powered career guidance through a chatbot, course discussion forums, leaderboards, and real-time notifications. The platform emphasizes mobile-first design with neon gradient aesthetics (purple-blue-pink) and smooth animations tailored to Gen Z preferences.
-
-## Recent Changes (November 2025)
-
-### Comprehensive Database Seed Enhancement (November 18, 2025)
-Enhanced seed script with 633 lines of realistic, interconnected mock data across ALL UniNexus features:
-- **Endorsements (90)**: Teachers, industry professionals, and peers endorsing students with skill-specific comments
-- **Certifications (30)**: NFT-style digital certificates with verification hashes, issuer tracking, and rich metadata
-- **Discussion Upvotes (13)**: Engagement metrics for course discussions and replies
-- **Groups (24)**: React Community, Data Science Study, UI/UX Hub, CS Majors, Career Prep, AI Ethics with descriptions
-- **Group Members (116)**: Admin, moderator, and member roles with realistic distribution
-- **Group Posts (42)**: Pinned announcements, discussions, questions, and community content
-- **Conversations (12)**: 1-on-1 and group chat threads with realistic conversation flow
-- **Messages (30)**: Complete conversation threads with read status and timestamps
-- **Post Shares/Boosts (18 each)**: Social engagement features with user interactions
-- **AI Interaction Events (10)**: Career bot queries and post suggestions with structured metadata
-- **Moderation Actions (6)**: Hide/warn/suspend actions with detailed reasons and moderator notes
-- **Recruiter Feedback (8)**: Industry professional feedback with ratings, categories, and context
-- **Enhanced Data Integrity**: All records use proper foreign key relationships, schema-compliant field names, and realistic content
-- **Multi-Role Coverage**: Every dashboard (Student, Teacher, University Admin, Industry Professional, Master Admin) now loads with complete data
-
-### React Native Mobile App (November 15, 2025)
-Implemented cross-platform mobile application for iOS and Android:
-- **Mobile App Structure**: React Native Expo app in `/mobile` directory with TypeScript
-- **Firebase Authentication**: Email/password authentication only (consistent with web app)
-- **Mobile Screens**: Login, Sign Up, and Home screens with Gen Z gradient design
-- **Auth State Management**: AuthContext provider for authentication state and persistence
-- **Navigation**: React Navigation with native stack navigator
-- **UI Design**: Purple-pink-blue gradient theme matching web app aesthetics
-- **Demo Account Support**: "Use Demo Account" button for quick testing
-- **Persistence**: Firebase auth persistence for staying logged in between sessions
-- **Tech Stack**: Expo, React Navigation, Firebase Auth, AsyncStorage, LinearGradient
-- **Testing**: Supports iOS/Android simulators and Expo Go for physical devices
-
-### Teacher Validation & Academic Endorsement Features
-Implemented comprehensive teacher tools for student validation and career development:
-- **Digital Certificate Issuance**: Teachers can issue NFT-style certificates directly from the Teacher Dashboard with customizable type, title, description, metadata (JSON), image URL, and expiration date
-- **AI Career Feedback Loop**: New GET endpoint `/api/ai/career-summary/:userId` that generates comprehensive career progression summaries using OpenAI GPT-4o-mini
-- **Career Insights Modal**: Teachers can view AI-generated employability assessments including strengths analysis, skill gap identification, employability ratings, and recommended next steps
-- **Data Aggregation**: Career summaries analyze student profiles, skills, endorsements, badges, certifications, and engagement metrics
-- **Authorization**: Teacher, university admin, and master admin roles can access career insights for academic advising
-- **Error Handling**: Safe JSON parsing with user-friendly validation messages for certificate metadata
-
-### AI-Based Ranking and Recognition System
-Implemented comprehensive rank tier system with gamification and challenge-based recognition:
-- **Rank Tiers**: Bronze (<1000 pts), Silver (1000-2999 pts), Gold (3000-6999 pts), Platinum (7000+ pts)
-- **Point Sources**: Engagement score, problem solver score, endorsements, and challenge points
-- **Challenge Points**: Dynamic scoring based on placement (1st: 500pts, 2nd: 300pts, 3rd: 200pts, top 10%: 150pts, top 25%: 100pts, participation: 50pts)
-- **Concurrency Safety**: Atomic SQL updates for points and rank tiers to prevent race conditions and lost updates
-- **UI Components**: RankTierBadge component with badge and icon variants integrated into Profile, StudentHome, and Leaderboard pages
+UniNexus is a social learning and engagement platform designed for Gen Z, integrating social networking, gamification, career development, and AI. It supports multiple user roles (students, teachers, university admins, industry professionals, and master admins) with tailored dashboards. Key features include a social feed, gamified profiles, AI career guidance, course discussion forums, leaderboards, and real-time notifications. The platform emphasizes a mobile-first design with a neon gradient aesthetic and smooth animations. The business vision is to create a vibrant ecosystem that fosters academic success, career readiness, and community engagement for the Gen Z demographic.
 
 ## User Preferences
-
 Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
 ### Frontend Architecture
-
-**Framework & Tooling:**
-- React 18 with TypeScript for type safety and modern component patterns
-- Vite as the build tool and dev server for fast development experience
-- Wouter for lightweight client-side routing instead of React Router
-- TanStack Query (React Query) for server state management, caching, and data fetching
-- React Hook Form with Zod for form validation and type-safe schemas
-
-**UI Component System:**
-- Radix UI primitives for accessible, unstyled component foundations
-- Shadcn/ui design system with "new-york" style variant for consistent component library
-- Tailwind CSS for utility-first styling with custom theme configuration
-- CSS variables for theming with support for light/dark modes
-- Custom gradient components (GradientButton) for branded UI elements
-
-**Design System:**
-- Typography: Poppins for headings/emphasis, Inter for body text and UI elements
-- Color scheme: Neon gradient palette (purple-pink-blue) with HSL-based theming
-- Spacing: Tailwind's standard spacing scale (2, 4, 6, 8, 12, 16)
-- Responsive breakpoints: Mobile-first approach with md/lg breakpoints
-- Animation: Framer Motion ready (imported but minimal current usage)
-
-**State Management Strategy:**
-- Authentication state: Custom AuthContext provider wrapping Firebase Auth
-- Server state: TanStack Query with queryClient for data fetching and caching
-- Form state: React Hook Form for controlled form inputs
-- Local UI state: React useState/useReducer hooks
-- No global client state library (Redux/Zustand) - relies on context and query cache
+- **Frameworks**: React 18 with TypeScript, Vite for fast development, Wouter for routing, TanStack Query for server state.
+- **UI/UX**: Radix UI for accessibility, Shadcn/ui for consistent components, Tailwind CSS for styling, custom neon gradient theme (purple-pink-blue) with HSL-based theming, Poppins and Inter fonts, mobile-first responsive design, Framer Motion for animations.
+- **State Management**: Custom AuthContext for authentication, TanStack Query for server data, React Hook Form with Zod for form validation, `useState`/`useReducer` for local UI state.
 
 ### Backend Architecture
-
-**Server Framework:**
-- Node.js with Express.js for HTTP server and REST API endpoints
-- ESM modules (type: "module" in package.json) for modern JavaScript syntax
-- TypeScript with tsx for development and esbuild for production bundling
-- HTTP server created via createServer for potential WebSocket support
-
-**API Design:**
-- RESTful endpoints under `/api/*` namespace
-- Firebase Admin SDK for server-side authentication and token verification
-- Session-based authentication with connect-pg-simple for session storage
-- Custom middleware for auth verification (verifyToken, isAuthenticated)
-- Role-based access control via AuthRequest interface extension
-
-**Authentication System:**
-- Primary: Firebase Authentication (client-side) + Firebase Admin (server-side)
-- Development bypass: DEV_AUTH_ENABLED flag with allowlisted demo accounts
-- JWT tokens for dev auth with configurable secret (DEV_JWT_SECRET)
-- Session management with PostgreSQL-backed session store
-- OpenID Connect support via Replit Auth integration (passport strategy)
-
-**Route Organization:**
-- Main routes defined in `server/routes.ts` registered via `registerRoutes()`
-- Grouped by feature: posts, comments, reactions, badges, endorsements, courses, challenges
-- Admin routes: `/api/admin/*` for user/content management
-- AI routes: `/api/ai/*` for OpenAI integrations (post suggestions, career chat, moderation)
-- CareerBot: `/api/careerbot/chat` endpoint proxying to OpenAI
-
-**Middleware Stack:**
-- express.json() with raw body capture for webhook support
-- express.urlencoded() for form data parsing
-- Custom logging middleware for API request/response tracking
-- Session middleware with PostgreSQL backing
-- Passport.js for OAuth/OIDC authentication flows
+- **Server**: Node.js with Express.js, TypeScript, ESM modules, `tsx` for development, `esbuild` for production.
+- **API Design**: RESTful endpoints (`/api/*`), Firebase Admin SDK for production authentication, session-based authentication with `connect-pg-simple`, custom middleware for auth and role-based access control.
+- **Authentication**:
+    - **Development**: Database-only authentication using JWTs signed with `userId` (DEV_AUTH_ENABLED=true).
+    - **Production**: Firebase Authentication (client-side) and Firebase Admin (server-side).
+    - User lookup chain: `userId` → `firebaseUid` → `email`.
+    - `DEV_JWT_SECRET` for development mode token signing.
+    - PostgreSQL-backed session store.
+    - OpenID Connect support via Replit Auth integration (Passport strategy).
+- **Route Organization**: Main routes in `server/routes.ts`, grouped by feature (posts, comments, etc.), admin routes (`/api/admin/*`), AI routes (`/api/ai/*`), and CareerBot endpoint.
+- **Middleware**: `express.json()`, `express.urlencoded()`, custom logging, session middleware, Passport.js.
 
 ### Data Storage Solutions
+- **Primary Database**: PostgreSQL (Neon Serverless) with connection pooling.
+- **ORM & Schema**: Drizzle ORM for type-safe queries, Drizzle Kit for migrations. Schema defined in `shared/schema.ts` with Zod integration.
+- **Schema Design**: Users table with nullable Firebase UID, role-based fields, engagement metrics, social features (posts, comments, reactions), gamification (badges, skills, endorsements), learning (courses, discussions), challenges, notifications, and sessions.
+- **Relationships**: One-to-many, many-to-many (via join tables), self-referential, and computed fields for scores.
+- **Storage Interface**: `IStorage` interface abstraction with `DatabaseStorage` implementation.
 
-**Primary Database:**
-- PostgreSQL as the relational database (via DATABASE_URL environment variable)
-- Neon Serverless PostgreSQL driver (@neondatabase/serverless)
-- Connection pooling via Neon's Pool implementation
-- WebSocket support for serverless connections (ws library)
+## External Dependencies
 
-**ORM & Schema Management:**
-- Drizzle ORM for type-safe database queries and schema definition
-- Schema defined in `shared/schema.ts` using drizzle-orm/pg-core
-- Drizzle Kit for database migrations (drizzle.config.ts)
-- Migration files stored in `migrations/` directory
-- Zod integration via drizzle-zod for runtime validation
-
-**Database Schema Design:**
-- Users table: Firebase UID mapping, role-based fields, engagement metrics
-- Social features: posts, comments, reactions with relational links
-- Gamification: badges, userBadges, skills, userSkills, endorsements
-- Learning: courses, courseEnrollments, courseDiscussions, discussionReplies
-- Engagement: challenges, challengeParticipants, notifications, announcements
-- Auth: sessions table for connect-pg-simple session storage
-
-**Data Relationships:**
-- One-to-many: User → Posts, User → Comments, Post → Comments
-- Many-to-many: Users ↔ Badges (via userBadges), Users ↔ Skills (via userSkills)
-- Self-referential: DiscussionReplies for threaded discussions
-- Computed fields: Engagement scores, problem solver scores, endorsement scores
-
-**Storage Interface:**
-- IStorage interface in `server/storage.ts` for abstraction layer
-- DatabaseStorage implementation for PostgreSQL operations
-- Firebase Storage for media uploads (images, attachments)
-- Potential local storage fallback for development
-
-### External Dependencies
-
-**Firebase Services:**
-- Firebase Authentication: Client-side user authentication with email/password only
-- Firebase Admin SDK: Server-side token verification and user management
-- Firebase Storage: Media file uploads and CDN delivery (if configured)
-- Development Mode: DEV_AUTH_ENABLED bypass for demo accounts without Firebase setup
-- Service account key: `serviceAccountKey.json` (optional, for production only)
-
-**AI/ML Integration:**
-- OpenAI API: GPT models for post suggestions, career guidance chatbot, and content moderation
-- API key: OPENAI_API_KEY environment variable
-- Endpoints: Chat completions, moderation API
-- Safety: Content moderation for user-generated posts to ensure platform safety
-
-**Replit Platform Services:**
-- Replit Auth: OAuth/OIDC authentication as Firebase alternative
-- Replit Database: Optional quick database for prototyping (not primary)
-- Replit Secrets: Environment variable management
-- Replit deployment: Production hosting via `npm start` script
-
-**Third-Party Libraries:**
-- @radix-ui/*: 20+ accessible UI component primitives
-- @tanstack/react-query: Server state management and data synchronization
-- date-fns: Date formatting and manipulation utilities
-- nanoid: Unique ID generation for sessions/entities
-- passport: Authentication middleware for OAuth flows
-- ws: WebSocket library for real-time connections
-
-**Development Tools:**
-- tsx: TypeScript execution for development server
-- esbuild: Fast bundling for production server build
-- drizzle-kit: Database schema management and migrations
-- Vite plugins: Runtime error overlay, cartographer, dev banner (Replit-specific)
-
-**Session & State Management:**
-- connect-pg-simple: PostgreSQL session store for Express sessions
-- express-session: Session middleware configuration
-- JWT (jsonwebtoken): Token-based auth for development mode
-- memoizee: Function memoization for OIDC config caching
-
-**Validation & Type Safety:**
-- Zod: Runtime schema validation for API inputs
-- TypeScript: Compile-time type checking across client/server/shared
-- Drizzle-Zod: Bridge between ORM schemas and Zod validators
-- @hookform/resolvers: Zod resolver for React Hook Form integration
-
-**Demo & Development:**
-- Seed script: `server/seed.ts` for populating demo data
-- Demo accounts: 5 allowlisted emails with shared password (demo123)
-- Mock data: 30 users, 60 posts, 12 courses, forums, badges, endorsements
-- Development auth: Optional bypass for Firebase setup (DEV_AUTH_ENABLED)
+- **Firebase Services**: Firebase Authentication (client-side email/password), Firebase Admin SDK (server-side token verification), Firebase Storage (media uploads - if configured). Development mode bypasses Firebase.
+- **AI/ML Integration**: OpenAI API (GPT models) for post suggestions, career guidance chatbot, and content moderation, requiring `OPENAI_API_KEY`.
+- **Replit Platform Services**: Replit Auth (OAuth/OIDC), Replit Secrets (environment variables).
+- **Third-Party Libraries**: `@radix-ui/*`, `@tanstack/react-query`, `date-fns`, `nanoid`, `passport`, `ws`.
+- **Development Tools**: `tsx`, `esbuild`, `drizzle-kit`, Vite plugins.
+- **Session & State Management**: `connect-pg-simple`, `express-session`, `jsonwebtoken`, `memoizee`.
+- **Validation & Type Safety**: Zod, TypeScript, Drizzle-Zod, `@hookform/resolvers`.
