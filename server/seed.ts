@@ -35,6 +35,7 @@ import {
   moderationActions,
   educationRecords,
   userProfiles,
+  jobExperience,
 } from "@shared/schema";
 import { calculateTotalPoints, getRankTier } from "./rankTiers";
 import { faker } from "@faker-js/faker";
@@ -1906,6 +1907,129 @@ async function seedDatabase() {
   console.log("Inserting recruiter feedback...");
   const insertedRecruiterFeedback = await db.insert(recruiterFeedback).values(mockRecruiterFeedback).onConflictDoNothing().returning();
   console.log(`Inserted ${insertedRecruiterFeedback.length} recruiter feedback records`);
+
+  // ============================================================================
+  // JOB EXPERIENCE
+  // ============================================================================
+
+  const mockJobExperience = [
+    // Demo Teacher
+    {
+      userId: insertedUsers[1].id, // Demo Teacher
+      position: "Senior Instructor",
+      organization: "Demo University",
+      startDate: "2020-08",
+      endDate: "Present",
+      description: "Teaching computer science courses including Web Development, Data Structures, and Algorithms. Mentor students on their academic and career paths.",
+      isCurrent: true,
+    },
+    {
+      userId: insertedUsers[1].id, // Demo Teacher
+      position: "Software Engineer",
+      organization: "Tech Solutions Inc",
+      startDate: "2017-06",
+      endDate: "2020-07",
+      description: "Developed full-stack web applications using React and Node.js. Led team of 3 junior developers.",
+      isCurrent: false,
+    },
+    // Dr. Sarah Smith
+    {
+      userId: insertedUsers[8].id, // Dr. Sarah Smith
+      position: "Associate Professor",
+      organization: "Tech University",
+      startDate: "2018-01",
+      endDate: "Present",
+      description: "Research in Machine Learning and AI. Teaching ML courses and supervising graduate students.",
+      isCurrent: true,
+    },
+    {
+      userId: insertedUsers[8].id,
+      position: "Research Scientist",
+      organization: "AI Research Lab",
+      startDate: "2014-09",
+      endDate: "2017-12",
+      description: "Conducted research on neural networks and deep learning. Published 12 papers in top conferences.",
+      isCurrent: false,
+    },
+    // Prof. Michael Johnson
+    {
+      userId: insertedUsers[9].id, // Prof. Michael Johnson
+      position: "Professor of Computer Science",
+      organization: "Tech University",
+      startDate: "2012-01",
+      endDate: "Present",
+      description: "Leading research in Distributed Systems and Cloud Computing. Department Chair 2018-2022.",
+      isCurrent: true,
+    },
+    {
+      userId: insertedUsers[9].id,
+      position: "Senior Software Architect",
+      organization: "CloudTech Corp",
+      startDate: "2008-03",
+      endDate: "2011-12",
+      description: "Designed and implemented scalable cloud infrastructure serving millions of users.",
+      isCurrent: false,
+    },
+    // Emily Thompson (Industry Professional)
+    {
+      userId: insertedUsers[10].id,
+      position: "Lead UX Designer",
+      organization: "Design Studio Pro",
+      startDate: "2019-05",
+      endDate: "Present",
+      description: "Leading UX design for enterprise products. Managing team of 5 designers.",
+      isCurrent: true,
+    },
+  ];
+
+  console.log("Inserting job experience...");
+  const insertedJobExperience = await db.insert(jobExperience).values(mockJobExperience).onConflictDoNothing().returning();
+  console.log(`Inserted ${insertedJobExperience.length} job experience records`);
+
+  // ============================================================================
+  // ADDITIONAL CERTIFICATIONS (Teachers receiving from Universities/Industries)
+  // ============================================================================
+
+  const additionalCertifications = [
+    // Teacher certifications - can only receive from Universities and Industries
+    {
+      userId: insertedUsers[1].id, // Demo Teacher
+      issuerName: "Demo University",
+      issuerId: insertedUsers[2].id, // Demo University Admin
+      type: "completion",
+      title: "Excellence in Teaching Award",
+      description: "Recognized for outstanding teaching performance and student satisfaction ratings.",
+      metadata: JSON.stringify({ year: 2024, studentRating: 4.9 }),
+      verificationHash: crypto.createHash('sha256').update(`demo-teacher-award-${Date.now()}`).digest('hex'),
+      isPublic: true,
+    },
+    {
+      userId: insertedUsers[8].id, // Dr. Sarah Smith
+      issuerName: "TechCorp Industries",
+      issuerId: insertedUsers[11].id, // David Williams (Industry Professional)
+      type: "skill",
+      title: "Industry Partnership Excellence",
+      description: "Recognized for exceptional collaboration on industry-academic research projects.",
+      metadata: JSON.stringify({ projects: 5, impactScore: "High" }),
+      verificationHash: crypto.createHash('sha256').update(`sarah-industry-${Date.now()}`).digest('hex'),
+      isPublic: true,
+    },
+    {
+      userId: insertedUsers[9].id, // Prof. Michael Johnson
+      issuerName: "Tech University",
+      issuerId: insertedUsers[2].id, // Demo University Admin
+      type: "achievement",
+      title: "Distinguished Professor Award",
+      description: "Awarded for exceptional contributions to research and education in Computer Science.",
+      metadata: JSON.stringify({ year: 2023, researchPapers: 45, citations: 1200 }),
+      verificationHash: crypto.createHash('sha256').update(`michael-distinguished-${Date.now()}`).digest('hex'),
+      isPublic: true,
+    },
+  ];
+
+  console.log("Inserting additional certifications for teachers...");
+  const additionalCerts = await db.insert(certifications).values(additionalCertifications).onConflictDoNothing().returning();
+  console.log(`Inserted ${additionalCerts.length} additional certifications`);
 
   console.log("Database seed completed successfully!");
   console.log("=".repeat(80));

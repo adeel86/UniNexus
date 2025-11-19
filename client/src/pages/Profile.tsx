@@ -119,6 +119,12 @@ export default function Profile() {
     enabled: !!targetUserId,
   });
 
+  // Fetch job experience for teachers
+  const { data: jobExperiences = [] } = useQuery<any[]>({
+    queryKey: [`/api/users/${targetUserId}/job-experience`],
+    enabled: !!targetUserId && user?.role === 'teacher',
+  });
+
   // Fetch education records (only for students/teachers)
   const { data: educationRecords = [] } = useQuery<EducationRecord[]>({
     queryKey: [`/api/users/${targetUserId}/education`],
@@ -574,6 +580,30 @@ export default function Profile() {
                     <p>{extendedProfile.officeHours}</p>
                   </div>
                 )}
+              </div>
+            </Card>
+          )}
+
+          {user.role === "teacher" && jobExperiences && jobExperiences.length > 0 && (
+            <Card className="p-6 mt-6">
+              <h2 className="font-heading text-xl font-semibold mb-4 flex items-center gap-2">
+                <Briefcase className="h-5 w-5 text-blue-600" />
+                Professional Experience
+              </h2>
+              <div className="space-y-4">
+                {jobExperiences.map((exp, index) => (
+                  <div key={exp.id || index} className="border-l-2 border-muted pl-4">
+                    <h3 className="font-semibold">{exp.position}</h3>
+                    <p className="text-sm text-muted-foreground">{exp.organization}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {exp.startDate} - {exp.endDate || 'Present'}
+                      {exp.isCurrent && <Badge variant="secondary" className="ml-2">Current</Badge>}
+                    </p>
+                    {exp.description && (
+                      <p className="text-sm mt-2 whitespace-pre-wrap">{exp.description}</p>
+                    )}
+                  </div>
+                ))}
               </div>
             </Card>
           )}

@@ -43,6 +43,7 @@ import {
   teacherContent,
   userProfiles,
   educationRecords,
+  jobExperience,
   insertPostSchema,
   insertCommentSchema,
   insertReactionSchema,
@@ -64,6 +65,7 @@ import {
   insertGroupPostSchema,
   insertTeacherContentSchema,
   insertEducationRecordSchema,
+  insertJobExperienceSchema,
 } from "@shared/schema";
 import OpenAI from "openai";
 import jwt from "jsonwebtoken";
@@ -923,16 +925,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(401).send("Unauthorized");
     }
 
-    // Only teachers, university admins, and master admins can issue certificates
-    const authorizedRoles = ['teacher', 'university_admin', 'master_admin'];
+    // Only teachers, university admins, industry professionals, and master admins can issue certificates
+    const authorizedRoles = ['teacher', 'university_admin', 'industry_professional', 'master_admin'];
     if (!authorizedRoles.includes(req.user.role)) {
       return res.status(403).json({ 
-        error: "Forbidden: Only teachers and administrators can issue certificates" 
+        error: "Forbidden: Only teachers, administrators, and industry professionals can issue certificates" 
       });
     }
 
     try {
       const validatedData = insertCertificationSchema.parse(req.body);
+
+      // Fetch recipient to check role-based rules
+      const [recipient] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, validatedData.userId))
+        .limit(1);
+
+      if (!recipient) {
+        return res.status(404).json({ error: "Recipient not found" });
+      }
+
+      // Role-based certificate issuance rules:
+      // - Teachers can only receive certificates from Universities and Industries
+      // - Students can receive certificates from Teachers, Universities, and Industries
+      if (recipient.role === 'teacher') {
+        if (!['university_admin', 'industry_professional', 'master_admin'].includes(req.user.role)) {
+          return res.status(403).json({
+            error: "Teachers can only receive certificates from Universities and Industry Professionals"
+          });
+        }
+      } else if (recipient.role === 'student') {
+        if (!['teacher', 'university_admin', 'industry_professional', 'master_admin'].includes(req.user.role)) {
+          return res.status(403).json({
+            error: "Students can receive certificates from Teachers, Universities, and Industry Professionals"
+          });
+        }
+      }
 
       // Set issuer name from authenticated user (cannot be spoofed)
       const issuerName = `${req.user.firstName} ${req.user.lastName}`;
@@ -966,21 +996,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         link: "/profile",
       });
 
-      // Fetch complete certification with issuer and user data
-      // Use a second query to get issuer information
-      const [recipient] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, newCertification.userId))
-        .limit(1);
-
+      // Fetch issuer information for complete certification
       const [issuer] = await db
         .select()
         .from(users)
         .where(eq(users.id, newCertification.issuerId!))
         .limit(1);
 
-      // Construct complete certification with user and issuer data
+      // Construct complete certification with user and issuer data (reuse recipient from earlier)
       const completeCertification = {
         ...newCertification,
         user: recipient,
@@ -1541,6 +1564,120 @@ export async function registerRoutes(app: Express): Promise<Server> {
       await db
         .delete(educationRecords)
         .where(eq(educationRecords.id, id));
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
+  // JOB EXPERIENCE ENDPOINTS
+  // ========================================================================
+
+  // Get job experience for a user
+  app.get("/api/users/:userId/job-experience", async (req: Request, res: Response) => {
+    try {
+      const { userId } = req.params;
+
+      const experiences = await db
+        .select()
+        .from(jobExperience)
+        .where(eq(jobExperience.userId, userId))
+        .orderBy(desc(jobExperience.isCurrent), desc(jobExperience.startDate));
+
+      res.json(experiences);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Add job experience
+  app.post("/api/job-experience", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const validated = insertJobExperienceSchema.parse({
+        ...req.body,
+        userId: req.user.id,
+      });
+
+      const [experience] = await db
+        .insert(jobExperience)
+        .values(validated)
+        .returning();
+
+      res.json(experience);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update job experience
+  app.patch("/api/job-experience/:id", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { id } = req.params;
+      
+      // Verify ownership
+      const [existing] = await db
+        .select()
+        .from(jobExperience)
+        .where(eq(jobExperience.id, id))
+        .limit(1);
+
+      if (!existing) {
+        return res.status(404).json({ error: "Job experience not found" });
+      }
+
+      if (existing.userId !== req.user.id) {
+        return res.status(403).json({ error: "Not authorized to update this experience" });
+      }
+
+      const [updated] = await db
+        .update(jobExperience)
+        .set({ ...req.body, updatedAt: new Date() })
+        .where(eq(jobExperience.id, id))
+        .returning();
+
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete job experience
+  app.delete("/api/job-experience/:id", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { id } = req.params;
+      
+      // Verify ownership
+      const [existing] = await db
+        .select()
+        .from(jobExperience)
+        .where(eq(jobExperience.id, id))
+        .limit(1);
+
+      if (!existing) {
+        return res.status(404).json({ error: "Job experience not found" });
+      }
+
+      if (existing.userId !== req.user.id) {
+        return res.status(403).json({ error: "Not authorized to delete this experience" });
+      }
+
+      await db
+        .delete(jobExperience)
+        .where(eq(jobExperience.id, id));
 
       res.json({ success: true });
     } catch (error: any) {

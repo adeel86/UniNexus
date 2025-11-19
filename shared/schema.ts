@@ -1191,3 +1191,36 @@ export const insertEducationRecordSchema = createInsertSchema(educationRecords).
 
 export type EducationRecord = typeof educationRecords.$inferSelect;
 export type InsertEducationRecord = z.infer<typeof insertEducationRecordSchema>;
+
+// ============================================================================
+// JOB EXPERIENCE (For Teachers and Industry Professionals)
+// ============================================================================
+
+export const jobExperience = pgTable("job_experience", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  position: varchar("position", { length: 200 }).notNull(),
+  organization: varchar("organization", { length: 200 }).notNull(),
+  startDate: varchar("start_date").notNull(), // Format: "YYYY-MM" or "YYYY"
+  endDate: varchar("end_date"), // Format: "YYYY-MM" or "YYYY" or "Present"
+  description: text("description"),
+  isCurrent: boolean("is_current").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const jobExperienceRelations = relations(jobExperience, ({ one }) => ({
+  user: one(users, {
+    fields: [jobExperience.userId],
+    references: [users.id],
+  }),
+}));
+
+export const insertJobExperienceSchema = createInsertSchema(jobExperience).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type JobExperience = typeof jobExperience.$inferSelect;
+export type InsertJobExperience = z.infer<typeof insertJobExperienceSchema>;
