@@ -360,14 +360,11 @@ async function seedDatabase() {
   console.log(`Using ${insertedBadges.length} badges`);
 
   if (insertedUsers.length > 0 && insertedBadges.length > 0) {
-    // Only assign badges to student and teacher roles (not university_admin, industry_professional, master_admin)
+    // Only assign badges to students (not teachers, university_admin, industry_professional, master_admin)
     const userBadgeAssignments = [
       { userId: insertedUsers[0].id, badgeId: insertedBadges[0].id }, // Demo Student
       { userId: insertedUsers[0].id, badgeId: insertedBadges[1].id }, // Demo Student
-      { userId: insertedUsers[1].id, badgeId: insertedBadges[0].id }, // Demo Teacher
-      { userId: insertedUsers[1].id, badgeId: insertedBadges[1].id }, // Demo Teacher
-      { userId: insertedUsers[1].id, badgeId: insertedBadges[4].id }, // Demo Teacher
-      // Removed: insertedUsers[2] (university_admin), [3] (industry_professional), [4] (master_admin)
+      // Removed: Teachers, university_admin, industry_professional, master_admin - only students have badges
     ];
 
     console.log("Assigning badges to users...");

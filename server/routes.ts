@@ -820,7 +820,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId } = req.params;
       
-      // Check if the target user is a student or teacher
+      // Check if the target user is a student
       const [targetUser] = await db
         .select({ role: users.role })
         .from(users)
@@ -831,14 +831,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "User not found" });
       }
 
-      // Only students and teachers have badges
-      if (targetUser.role !== 'student' && targetUser.role !== 'teacher') {
-        return res.json([]); // Return empty array for other roles
-      }
-
-      // Authorization: Only allow student/teacher requesters (regardless of viewing own or other profiles)
-      if (req.user.role !== 'student' && req.user.role !== 'teacher') {
-        return res.status(403).json({ error: "Access denied: Badges are only available for student and teacher roles" });
+      // Only students have badges - teachers don't
+      if (targetUser.role !== 'student') {
+        return res.json([]); // Return empty array for non-students
       }
 
       const userBadgesData = await db
@@ -1300,7 +1295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { userId } = req.params;
       
-      // Check if the target user is a student or teacher
+      // Check if the target user is a student
       const [targetUser] = await db
         .select({ role: users.role })
         .from(users)
@@ -1311,14 +1306,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "User not found" });
       }
 
-      // Only students and teachers have endorsements
-      if (targetUser.role !== 'student' && targetUser.role !== 'teacher') {
-        return res.json([]); // Return empty array for other roles
-      }
-
-      // Authorization: Only allow student/teacher requesters (regardless of viewing own or other profiles)
-      if (req.user.role !== 'student' && req.user.role !== 'teacher') {
-        return res.status(403).json({ error: "Access denied: Endorsements are only available for student and teacher roles" });
+      // Only students have endorsements displayed - teachers don't display their received endorsements
+      if (targetUser.role !== 'student') {
+        return res.json([]); // Return empty array for non-students
       }
 
       const userEndorsements = await db
