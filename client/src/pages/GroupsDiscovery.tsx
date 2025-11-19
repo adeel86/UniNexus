@@ -6,7 +6,23 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Search, Users, BookOpen, Code, Dumbbell, Sparkles, Plus, Check, Lock, Globe } from "lucide-react";
+import { Search, Users, BookOpen, Code, Dumbbell, Sparkles, Plus, Check, Lock, Globe, MoreVertical, Edit, Trash2 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -65,12 +81,29 @@ export default function GroupsDiscovery() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState("all");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
   
   // Debounce search query to avoid excessive API calls
   const debouncedSearch = useDebounce(searchQuery, 500);
 
   // Create group form
   const form = useForm<CreateGroupFormData>({
+    resolver: zodResolver(createGroupFormSchema),
+    defaultValues: {
+      name: "",
+      description: "",
+      groupType: "skill",
+      category: "",
+      university: "",
+      coverImageUrl: "",
+      isPrivate: false,
+    },
+  });
+
+  // Edit group form
+  const editForm = useForm<CreateGroupFormData>({
     resolver: zodResolver(createGroupFormSchema),
     defaultValues: {
       name: "",
@@ -113,10 +146,46 @@ export default function GroupsDiscovery() {
 
   const myGroupIds = new Set(myMemberships.map(m => m.membership.groupId));
 
-  // Join group mutation
+  // Join group mutation with optimistic update
   const joinMutation = useMutation({
     mutationFn: async (groupId: string) => {
       return apiRequest("POST", `/api/groups/${groupId}/join`);
+    },
+    onMutate: async (groupId) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/groups"] });
+      await queryClient.cancelQueries({ queryKey: ["/api/users/groups"] });
+
+      // Snapshot previous values
+      const previousGroups = queryClient.getQueryData<Group[]>(["/api/groups", selectedType, debouncedSearch]);
+      const previousMyGroups = queryClient.getQueryData(["/api/users/groups"]);
+
+      // Optimistically update member count
+      queryClient.setQueryData<Group[]>(
+        ["/api/groups", selectedType, debouncedSearch],
+        (old = []) => old.map((g) => 
+          g.id === groupId ? { ...g, memberCount: (g.memberCount || 0) + 1 } : g
+        )
+      );
+
+      return { previousGroups, previousMyGroups };
+    },
+    onError: (error, _, context) => {
+      // Rollback on error
+      if (context?.previousGroups) {
+        queryClient.setQueryData(
+          ["/api/groups", selectedType, debouncedSearch],
+          context.previousGroups
+        );
+      }
+      if (context?.previousMyGroups) {
+        queryClient.setQueryData(["/api/users/groups"], context.previousMyGroups);
+      }
+      toast({
+        title: "Error",
+        description: "Failed to join group",
+        variant: "destructive",
+      });
     },
     onSuccess: (_, groupId) => {
       toast({
@@ -127,19 +196,48 @@ export default function GroupsDiscovery() {
       queryClient.invalidateQueries({ queryKey: ["/api/users/groups"] });
       queryClient.invalidateQueries({ queryKey: ["/api/groups", groupId] });
     },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to join group",
-        variant: "destructive",
-      });
-    },
   });
 
-  // Leave group mutation
+  // Leave group mutation with optimistic update
   const leaveMutation = useMutation({
     mutationFn: async (groupId: string) => {
       return apiRequest("DELETE", `/api/groups/${groupId}/leave`);
+    },
+    onMutate: async (groupId) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/groups"] });
+      await queryClient.cancelQueries({ queryKey: ["/api/users/groups"] });
+
+      // Snapshot previous values
+      const previousGroups = queryClient.getQueryData<Group[]>(["/api/groups", selectedType, debouncedSearch]);
+      const previousMyGroups = queryClient.getQueryData(["/api/users/groups"]);
+
+      // Optimistically update member count
+      queryClient.setQueryData<Group[]>(
+        ["/api/groups", selectedType, debouncedSearch],
+        (old = []) => old.map((g) => 
+          g.id === groupId ? { ...g, memberCount: Math.max(0, (g.memberCount || 0) - 1) } : g
+        )
+      );
+
+      return { previousGroups, previousMyGroups };
+    },
+    onError: (error, _, context) => {
+      // Rollback on error
+      if (context?.previousGroups) {
+        queryClient.setQueryData(
+          ["/api/groups", selectedType, debouncedSearch],
+          context.previousGroups
+        );
+      }
+      if (context?.previousMyGroups) {
+        queryClient.setQueryData(["/api/users/groups"], context.previousMyGroups);
+      }
+      toast({
+        title: "Error",
+        description: "Failed to leave group",
+        variant: "destructive",
+      });
     },
     onSuccess: (_, groupId) => {
       toast({
@@ -149,13 +247,6 @@ export default function GroupsDiscovery() {
       queryClient.invalidateQueries({ queryKey: ["/api/groups"] });
       queryClient.invalidateQueries({ queryKey: ["/api/users/groups"] });
       queryClient.invalidateQueries({ queryKey: ["/api/groups", groupId] });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to leave group",
-        variant: "destructive",
-      });
     },
   });
 
@@ -196,6 +287,126 @@ export default function GroupsDiscovery() {
     }
 
     createGroupMutation.mutate(data);
+  };
+
+  // Update group mutation with optimistic update
+  const updateGroupMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: CreateGroupFormData }) => {
+      return apiRequest("PATCH", `/api/groups/${id}`, data);
+    },
+    onMutate: async ({ id, data }) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/groups"] });
+
+      // Snapshot previous value
+      const previousGroups = queryClient.getQueryData<Group[]>(["/api/groups", selectedType, debouncedSearch]);
+
+      // Optimistically update
+      queryClient.setQueryData<Group[]>(
+        ["/api/groups", selectedType, debouncedSearch],
+        (old = []) => old.map((g) => (g.id === id ? { ...g, ...data } : g))
+      );
+
+      return { previousGroups };
+    },
+    onError: (error: any, _, context) => {
+      // Rollback on error
+      if (context?.previousGroups) {
+        queryClient.setQueryData(
+          ["/api/groups", selectedType, debouncedSearch],
+          context.previousGroups
+        );
+      }
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update group",
+        variant: "destructive",
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Group updated successfully!",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/groups"] });
+      setEditDialogOpen(false);
+      setSelectedGroup(null);
+    },
+  });
+
+  // Delete group mutation with optimistic update
+  const deleteGroupMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/groups/${id}`);
+    },
+    onMutate: async (id) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/groups"] });
+
+      // Snapshot previous value
+      const previousGroups = queryClient.getQueryData<Group[]>(["/api/groups", selectedType, debouncedSearch]);
+
+      // Optimistically remove from cache
+      queryClient.setQueryData<Group[]>(
+        ["/api/groups", selectedType, debouncedSearch],
+        (old = []) => old.filter((g) => g.id !== id)
+      );
+
+      return { previousGroups };
+    },
+    onError: (error: any, _, context) => {
+      // Rollback on error
+      if (context?.previousGroups) {
+        queryClient.setQueryData(
+          ["/api/groups", selectedType, debouncedSearch],
+          context.previousGroups
+        );
+      }
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete group",
+        variant: "destructive",
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Group deleted successfully!",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/groups"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users/groups"] });
+      setDeleteDialogOpen(false);
+      setSelectedGroup(null);
+    },
+  });
+
+  const handleEditGroup = (data: CreateGroupFormData) => {
+    if (!selectedGroup) return;
+    updateGroupMutation.mutate({ id: selectedGroup.id, data });
+  };
+
+  const handleDeleteGroup = () => {
+    if (!selectedGroup) return;
+    deleteGroupMutation.mutate(selectedGroup.id);
+  };
+
+  const openEditDialog = (group: Group) => {
+    setSelectedGroup(group);
+    editForm.reset({
+      name: group.name,
+      description: group.description || "",
+      groupType: group.groupType as any,
+      category: group.category || "",
+      university: group.university || "",
+      coverImageUrl: group.coverImageUrl || "",
+      isPrivate: group.isPrivate,
+    });
+    setEditDialogOpen(true);
+  };
+
+  const openDeleteDialog = (group: Group) => {
+    setSelectedGroup(group);
+    setDeleteDialogOpen(true);
   };
 
   return (
@@ -416,6 +627,249 @@ export default function GroupsDiscovery() {
             </Form>
           </DialogContent>
         </Dialog>
+
+        {/* Edit Group Dialog */}
+        <Dialog 
+          open={editDialogOpen} 
+          onOpenChange={(open) => {
+            setEditDialogOpen(open);
+            if (!open) {
+              setSelectedGroup(null);
+              editForm.reset();
+            }
+          }}
+        >
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Group</DialogTitle>
+              <DialogDescription>
+                Update your group information and settings
+              </DialogDescription>
+            </DialogHeader>
+            
+            <Form {...editForm}>
+              <form onSubmit={editForm.handleSubmit(handleEditGroup)} className="space-y-4 py-4">
+                <FormField
+                  control={editForm.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Group Name <span className="text-destructive">*</span>
+                      </FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="e.g., React Developers Community"
+                          data-testid="input-edit-group-name"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Description</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Describe what your group is about..."
+                          rows={4}
+                          data-testid="textarea-edit-group-description"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={editForm.control}
+                    name="groupType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          Type <span className="text-destructive">*</span>
+                        </FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                        >
+                          <FormControl>
+                            <SelectTrigger data-testid="select-edit-group-type">
+                              <SelectValue />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="skill">Skill</SelectItem>
+                            <SelectItem value="subject">Subject</SelectItem>
+                            <SelectItem value="hobby">Hobby</SelectItem>
+                            <SelectItem value="study_group">Study Group</SelectItem>
+                            <SelectItem value="university">University</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={editForm.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Category</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="e.g., Tech, Business, Arts"
+                            data-testid="input-edit-group-category"
+                            {...field}
+                            value={field.value || ""}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={editForm.control}
+                  name="university"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>University (optional)</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="e.g., Tech University"
+                          data-testid="input-edit-group-university"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="coverImageUrl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cover Image URL (optional)</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="https://example.com/image.jpg"
+                          data-testid="input-edit-group-cover"
+                          {...field}
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={editForm.control}
+                  name="isPrivate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <div className="flex items-center justify-between rounded-md border p-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            {field.value ? (
+                              <Lock className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <Globe className="h-4 w-4 text-muted-foreground" />
+                            )}
+                            <FormLabel className="cursor-pointer">
+                              {field.value ? "Private Group" : "Public Group"}
+                            </FormLabel>
+                          </div>
+                          <FormDescription>
+                            {field.value
+                              ? "Only members can see posts and content"
+                              : "Anyone can discover and join this group"}
+                          </FormDescription>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                            data-testid="switch-edit-group-privacy"
+                          />
+                        </FormControl>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <DialogFooter>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      editForm.reset();
+                      setEditDialogOpen(false);
+                    }}
+                    data-testid="button-cancel-edit"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={updateGroupMutation.isPending}
+                    data-testid="button-submit-edit"
+                  >
+                    {updateGroupMutation.isPending ? "Saving..." : "Save Changes"}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog 
+          open={deleteDialogOpen} 
+          onOpenChange={(open) => {
+            setDeleteDialogOpen(open);
+            if (!open) {
+              setSelectedGroup(null);
+            }
+          }}
+        >
+          <AlertDialogContent data-testid="dialog-delete-group">
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Group</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete "{selectedGroup?.name}"? This action cannot be undone.
+                All group posts, members, and related data will be permanently removed.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteGroup}
+                disabled={deleteGroupMutation.isPending}
+                className="bg-destructive hover:bg-destructive/90"
+                data-testid="button-confirm-delete"
+              >
+                {deleteGroupMutation.isPending ? "Deleting..." : "Delete Group"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       {/* Search and Filters */}
@@ -476,8 +930,9 @@ export default function GroupsDiscovery() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {groups.map((group) => {
             const isMember = myGroupIds.has(group.id);
-            const isJoining = joinMutation.isPending;
-            const isLeaving = leaveMutation.isPending;
+            // Track mutations per specific group to prevent double-clicks
+            const isJoining = joinMutation.isPending && joinMutation.variables === group.id;
+            const isLeaving = leaveMutation.isPending && leaveMutation.variables === group.id;
 
             return (
               <Card
@@ -494,6 +949,39 @@ export default function GroupsDiscovery() {
                       {group.groupType?.replace("_", " ")}
                     </Badge>
                   </div>
+                  
+                  {/* Action menu for creator/admin */}
+                  {user && group.creatorId === user.id && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          data-testid={`button-group-menu-${group.id}`}
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() => openEditDialog(group)}
+                          data-testid={`menu-edit-${group.id}`}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
+                          Edit Group
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => openDeleteDialog(group)}
+                          className="text-destructive focus:text-destructive"
+                          data-testid={`menu-delete-${group.id}`}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete Group
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
 
                 <p className="text-sm text-muted-foreground line-clamp-2 mb-4">

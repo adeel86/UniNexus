@@ -4659,6 +4659,106 @@ Make it personalized, constructive, and actionable. Use a professional but encou
     }
   });
 
+  // Update a group (only creator or admin can update)
+  app.patch("/api/groups/:id", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { id } = req.params;
+
+      // Check if group exists
+      const [group] = await db
+        .select()
+        .from(groups)
+        .where(eq(groups.id, id));
+
+      if (!group) {
+        return res.status(404).json({ error: "Group not found" });
+      }
+
+      // Check if user is creator or admin
+      const [membership] = await db
+        .select()
+        .from(groupMembers)
+        .where(
+          and(
+            eq(groupMembers.groupId, id),
+            eq(groupMembers.userId, req.user.id)
+          )
+        );
+
+      const isCreator = group.creatorId === req.user.id;
+      const isAdmin = membership?.role === 'admin';
+
+      if (!isCreator && !isAdmin) {
+        return res.status(403).json({ error: "Only group creator or admins can update this group" });
+      }
+
+      // Validate update data (exclude creatorId from updates)
+      const updateData = insertGroupSchema.omit({ creatorId: true }).partial().parse(req.body);
+
+      const [updatedGroup] = await db
+        .update(groups)
+        .set(updateData)
+        .where(eq(groups.id, id))
+        .returning();
+
+      res.json(updatedGroup);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete a group (only creator or admin can delete)
+  app.delete("/api/groups/:id", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { id } = req.params;
+
+      // Check if group exists
+      const [group] = await db
+        .select()
+        .from(groups)
+        .where(eq(groups.id, id));
+
+      if (!group) {
+        return res.status(404).json({ error: "Group not found" });
+      }
+
+      // Check if user is creator or admin
+      const [membership] = await db
+        .select()
+        .from(groupMembers)
+        .where(
+          and(
+            eq(groupMembers.groupId, id),
+            eq(groupMembers.userId, req.user.id)
+          )
+        );
+
+      const isCreator = group.creatorId === req.user.id;
+      const isAdmin = membership?.role === 'admin';
+
+      if (!isCreator && !isAdmin) {
+        return res.status(403).json({ error: "Only group creator or admins can delete this group" });
+      }
+
+      // Delete group (cascade will handle group members and posts due to foreign key constraints)
+      await db
+        .delete(groups)
+        .where(eq(groups.id, id));
+
+      res.json({ success: true, message: "Group deleted successfully" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Join a group
   app.post("/api/groups/:id/join", async (req: Request, res: Response) => {
     if (!req.user) {
