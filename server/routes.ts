@@ -138,7 +138,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Issue dev JWT with short expiration (24 hours)
       const token = jwt.sign(
         {
-          firebaseUid: user.firebaseUid,
+          userId: user.id,
+          firebaseUid: user.firebaseUid || undefined,
           email: user.email,
           iat: Math.floor(Date.now() / 1000),
           exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60), // 24 hours

@@ -123,8 +123,15 @@ export async function setupAuth(app: Express): Promise<void> {
           return next();
         }
         try {
-          const decoded = jwt.verify(devToken, DEV_JWT_SECRET) as { firebaseUid: string; email: string };
-          const user = await storage.getUserByFirebaseUid(decoded.firebaseUid);
+          const decoded = jwt.verify(devToken, DEV_JWT_SECRET) as { firebaseUid?: string; email: string; userId?: string };
+          // Try to find user by userId (preferred), then firebaseUid, then email
+          let user = decoded.userId ? await storage.getUser(decoded.userId) : undefined;
+          if (!user && decoded.firebaseUid) {
+            user = await storage.getUserByFirebaseUid(decoded.firebaseUid);
+          }
+          if (!user && decoded.email) {
+            user = await storage.getUserByEmail(decoded.email);
+          }
           if (user) {
             req.user = {
               id: user.id,
@@ -227,9 +234,16 @@ export const verifyToken = async (
       }
       
       try {
-        const decoded = jwt.verify(devToken, DEV_JWT_SECRET) as { firebaseUid: string; email: string };
+        const decoded = jwt.verify(devToken, DEV_JWT_SECRET) as { firebaseUid?: string; email: string; userId?: string };
         
-        const user = await storage.getUserByFirebaseUid(decoded.firebaseUid);
+        // Try to find user by userId (preferred), then firebaseUid, then email
+        let user = decoded.userId ? await storage.getUser(decoded.userId) : undefined;
+        if (!user && decoded.firebaseUid) {
+          user = await storage.getUserByFirebaseUid(decoded.firebaseUid);
+        }
+        if (!user && decoded.email) {
+          user = await storage.getUserByEmail(decoded.email);
+        }
         
         if (!user) {
           return res.status(401).json({ message: 'User not found' });

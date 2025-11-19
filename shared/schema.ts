@@ -34,7 +34,7 @@ export const sessions = pgTable(
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  firebaseUid: varchar("firebase_uid").unique().notNull(),
+  firebaseUid: varchar("firebase_uid").unique(),
   email: varchar("email").unique(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
