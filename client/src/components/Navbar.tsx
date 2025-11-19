@@ -46,6 +46,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
   };
 
   const isStudent = user?.role === 'student';
+  const isAdmin = user?.role === 'master_admin';
 
   return (
     <nav className="sticky top-0 z-50 border-b bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 text-white backdrop-blur-sm">
@@ -72,72 +73,77 @@ export function Navbar({ onMenuClick }: NavbarProps) {
             </a>
           </Link>
 
-          {/* Navigation Links - Available to all roles */}
+          {/* Navigation Links */}
           <div className="hidden md:flex items-center gap-2">
-            <Button
-              asChild
-              variant="ghost"
-              size="sm"
-              className={`text-white hover:bg-white/20 gap-2 ${location === '/network' ? 'bg-white/20' : ''}`}
-              data-testid="nav-link-network"
-            >
-              <Link href="/network">
-                <a>
-                  <Users className="h-4 w-4" />
-                  <span>My Network</span>
-                </a>
-              </Link>
-            </Button>
-            <Button
-              asChild
-              variant="ghost"
-              size="sm"
-              className={`text-white hover:bg-white/20 gap-2 ${location === '/discovery' ? 'bg-white/20' : ''}`}
-              data-testid="nav-link-discovery"
-            >
-              <Link href="/discovery">
-                <a>
-                  <Compass className="h-4 w-4" />
-                  <span>Discover</span>
-                </a>
-              </Link>
-            </Button>
-            <Button
-              asChild
-              variant="ghost"
-              size="sm"
-              className={`text-white hover:bg-white/20 gap-2 relative ${location === '/messages' ? 'bg-white/20' : ''}`}
-              data-testid="nav-link-messages"
-            >
-              <Link href="/messages">
-                <a>
-                  <MessageCircle className="h-4 w-4" />
-                  <span>Messages</span>
-                  {unreadMessages > 0 && (
-                    <Badge
-                      className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-red-500 text-white text-xs"
-                      data-testid="badge-unread-messages"
-                    >
-                      {unreadMessages > 9 ? "9+" : unreadMessages}
-                    </Badge>
-                  )}
-                </a>
-              </Link>
-            </Button>
-            <Button
-              asChild
-              variant="ghost"
-              size="sm"
-              className={`text-white hover:bg-white/20 gap-2 ${location === '/groups' ? 'bg-white/20' : ''}`}
-              data-testid="nav-link-groups"
-            >
-              <Link href="/groups">
-                <a>
-                  <UsersRound className="h-4 w-4" />
-                  <span>Groups</span>
-                </a>
-              </Link>
-            </Button>
+            {/* Not available to master_admin */}
+            {!isAdmin && (
+              <>
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className={`text-white hover:bg-white/20 gap-2 ${location === '/network' ? 'bg-white/20' : ''}`}
+                  data-testid="nav-link-network"
+                >
+                  <Link href="/network">
+                    <a>
+                      <Users className="h-4 w-4" />
+                      <span>My Network</span>
+                    </a>
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className={`text-white hover:bg-white/20 gap-2 ${location === '/discovery' ? 'bg-white/20' : ''}`}
+                  data-testid="nav-link-discovery"
+                >
+                  <Link href="/discovery">
+                    <a>
+                      <Compass className="h-4 w-4" />
+                      <span>Discover</span>
+                    </a>
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className={`text-white hover:bg-white/20 gap-2 relative ${location === '/messages' ? 'bg-white/20' : ''}`}
+                  data-testid="nav-link-messages"
+                >
+                  <Link href="/messages">
+                    <a>
+                      <MessageCircle className="h-4 w-4" />
+                      <span>Messages</span>
+                      {unreadMessages > 0 && (
+                        <Badge
+                          className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-red-500 text-white text-xs"
+                          data-testid="badge-unread-messages"
+                        >
+                          {unreadMessages > 9 ? "9+" : unreadMessages}
+                        </Badge>
+                      )}
+                    </a>
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className={`text-white hover:bg-white/20 gap-2 ${location === '/groups' ? 'bg-white/20' : ''}`}
+                  data-testid="nav-link-groups"
+                >
+                  <Link href="/groups">
+                    <a>
+                      <UsersRound className="h-4 w-4" />
+                      <span>Groups</span>
+                    </a>
+                  </Link>
+                </Button>
+              </>
+            )}
             
             {/* Student-specific links */}
             {isStudent && (
@@ -240,13 +246,17 @@ export function Navbar({ onMenuClick }: NavbarProps) {
               <DropdownMenuContent align="end">
                 <DropdownMenuLabel>My Account</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setLocation('/profile')} data-testid="link-profile">
-                  View Profile
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setLocation('/settings')} data-testid="link-settings">
-                  Settings
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
+                {!isAdmin && (
+                  <>
+                    <DropdownMenuItem onClick={() => setLocation('/profile')} data-testid="link-profile">
+                      View Profile
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setLocation('/settings')} data-testid="link-settings">
+                      Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
                 <DropdownMenuItem
                   onClick={async () => {
                     await signOut();

@@ -24,11 +24,9 @@ const navigationItems: NavItem[] = [
   { icon: Bell, label: 'Notifications', path: '/notifications', roles: ['teacher'] },
   { icon: User, label: 'Profile', path: '/profile', roles: ['teacher'] },
   
-  // University Admin Navigation - Simplified to actual available routes
+  // University Admin Navigation - No access to Network, Discover, Messages, Groups, Posts, Profile, Settings
   { icon: Home, label: 'Dashboard', path: '/university-dashboard', roles: ['university_admin'] },
-  { icon: Users, label: 'Network', path: '/network', roles: ['university_admin'] },
   { icon: Bell, label: 'Notifications', path: '/notifications', roles: ['university_admin'] },
-  { icon: User, label: 'Profile', path: '/profile', roles: ['university_admin'] },
   
   // Industry Professional Navigation - Distinct routes
   { icon: Home, label: 'Dashboard', path: '/industry-dashboard', roles: ['industry_professional'] },
@@ -36,11 +34,9 @@ const navigationItems: NavItem[] = [
   { icon: Bell, label: 'Notifications', path: '/notifications', roles: ['industry_professional'] },
   { icon: User, label: 'Profile', path: '/profile', roles: ['industry_professional'] },
   
-  // Master Admin Navigation - Simplified to actual available routes
+  // Master Admin Navigation - No access to Network, Discover, Messages, Groups, Posts, Profile, Settings
   { icon: Home, label: 'Dashboard', path: '/master-admin-dashboard', roles: ['master_admin'] },
-  { icon: Users, label: 'Network', path: '/network', roles: ['master_admin'] },
   { icon: Bell, label: 'Notifications', path: '/notifications', roles: ['master_admin'] },
-  { icon: User, label: 'Profile', path: '/profile', roles: ['master_admin'] },
 ];
 
 export function MobileNavigation() {

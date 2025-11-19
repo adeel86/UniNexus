@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/lib/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { MobileNavigation } from "@/components/MobileNavigation";
 import { CareerBot } from "@/components/CareerBot";
+import { RoleGuard } from "@/components/RoleGuard";
 import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
@@ -82,16 +83,40 @@ function Router() {
       <div className="pb-16 md:pb-0">
         <Switch>
           <Route path="/" component={HomePage} />
-          <Route path="/network" component={Network} />
-          <Route path="/discovery" component={Discovery} />
-          <Route path="/messages" component={Messages} />
-          <Route path="/groups" component={GroupsDiscovery} />
+          <Route path="/network">
+            <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional']}>
+              <Network />
+            </RoleGuard>
+          </Route>
+          <Route path="/discovery">
+            <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional']}>
+              <Discovery />
+            </RoleGuard>
+          </Route>
+          <Route path="/messages">
+            <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional']}>
+              <Messages />
+            </RoleGuard>
+          </Route>
+          <Route path="/groups">
+            <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional']}>
+              <GroupsDiscovery />
+            </RoleGuard>
+          </Route>
           <Route path="/notifications" component={Notifications} />
           <Route path="/leaderboard" component={Leaderboard} />
           <Route path="/challenges" component={Challenges} />
           <Route path="/challenges/map" component={GlobalChallengeMap} />
-          <Route path="/profile" component={Profile} />
-          <Route path="/settings" component={Settings} />
+          <Route path="/profile">
+            <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional']}>
+              <Profile />
+            </RoleGuard>
+          </Route>
+          <Route path="/settings">
+            <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional']}>
+              <Settings />
+            </RoleGuard>
+          </Route>
           <Route path="/courses/:courseId" component={CourseDetail} />
           
           {/* Public verification route */}

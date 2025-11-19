@@ -78,6 +78,23 @@ const DEV_AUTH_ENABLED = process.env.DEV_AUTH_ENABLED === 'true';
 const DEV_JWT_SECRET = process.env.DEV_JWT_SECRET;
 const DEMO_PASSWORD = "demo123"; // Universal password for all dev/test accounts
 
+// Middleware to block admin roles from accessing social features
+function blockRestrictedRoles(req: Request, res: Response, next: any) {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  const restrictedRoles = ['master_admin', 'university_admin'];
+  if (restrictedRoles.includes(req.user.role)) {
+    return res.status(403).json({ 
+      error: "Access Denied",
+      message: "Admin roles do not have access to this feature." 
+    });
+  }
+
+  next();
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
   await setupAuth(app);
@@ -651,7 +668,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/posts", async (req: Request, res: Response) => {
+  app.post("/api/posts", blockRestrictedRoles, async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
