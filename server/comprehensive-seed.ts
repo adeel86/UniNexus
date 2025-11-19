@@ -43,6 +43,9 @@ import {
   groupPosts,
   aiInteractionEvents,
   moderationActions,
+  userProfiles,
+  educationRecords,
+  teacherContent,
 } from "../shared/schema";
 import { faker } from "@faker-js/faker";
 import crypto from "crypto";
@@ -426,6 +429,85 @@ async function seedUsers() {
     masterAdmins: insertedUsers.filter((u: any) => u.role === "master_admin"),
   };
 
+  // Create user profiles
+  const userProfilesToCreate: any[] = [];
+  
+  // Student profiles
+  for (const student of usersByRole.students.slice(0, 20)) {
+    userProfilesToCreate.push({
+      userId: student.id,
+      programme: faker.helpers.arrayElement(["Bachelor of Science", "Bachelor of Arts", "Master of Science"]),
+      modules: randomItems(["CS101", "CS201", "DS301", "AI401", "WEB201"], faker.number.int({ min: 3, max: 5 })),
+      yearOfStudy: faker.number.int({ min: 1, max: 4 }),
+      academicGoals: faker.lorem.paragraph(),
+      careerGoals: faker.lorem.paragraph(),
+    });
+  }
+  
+  // Teacher profiles
+  for (const teacher of usersByRole.teachers.slice(0, 5)) {
+    userProfilesToCreate.push({
+      userId: teacher.id,
+      teachingSubjects: randomItems(["Computer Science", "Data Science", "Software Engineering"], faker.number.int({ min: 1, max: 3 })),
+      specializations: randomItems(["Machine Learning", "Web Development", "Cybersecurity"], faker.number.int({ min: 1, max: 2 })),
+      professionalBio: faker.lorem.paragraph(),
+      department: "Computer Science",
+      officeHours: "Mon/Wed 2-4pm",
+    });
+  }
+  
+  // University admin profiles
+  for (const admin of usersByRole.univAdmins) {
+    userProfilesToCreate.push({
+      userId: admin.id,
+      universityMission: "Committed to fostering innovation, critical thinking, and academic excellence.",
+      focusAreas: ["STEM Education", "Research", "Industry Partnerships"],
+      opportunitiesOffered: "Career services, research facilities, internships, study abroad programs.",
+      contactEmail: `info@${admin.university?.toLowerCase().replace(/\s+/g, '')}.edu`,
+      contactPhone: "+1 (555) 123-4567",
+      website: `https://www.${admin.university?.toLowerCase().replace(/\s+/g, '')}.edu`,
+    });
+  }
+  
+  // Industry professional profiles
+  for (const pro of usersByRole.industryPros.slice(0, 5)) {
+    userProfilesToCreate.push({
+      userId: pro.id,
+      companyMission: faker.company.catchPhrase(),
+      industryFocus: randomItems(["AI", "Cloud Computing", "Software Development", "Data Analytics"], faker.number.int({ min: 2, max: 4 })),
+      partnershipOpportunities: "Industry-academia collaborations, guest lectures, student competitions, research grants.",
+      hiringOpportunities: "Recruiting for software engineering, data science, product management positions.",
+    });
+  }
+  
+  if (userProfilesToCreate.length > 0) {
+    await db.insert(userProfiles).values(userProfilesToCreate).onConflictDoNothing();
+    console.log(`  ✓ Created ${userProfilesToCreate.length} user profiles`);
+  }
+  
+  // Create education records
+  const educationRecordsToCreate: any[] = [];
+  for (const student of usersByRole.students.slice(0, 30)) {
+    const numRecords = faker.number.int({ min: 1, max: 3 });
+    for (let i = 0; i < numRecords; i++) {
+      educationRecordsToCreate.push({
+        userId: student.id,
+        institution: student.university || faker.helpers.arrayElement(CONFIG.UNIVERSITIES),
+        degree: faker.helpers.arrayElement(["Bachelor of Science", "Bachelor of Arts", "Master of Science", "Certificate"]),
+        fieldOfStudy: faker.helpers.arrayElement(["Computer Science", "Data Science", "Software Engineering", "AI Research"]),
+        startDate: i === 0 ? "2022-09" : "2020-09",
+        endDate: i === 0 ? student.graduationYear ? `${student.graduationYear}-05` : "2026-05" : "2024-05",
+        description: faker.lorem.sentence(),
+        isCurrent: i === 0,
+      });
+    }
+  }
+  
+  if (educationRecordsToCreate.length > 0) {
+    await db.insert(educationRecords).values(educationRecordsToCreate).onConflictDoNothing();
+    console.log(`  ✓ Created ${educationRecordsToCreate.length} education records`);
+  }
+
   return { users: insertedUsers, usersByRole };
 }
 
@@ -547,6 +629,80 @@ async function seedAcademicData(
     await db.update(courseDiscussions)
       .set({ replyCount })
       .where(eq(courseDiscussions.id, discussion.id));
+  }
+
+  // Create discussion upvotes
+  const upvotesToCreate: any[] = [];
+  for (const discussion of insertedDiscussions.slice(0, 30)) {
+    const numUpvotes = faker.number.int({ min: 2, max: 10 });
+    const voters = randomItems([...usersByRole.students, ...usersByRole.teachers], numUpvotes);
+    for (const voter of voters) {
+      upvotesToCreate.push({
+        discussionId: discussion.id,
+        userId: voter.id,
+      });
+    }
+  }
+  
+  for (const reply of insertedReplies.slice(0, 50)) {
+    const numUpvotes = faker.number.int({ min: 1, max: 8 });
+    const voters = randomItems([...usersByRole.students, ...usersByRole.teachers], numUpvotes);
+    for (const voter of voters) {
+      upvotesToCreate.push({
+        replyId: reply.id,
+        userId: voter.id,
+      });
+    }
+  }
+  
+  if (upvotesToCreate.length > 0) {
+    await db.insert(discussionUpvotes).values(upvotesToCreate).onConflictDoNothing();
+    console.log(`  ✓ Created ${upvotesToCreate.length} discussion upvotes`);
+  }
+
+  // Create course milestones
+  const milestonesToCreate: any[] = [];
+  const milestoneTypes = ["first_discussion", "five_helpful_answers", "three_resolved_questions", "active_contributor"];
+  for (const enrollment of insertedEnrollments.slice(0, 40)) {
+    const numMilestones = faker.number.int({ min: 1, max: 3 });
+    const achievedMilestones = randomItems(milestoneTypes, numMilestones);
+    for (const milestoneType of achievedMilestones) {
+      milestonesToCreate.push({
+        courseId: enrollment.courseId,
+        studentId: enrollment.studentId,
+        milestoneType,
+        achievedAt: randomDate(new Date(enrollment.enrolledAt!), new Date()),
+        metadata: JSON.stringify({ count: faker.number.int({ min: 1, max: 10 }) }),
+      });
+    }
+  }
+  
+  if (milestonesToCreate.length > 0) {
+    await db.insert(courseMilestones).values(milestonesToCreate).onConflictDoNothing();
+    console.log(`  ✓ Created ${milestonesToCreate.length} course milestones`);
+  }
+
+  // Create teacher content
+  const teacherContentToCreate: any[] = [];
+  for (const course of insertedCourses) {
+    const numContent = faker.number.int({ min: 2, max: 5 });
+    for (let i = 0; i < numContent; i++) {
+      teacherContentToCreate.push({
+        teacherId: course.instructorId,
+        courseId: course.id,
+        title: faker.lorem.sentence(),
+        description: faker.lorem.paragraph(),
+        contentType: faker.helpers.arrayElement(["pdf", "doc", "text", "link", "video"]),
+        textContent: faker.helpers.arrayElement(["pdf", "doc"]) !== faker.helpers.arrayElement(["text", "link", "video"]) ? null : faker.lorem.paragraphs(3),
+        tags: randomItems(["lecture", "notes", "assignment", "reading", "resource"], faker.number.int({ min: 1, max: 3 })),
+        isPublic: faker.datatype.boolean(0.8),
+      });
+    }
+  }
+  
+  if (teacherContentToCreate.length > 0) {
+    await db.insert(teacherContent).values(teacherContentToCreate).onConflictDoNothing();
+    console.log(`  ✓ Created ${teacherContentToCreate.length} teacher content items`);
   }
 
   return { courses: insertedCourses, enrollments: insertedEnrollments, discussions: insertedDiscussions, replies: insertedReplies };
@@ -710,6 +866,135 @@ async function seedEngagementData(
     await db.update(groups)
       .set({ memberCount })
       .where(eq(groups.id, group.id));
+  }
+
+  // Create post shares
+  const postSharesToCreate: any[] = [];
+  for (const post of insertedPosts.slice(0, 50)) {
+    const numShares = faker.number.int({ min: 1, max: 5 });
+    const sharers = randomItems([...usersByRole.students, ...usersByRole.teachers], numShares);
+    for (const sharer of sharers) {
+      postSharesToCreate.push({
+        postId: post.id,
+        userId: sharer.id,
+        comment: faker.datatype.boolean(0.5) ? faker.lorem.sentence() : null,
+      });
+    }
+  }
+  
+  if (postSharesToCreate.length > 0) {
+    await db.insert(postShares).values(postSharesToCreate).onConflictDoNothing();
+    console.log(`  ✓ Created ${postSharesToCreate.length} post shares`);
+  }
+
+  // Create post boosts
+  const postBoostsToCreate: any[] = [];
+  for (const post of insertedPosts.slice(0, 60)) {
+    const numBoosts = faker.number.int({ min: 1, max: 4 });
+    const boosters = randomItems(usersByRole.students, numBoosts);
+    for (const booster of boosters) {
+      postBoostsToCreate.push({
+        postId: post.id,
+        userId: booster.id,
+      });
+    }
+  }
+  
+  if (postBoostsToCreate.length > 0) {
+    await db.insert(postBoosts).values(postBoostsToCreate).onConflictDoNothing();
+    console.log(`  ✓ Created ${postBoostsToCreate.length} post boosts`);
+  }
+
+  // Create group posts
+  const groupPostsToCreate: any[] = [];
+  for (const group of insertedGroups) {
+    const groupMembers = insertedGroupMembers.filter((m: any) => m.groupId === group.id);
+    const numPosts = faker.number.int({ min: 3, max: 8 });
+    for (let i = 0; i < numPosts; i++) {
+      const author = randomItem(groupMembers);
+      groupPostsToCreate.push({
+        groupId: group.id,
+        authorId: author.userId,
+        content: faker.lorem.paragraph(),
+        mediaType: faker.helpers.arrayElement(["text", "image"]),
+        likeCount: faker.number.int({ min: 0, max: 30 }),
+        commentCount: faker.number.int({ min: 0, max: 15 }),
+      });
+    }
+  }
+  
+  if (groupPostsToCreate.length > 0) {
+    await db.insert(groupPosts).values(groupPostsToCreate).onConflictDoNothing();
+    console.log(`  ✓ Created ${groupPostsToCreate.length} group posts`);
+  }
+
+  // Create user connections
+  const userConnectionsToCreate: any[] = [];
+  for (const student of usersByRole.students.slice(0, 30)) {
+    const numConnections = faker.number.int({ min: 3, max: 8 });
+    const potentialConnections = [...usersByRole.students, ...usersByRole.teachers, ...usersByRole.industryPros]
+      .filter((u: any) => u.id !== student.id);
+    const connections = randomItems(potentialConnections, numConnections);
+    for (const connection of connections) {
+      userConnectionsToCreate.push({
+        requesterId: student.id,
+        receiverId: connection.id,
+        status: faker.helpers.arrayElement(["accepted", "accepted", "accepted", "pending"]),
+        respondedAt: faker.datatype.boolean(0.8) ? randomDate(new Date(2024, 0, 1), new Date()) : null,
+      });
+    }
+  }
+  
+  if (userConnectionsToCreate.length > 0) {
+    await db.insert(userConnections).values(userConnectionsToCreate).onConflictDoNothing();
+    console.log(`  ✓ Created ${userConnectionsToCreate.length} user connections`);
+  }
+
+  // Create conversations
+  const conversationsToCreate: any[] = [];
+  const allUsers = [...usersByRole.students, ...usersByRole.teachers];
+  for (let i = 0; i < 25; i++) {
+    const isGroup = faker.datatype.boolean(0.3);
+    const numParticipants = isGroup ? faker.number.int({ min: 3, max: 6 }) : 2;
+    const participants = randomItems(allUsers, numParticipants);
+    conversationsToCreate.push({
+      participantIds: participants.map((p: any) => p.id),
+      isGroup,
+      groupName: isGroup ? faker.company.catchPhrase() : null,
+      lastMessageAt: randomDate(new Date(2024, 9, 1), new Date()),
+    });
+  }
+  
+  let insertedConversations: any[] = [];
+  if (conversationsToCreate.length > 0) {
+    insertedConversations = await db.insert(conversations).values(conversationsToCreate).onConflictDoNothing().returning();
+    if (insertedConversations.length === 0) {
+      insertedConversations = await db.select().from(conversations).limit(25);
+    }
+    console.log(`  ✓ Created ${insertedConversations.length} conversations`);
+  }
+
+  // Create messages
+  const messagesToCreate: any[] = [];
+  for (const conversation of insertedConversations) {
+    const numMessages = faker.number.int({ min: 3, max: 15 });
+    const participantIds = conversation.participantIds;
+    for (let i = 0; i < numMessages; i++) {
+      const senderId = randomItem(participantIds);
+      messagesToCreate.push({
+        conversationId: conversation.id,
+        senderId,
+        content: faker.lorem.sentence(),
+        isRead: faker.datatype.boolean(0.7),
+        readBy: faker.datatype.boolean(0.7) ? randomItems(participantIds.filter((id: string) => id !== senderId), faker.number.int({ min: 0, max: participantIds.length - 1 })) : [],
+        createdAt: randomDate(new Date(2024, 9, 1), new Date()),
+      });
+    }
+  }
+  
+  if (messagesToCreate.length > 0) {
+    await db.insert(messages).values(messagesToCreate).onConflictDoNothing();
+    console.log(`  ✓ Created ${messagesToCreate.length} messages`);
   }
 
   return { posts: insertedPosts, comments: insertedComments, reactions: insertedReactions, groups: insertedGroups };
