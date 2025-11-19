@@ -38,6 +38,9 @@
   - ✅ Updated data fetching queries to only fetch these for students
   - ✅ Updated profile stats to hide student-specific metrics for teachers
   - ✅ Teachers now show Engagement and Streak stats only
+  - ✅ Updated API endpoints (GET /api/user-badges, GET /api/endorsements) to only serve student data
+  - ✅ Cleaned up seed data to remove teacher badge assignments
+  - ✅ Teachers can still CREATE endorsements for students via POST /api/endorsements
 [•] 34. Update certificate validation - Teachers receive from Universities/Industries only
 [•] 35. Add Job Experience for Teachers
 [•] 36. Add Create Group feature for non-admin roles
