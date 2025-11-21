@@ -118,29 +118,15 @@ export default function GroupsDiscovery() {
 
   // Fetch groups
   const { data: groups = [], isLoading } = useQuery<Group[]>({
-    queryKey: ["/api/groups", selectedType, debouncedSearch],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (selectedType && selectedType !== "all") {
-        params.set("type", selectedType);
-      }
-      if (debouncedSearch.trim()) {
-        params.set("search", debouncedSearch.trim());
-      }
-      const response = await fetch(`/api/groups?${params}`);
-      if (!response.ok) throw new Error("Failed to fetch groups");
-      return response.json();
-    },
+    queryKey: ["/api/groups", { 
+      type: selectedType && selectedType !== "all" ? selectedType : undefined,
+      search: debouncedSearch.trim() || undefined 
+    }],
   });
 
   // Check user's memberships
   const { data: myMemberships = [] } = useQuery<Array<{ membership: GroupMember; group: Group }>>({
-    queryKey: ["/api/users/groups", user?.id],
-    queryFn: async () => {
-      const response = await fetch("/api/users/groups");
-      if (!response.ok) return [];
-      return response.json();
-    },
+    queryKey: ["/api/users/groups"],
     enabled: !!user,
   });
 
@@ -157,12 +143,16 @@ export default function GroupsDiscovery() {
       await queryClient.cancelQueries({ queryKey: ["/api/users/groups"] });
 
       // Snapshot previous values
-      const previousGroups = queryClient.getQueryData<Group[]>(["/api/groups", selectedType, debouncedSearch]);
+      const groupsQueryKey = ["/api/groups", { 
+        type: selectedType && selectedType !== "all" ? selectedType : undefined,
+        search: debouncedSearch.trim() || undefined 
+      }];
+      const previousGroups = queryClient.getQueryData<Group[]>(groupsQueryKey);
       const previousMyGroups = queryClient.getQueryData(["/api/users/groups"]);
 
       // Optimistically update member count
       queryClient.setQueryData<Group[]>(
-        ["/api/groups", selectedType, debouncedSearch],
+        groupsQueryKey,
         (old = []) => old.map((g) => 
           g.id === groupId ? { ...g, memberCount: (g.memberCount || 0) + 1 } : g
         )
@@ -173,8 +163,12 @@ export default function GroupsDiscovery() {
     onError: (error, _, context) => {
       // Rollback on error
       if (context?.previousGroups) {
+        const groupsQueryKey = ["/api/groups", { 
+          type: selectedType && selectedType !== "all" ? selectedType : undefined,
+          search: debouncedSearch.trim() || undefined 
+        }];
         queryClient.setQueryData(
-          ["/api/groups", selectedType, debouncedSearch],
+          groupsQueryKey,
           context.previousGroups
         );
       }
@@ -209,12 +203,16 @@ export default function GroupsDiscovery() {
       await queryClient.cancelQueries({ queryKey: ["/api/users/groups"] });
 
       // Snapshot previous values
-      const previousGroups = queryClient.getQueryData<Group[]>(["/api/groups", selectedType, debouncedSearch]);
+      const groupsQueryKey = ["/api/groups", { 
+        type: selectedType && selectedType !== "all" ? selectedType : undefined,
+        search: debouncedSearch.trim() || undefined 
+      }];
+      const previousGroups = queryClient.getQueryData<Group[]>(groupsQueryKey);
       const previousMyGroups = queryClient.getQueryData(["/api/users/groups"]);
 
       // Optimistically update member count
       queryClient.setQueryData<Group[]>(
-        ["/api/groups", selectedType, debouncedSearch],
+        groupsQueryKey,
         (old = []) => old.map((g) => 
           g.id === groupId ? { ...g, memberCount: Math.max(0, (g.memberCount || 0) - 1) } : g
         )
@@ -225,8 +223,12 @@ export default function GroupsDiscovery() {
     onError: (error, _, context) => {
       // Rollback on error
       if (context?.previousGroups) {
+        const groupsQueryKey = ["/api/groups", { 
+          type: selectedType && selectedType !== "all" ? selectedType : undefined,
+          search: debouncedSearch.trim() || undefined 
+        }];
         queryClient.setQueryData(
-          ["/api/groups", selectedType, debouncedSearch],
+          groupsQueryKey,
           context.previousGroups
         );
       }
@@ -312,8 +314,12 @@ export default function GroupsDiscovery() {
     onError: (error: any, _, context) => {
       // Rollback on error
       if (context?.previousGroups) {
+        const groupsQueryKey = ["/api/groups", { 
+          type: selectedType && selectedType !== "all" ? selectedType : undefined,
+          search: debouncedSearch.trim() || undefined 
+        }];
         queryClient.setQueryData(
-          ["/api/groups", selectedType, debouncedSearch],
+          groupsQueryKey,
           context.previousGroups
         );
       }
@@ -357,8 +363,12 @@ export default function GroupsDiscovery() {
     onError: (error: any, _, context) => {
       // Rollback on error
       if (context?.previousGroups) {
+        const groupsQueryKey = ["/api/groups", { 
+          type: selectedType && selectedType !== "all" ? selectedType : undefined,
+          search: debouncedSearch.trim() || undefined 
+        }];
         queryClient.setQueryData(
-          ["/api/groups", selectedType, debouncedSearch],
+          groupsQueryKey,
           context.previousGroups
         );
       }

@@ -144,17 +144,7 @@ export function CreatePostModal({
     mutationFn: async () => {
       // First moderate the content
       try {
-        const moderationResponse = await fetch("/api/ai/moderate-content", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ content }),
-        });
-
-        if (!moderationResponse.ok) {
-          throw new Error("Content moderation service is unavailable. Please try again later.");
-        }
-
+        const moderationResponse = await apiRequest("POST", "/api/ai/moderate-content", { content });
         const moderation = await moderationResponse.json() as { approved: boolean; reason: string; confidence: number };
         
         if (!moderation.approved) {

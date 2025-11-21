@@ -32,7 +32,7 @@ export default function Profile() {
   const [location] = useLocation();
   
   // Get userId from query params if viewing another user's profile
-  const params = new URLSearchParams(location.split('?')[1] || '');
+  const params = new URLSearchParams(window.location.search);
   const viewingUserId = params.get('userId');
   const isViewingOwnProfile = !viewingUserId || viewingUserId === currentUser?.id;
   

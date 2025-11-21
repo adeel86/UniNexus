@@ -45,7 +45,40 @@ export const getQueryFn: <T>(options: {
       headers['Authorization'] = `Bearer ${devToken}`;
     }
     
-    const res = await fetch(queryKey.join("/") as string, {
+    // Build URL with query parameters
+    let url = '';
+    let queryParams: Record<string, string> = {};
+    
+    // Separate path segments from query parameters
+    const lastItem = queryKey[queryKey.length - 1];
+    const isLastItemParams = typeof lastItem === 'object' && lastItem !== null && !Array.isArray(lastItem);
+    
+    if (isLastItemParams) {
+      // Last item is query params, build path from all items except the last
+      const pathSegments = queryKey.slice(0, -1).filter(k => typeof k === 'string' || typeof k === 'number');
+      url = pathSegments.join("/");
+      queryParams = lastItem as Record<string, string>;
+    } else {
+      // No query params, join all segments
+      const pathSegments = queryKey.filter(k => typeof k === 'string' || typeof k === 'number');
+      url = pathSegments.join("/");
+    }
+    
+    // Add query parameters if present
+    if (Object.keys(queryParams).length > 0) {
+      const params = new URLSearchParams();
+      Object.entries(queryParams).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          params.append(key, String(value));
+        }
+      });
+      const queryString = params.toString();
+      if (queryString) {
+        url = `${url}?${queryString}`;
+      }
+    }
+    
+    const res = await fetch(url, {
       headers,
       credentials: "include",
     });

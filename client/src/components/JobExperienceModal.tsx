@@ -26,7 +26,7 @@ type JobExperienceFormData = z.infer<typeof jobExperienceSchema>;
 
 interface JobExperience {
   id: number;
-  userId: number;
+  userId: string;
   position: string;
   organization: string;
   startDate: string;
@@ -39,7 +39,7 @@ interface JobExperienceModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   experience?: JobExperience | null;
-  userId: number;
+  userId: string;
 }
 
 export function JobExperienceModal({ open, onOpenChange, experience, userId }: JobExperienceModalProps) {
