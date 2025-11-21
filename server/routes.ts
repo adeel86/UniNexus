@@ -403,7 +403,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .$dynamic();
       
       // Apply filters
-      const conditions = [sql`datetime(${posts.createdAt}) > datetime(${sevenDaysAgo.toISOString()})`];
+      const conditions = [sql`${posts.createdAt} > ${sevenDaysAgo.toISOString()}`];
       if (category && category !== 'all') {
         conditions.push(eq(posts.category, category));
       }
@@ -618,7 +618,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .$dynamic();
       
       // Apply filters
-      const conditions = [sql`datetime(${posts.createdAt}) > datetime(${fortyEightHoursAgo.toISOString()})`];
+      const conditions = [sql`${posts.createdAt} > ${fortyEightHoursAgo.toISOString()}`];
       if (category && category !== 'all') {
         conditions.push(eq(posts.category, category));
       }
