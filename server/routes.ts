@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 import express from "express";
 import { createServer, type Server } from "http";
-import { eq, desc, sql, and, or, like } from "drizzle-orm";
+import { eq, desc, sql, and, or, like, inArray } from "drizzle-orm";
 import { createHash } from "crypto";
 import { db } from "./db";
 import { storage } from "./storage";
@@ -1408,6 +1408,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .orderBy(desc(users.engagementScore));
 
       res.json(students);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Search for users (for network discovery) - MUST BE BEFORE /:userId route
+  app.get("/api/users/search", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { q } = req.query;
+      const searchTerm = q as string;
+
+      if (!searchTerm || searchTerm.length < 3) {
+        return res.json([]);
+      }
+
+      const searchPattern = `%${searchTerm}%`;
+      
+      const results = await db
+        .select()
+        .from(users)
+        .where(
+          and(
+            sql`${users.id} != ${req.user.id}`, // Exclude current user
+            or(
+              sql`${users.firstName} ILIKE ${searchPattern}`,
+              sql`${users.lastName} ILIKE ${searchPattern}`,
+              sql`${users.email} ILIKE ${searchPattern}`,
+              sql`${users.major} ILIKE ${searchPattern}`,
+              sql`${users.company} ILIKE ${searchPattern}`,
+              sql`${users.university} ILIKE ${searchPattern}`
+            )
+          )
+        )
+        .limit(20);
+
+      res.json(results);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get user's groups - MUST BE BEFORE /:userId route
+  app.get("/api/users/groups", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const results = await db
+        .select({
+          membership: groupMembers,
+          group: groups,
+        })
+        .from(groupMembers)
+        .leftJoin(groups, eq(groupMembers.groupId, groups.id))
+        .where(eq(groupMembers.userId, req.user.id))
+        .orderBy(desc(groupMembers.joinedAt));
+
+      res.json(results);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -3557,46 +3620,6 @@ Make it personalized, constructive, and actionable. Use a professional but encou
   // USER CONNECTIONS / NETWORK API
   // ========================================================================
 
-  // Search for users (for network discovery)
-  app.get("/api/users/search", async (req: Request, res: Response) => {
-    if (!req.user) {
-      return res.status(401).send("Unauthorized");
-    }
-
-    try {
-      const { q } = req.query;
-      const searchTerm = q as string;
-
-      if (!searchTerm || searchTerm.length < 3) {
-        return res.json([]);
-      }
-
-      const searchPattern = `%${searchTerm}%`;
-      
-      const results = await db
-        .select()
-        .from(users)
-        .where(
-          and(
-            sql`${users.id} != ${req.user.id}`, // Exclude current user
-            or(
-              sql`${users.firstName} ILIKE ${searchPattern}`,
-              sql`${users.lastName} ILIKE ${searchPattern}`,
-              sql`${users.email} ILIKE ${searchPattern}`,
-              sql`${users.major} ILIKE ${searchPattern}`,
-              sql`${users.company} ILIKE ${searchPattern}`,
-              sql`${users.university} ILIKE ${searchPattern}`
-            )
-          )
-        )
-        .limit(20);
-
-      res.json(results);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
   // Send connection request
   app.post("/api/connections/request", async (req: Request, res: Response) => {
     if (!req.user) {
@@ -4128,12 +4151,13 @@ Make it personalized, constructive, and actionable. Use a professional but encou
       const enrichedConversations = await Promise.all(
         userConversations.map(async (conversation) => {
           // Get participants
-          const participants = await db
-            .select()
-            .from(users)
-            .where(
-              sql`${users.id} = ANY(${conversation.participantIds})`
-            );
+          const participantIds = conversation.participantIds || [];
+          const participants = participantIds.length > 0
+            ? await db
+                .select()
+                .from(users)
+                .where(inArray(users.id, participantIds))
+            : [];
 
           // Get last message
           const [lastMessage] = await db
@@ -4144,15 +4168,15 @@ Make it personalized, constructive, and actionable. Use a professional but encou
             .limit(1);
 
           // Get unread count for current user
-          const unreadMessages = await db
+          const allMessages = await db
             .select()
             .from(messages)
-            .where(
-              and(
-                eq(messages.conversationId, conversation.id),
-                sql`NOT (${userId} = ANY(${messages.readBy}))`
-              )
-            );
+            .where(eq(messages.conversationId, conversation.id));
+
+          const unreadMessages = allMessages.filter(msg => {
+            const readBy = msg.readBy || [];
+            return !readBy.includes(userId);
+          });
 
           return {
             ...conversation,
@@ -4896,29 +4920,6 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         .from(groupMembers)
         .leftJoin(users, eq(groupMembers.userId, users.id))
         .where(eq(groupMembers.groupId, id))
-        .orderBy(desc(groupMembers.joinedAt));
-
-      res.json(results);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // Get user's groups
-  app.get("/api/users/groups", async (req: Request, res: Response) => {
-    if (!req.user) {
-      return res.status(401).send("Unauthorized");
-    }
-
-    try {
-      const results = await db
-        .select({
-          membership: groupMembers,
-          group: groups,
-        })
-        .from(groupMembers)
-        .leftJoin(groups, eq(groupMembers.groupId, groups.id))
-        .where(eq(groupMembers.userId, req.user.id))
         .orderBy(desc(groupMembers.joinedAt));
 
       res.json(results);
