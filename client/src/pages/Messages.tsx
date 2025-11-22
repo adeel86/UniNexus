@@ -38,6 +38,10 @@ export default function Messages() {
   const [newConversationOpen, setNewConversationOpen] = useState(false);
   const [userSearchTerm, setUserSearchTerm] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  
+  // Check for userId in URL params
+  const urlParams = new URLSearchParams(window.location.search);
+  const targetUserId = urlParams.get('userId');
 
   // Get all conversations
   const { data: conversations = [] } = useQuery<EnrichedConversation[]>({
@@ -117,6 +121,28 @@ export default function Messages() {
       markAsRead.mutate(selectedConversationId);
     }
   }, [selectedConversationId]);
+
+  // Handle URL parameter for pre-selecting user
+  useEffect(() => {
+    if (targetUserId && conversations.length > 0 && !selectedConversationId) {
+      // Check if conversation already exists with this user
+      const existingConversation = conversations.find(conv => 
+        conv.participants.some(p => p.id === targetUserId)
+      );
+      
+      if (existingConversation) {
+        // Select the existing conversation
+        setSelectedConversationId(existingConversation.id);
+        // Clear URL param
+        window.history.replaceState({}, '', '/messages');
+      } else {
+        // Create new conversation with this user
+        createConversation.mutate(targetUserId);
+        // Clear URL param
+        window.history.replaceState({}, '', '/messages');
+      }
+    }
+  }, [targetUserId, conversations, selectedConversationId]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();

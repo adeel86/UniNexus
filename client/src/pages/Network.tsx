@@ -165,43 +165,59 @@ export default function Network() {
 
         {/* Search Results */}
         {searchTerm.length > 2 && (
-          <div className="mt-4 space-y-2">
+          <div className="mt-4">
             {searchResults.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">
-                No users found
+                No connections found matching "{searchTerm}"
               </p>
             ) : (
-              searchResults.map((user) => (
-                <div
-                  key={user.id}
-                  className="flex items-center justify-between p-3 rounded-md hover-elevate active-elevate-2"
-                  data-testid={`search-result-${user.id}`}
-                >
-                  <div className="flex items-center gap-3">
-                    <UserAvatar user={user} size="md" />
-                    <div>
-                      <p className="font-medium">
-                        {user.firstName} {user.lastName}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {user.role === 'student' && user.major}
-                        {user.role === 'teacher' && 'Teacher'}
-                        {user.role === 'industry_professional' && user.company}
-                        {user.role === 'university_admin' && user.university}
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => sendRequest.mutate(user.id)}
-                    disabled={sendRequest.isPending}
-                    data-testid={`button-connect-${user.id}`}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {searchResults.map((user) => (
+                  <Card
+                    key={user.id}
+                    className="p-4 hover-elevate"
+                    data-testid={`search-result-${user.id}`}
                   >
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Connect
-                  </Button>
-                </div>
-              ))
+                    <div className="flex items-start gap-3">
+                      <UserAvatar user={user} size="lg" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">
+                          {user.firstName} {user.lastName}
+                        </p>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {user.role === 'student' && user.major}
+                          {user.role === 'teacher' && 'Teacher'}
+                          {user.role === 'industry_professional' && user.company}
+                          {user.role === 'university_admin' && user.university}
+                        </p>
+                        <Badge variant="secondary" className="mt-2">
+                          {user.role.replace('_', ' ')}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => window.location.href = `/profile?userId=${user.id}`}
+                        data-testid={`button-view-profile-${user.id}`}
+                      >
+                        View Profile
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => window.location.href = `/messages?userId=${user.id}`}
+                        data-testid={`button-message-${user.id}`}
+                      >
+                        Message
+                      </Button>
+                    </div>
+                  </Card>
+                ))}
+              </div>
             )}
           </div>
         )}
