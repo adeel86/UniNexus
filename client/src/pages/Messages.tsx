@@ -37,6 +37,7 @@ export default function Messages() {
   const [messageInput, setMessageInput] = useState("");
   const [newConversationOpen, setNewConversationOpen] = useState(false);
   const [userSearchTerm, setUserSearchTerm] = useState("");
+  const [processedUserId, setProcessedUserId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Check for userId in URL params
@@ -44,7 +45,7 @@ export default function Messages() {
   const targetUserId = urlParams.get('userId');
 
   // Get all conversations
-  const { data: conversations = [] } = useQuery<EnrichedConversation[]>({
+  const { data: conversations = [], isSuccess: conversationsLoaded } = useQuery<EnrichedConversation[]>({
     queryKey: ["/api/conversations"],
     refetchInterval: 5000, // Poll every 5 seconds for new messages
   });
@@ -124,7 +125,10 @@ export default function Messages() {
 
   // Handle URL parameter for pre-selecting user
   useEffect(() => {
-    if (targetUserId && conversations.length > 0 && !selectedConversationId) {
+    if (targetUserId && conversationsLoaded && targetUserId !== processedUserId) {
+      // Mark this userId as processed to prevent duplicate actions
+      setProcessedUserId(targetUserId);
+      
       // Check if conversation already exists with this user
       const existingConversation = conversations.find(conv => 
         conv.participants.some(p => p.id === targetUserId)
@@ -133,16 +137,15 @@ export default function Messages() {
       if (existingConversation) {
         // Select the existing conversation
         setSelectedConversationId(existingConversation.id);
-        // Clear URL param
-        window.history.replaceState({}, '', '/messages');
       } else {
         // Create new conversation with this user
         createConversation.mutate(targetUserId);
-        // Clear URL param
-        window.history.replaceState({}, '', '/messages');
       }
+      
+      // Clear URL param
+      window.history.replaceState({}, '', '/messages');
     }
-  }, [targetUserId, conversations, selectedConversationId]);
+  }, [targetUserId, conversations, conversationsLoaded, processedUserId]);
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
