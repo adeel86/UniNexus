@@ -65,20 +65,9 @@ export default function Network() {
     queryKey: ["/api/following/me"],
   });
 
-  // Search for users to connect with
+  // Search within connected users only
   const { data: searchResults = [] } = useQuery<User[]>({
-    queryKey: ["/api/users/search", searchTerm],
-    queryFn: async () => {
-      if (searchTerm.length <= 2) return [];
-      const res = await fetch(`/api/users/search?q=${encodeURIComponent(searchTerm)}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('dev_token')}`,
-        },
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to search users");
-      return res.json();
-    },
+    queryKey: ["/api/connections/search", { q: searchTerm }],
     enabled: searchTerm.length > 2,
   });
 

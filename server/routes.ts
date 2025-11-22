@@ -3787,6 +3787,71 @@ Make it personalized, constructive, and actionable. Use a professional but encou
     }
   });
 
+  // Search within user's connections only
+  app.get("/api/connections/search", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { q } = req.query;
+      const searchTerm = q as string;
+
+      if (!searchTerm || searchTerm.length < 3) {
+        return res.json([]);
+      }
+
+      const userId = req.user.id;
+      const searchPattern = `%${searchTerm}%`;
+
+      // Get all accepted connections
+      const connections = await db
+        .select()
+        .from(userConnections)
+        .where(
+          and(
+            or(
+              eq(userConnections.requesterId, userId),
+              eq(userConnections.receiverId, userId)
+            ),
+            eq(userConnections.status, 'accepted')
+          )
+        );
+
+      // Get connected user IDs
+      const connectedUserIds = connections.map(c => 
+        c.requesterId === userId ? c.receiverId : c.requesterId
+      );
+
+      if (connectedUserIds.length === 0) {
+        return res.json([]);
+      }
+
+      // Search only among connected users
+      const results = await db
+        .select()
+        .from(users)
+        .where(
+          and(
+            inArray(users.id, connectedUserIds),
+            or(
+              sql`${users.firstName} ILIKE ${searchPattern}`,
+              sql`${users.lastName} ILIKE ${searchPattern}`,
+              sql`${users.email} ILIKE ${searchPattern}`,
+              sql`${users.major} ILIKE ${searchPattern}`,
+              sql`${users.company} ILIKE ${searchPattern}`,
+              sql`${users.university} ILIKE ${searchPattern}`
+            )
+          )
+        )
+        .limit(20);
+
+      res.json(results);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Get connection status with a specific user
   app.get("/api/connections/status/:userId", async (req: Request, res: Response) => {
     if (!req.user) {

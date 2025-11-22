@@ -75,13 +75,7 @@ export default function Messages() {
 
   // Search users for new conversation
   const { data: userSearchResults = [] } = useQuery<User[]>({
-    queryKey: ["/api/users/search", userSearchTerm],
-    queryFn: async () => {
-      if (userSearchTerm.length < 3) return [];
-      const response = await fetch(`/api/users/search?q=${encodeURIComponent(userSearchTerm)}`);
-      if (!response.ok) throw new Error('Failed to search users');
-      return response.json();
-    },
+    queryKey: ["/api/users/search", { q: userSearchTerm }],
     enabled: userSearchTerm.length >= 3,
   });
 
