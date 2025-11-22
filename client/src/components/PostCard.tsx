@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { UserAvatar } from "./UserAvatar";
 import { Heart, MessageCircle, Share2, ThumbsUp, Lightbulb, Handshake, BadgeCheck } from "lucide-react";
 import type { Post, User, Comment, Reaction } from "@shared/schema";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -30,12 +30,30 @@ const reactionTypes = [
   { type: "support", icon: Handshake, label: "Support" },
 ];
 
-export function PostCard({ post }: PostCardProps) {
+export function PostCard({ post: initialPost }: PostCardProps) {
   const auth = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
+
+  // Get the latest post data from cache (for optimistic updates) or fall back to prop
+  const post = useMemo(() => {
+    const feedCaches = [
+      queryClient.getQueryData(["/api/feed/personalized"]),
+      queryClient.getQueryData(["/api/feed/trending"]),
+      queryClient.getQueryData(["/api/feed/following"]),
+    ];
+
+    for (const cache of feedCaches) {
+      if (Array.isArray(cache)) {
+        const cachedPost = cache.find((p: PostWithAuthor) => p.id === initialPost.id);
+        if (cachedPost) return cachedPost;
+      }
+    }
+
+    return initialPost;
+  }, [queryClient, initialPost, queryClient.getQueryState(["/api/feed/personalized"])?.dataUpdateCount, queryClient.getQueryState(["/api/feed/trending"])?.dataUpdateCount, queryClient.getQueryState(["/api/feed/following"])?.dataUpdateCount]);
 
   const reactionMutation = useMutation({
     mutationFn: async (type: string) => {
