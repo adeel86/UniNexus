@@ -41,10 +41,65 @@ export function PostCard({ post }: PostCardProps) {
     mutationFn: async (type: string) => {
       return apiRequest("POST", "/api/reactions", { postId: post.id, type });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
+    onMutate: async (type: string) => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/feed/personalized"] });
+      await queryClient.cancelQueries({ queryKey: ["/api/feed/trending"] });
+      await queryClient.cancelQueries({ queryKey: ["/api/feed/following"] });
+      await queryClient.cancelQueries({ queryKey: ["/api/posts"] });
+
+      // Snapshot previous values
+      const previousPersonalized = queryClient.getQueryData(["/api/feed/personalized"]);
+      const previousTrending = queryClient.getQueryData(["/api/feed/trending"]);
+      const previousFollowing = queryClient.getQueryData(["/api/feed/following"]);
+
+      // Optimistically update all feed caches
+      const optimisticReaction = {
+        id: `temp-${Date.now()}`,
+        postId: post.id,
+        userId: auth.userData!.id,
+        type,
+        createdAt: new Date(),
+      };
+
+      const updatePosts = (oldData: any) => {
+        if (!oldData) return oldData;
+        return oldData.map((p: PostWithAuthor) =>
+          p.id === post.id
+            ? { ...p, reactions: [...p.reactions, optimisticReaction] }
+            : p
+        );
+      };
+
+      queryClient.setQueryData(["/api/feed/personalized"], updatePosts);
+      queryClient.setQueryData(["/api/feed/trending"], updatePosts);
+      queryClient.setQueryData(["/api/feed/following"], updatePosts);
+
+      return { previousPersonalized, previousTrending, previousFollowing };
+    },
+    onError: (err, type, context) => {
+      // Rollback on error
+      if (context?.previousPersonalized) {
+        queryClient.setQueryData(["/api/feed/personalized"], context.previousPersonalized);
+      }
+      if (context?.previousTrending) {
+        queryClient.setQueryData(["/api/feed/trending"], context.previousTrending);
+      }
+      if (context?.previousFollowing) {
+        queryClient.setQueryData(["/api/feed/following"], context.previousFollowing);
+      }
+      toast({
+        title: "Error",
+        description: "Failed to add reaction",
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      // Always refetch to sync with server
       queryClient.invalidateQueries({ queryKey: ["/api/feed/personalized"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/feed/trending"] });
       queryClient.invalidateQueries({ queryKey: ["/api/feed/following"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
     },
   });
 
@@ -55,11 +110,74 @@ export function PostCard({ post }: PostCardProps) {
         content: commentText,
       });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/feed/personalized"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/feed/following"] });
+    onMutate: async () => {
+      // Cancel outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["/api/feed/personalized"] });
+      await queryClient.cancelQueries({ queryKey: ["/api/feed/trending"] });
+      await queryClient.cancelQueries({ queryKey: ["/api/feed/following"] });
+      await queryClient.cancelQueries({ queryKey: ["/api/posts"] });
+
+      // Snapshot previous values
+      const previousPersonalized = queryClient.getQueryData(["/api/feed/personalized"]);
+      const previousTrending = queryClient.getQueryData(["/api/feed/trending"]);
+      const previousFollowing = queryClient.getQueryData(["/api/feed/following"]);
+
+      // Optimistically add comment
+      const optimisticComment = {
+        id: `temp-${Date.now()}`,
+        postId: post.id,
+        userId: auth.userData!.id,
+        content: commentText,
+        createdAt: new Date(),
+      };
+
+      const updatePosts = (oldData: any) => {
+        if (!oldData) return oldData;
+        return oldData.map((p: PostWithAuthor) =>
+          p.id === post.id
+            ? { ...p, comments: [...p.comments, optimisticComment] }
+            : p
+        );
+      };
+
+      queryClient.setQueryData(["/api/feed/personalized"], updatePosts);
+      queryClient.setQueryData(["/api/feed/trending"], updatePosts);
+      queryClient.setQueryData(["/api/feed/following"], updatePosts);
+
+      // Clear comment text immediately for better UX
+      const previousText = commentText;
       setCommentText("");
+
+      return { previousPersonalized, previousTrending, previousFollowing, previousText };
+    },
+    onError: (err, variables, context) => {
+      // Rollback on error
+      if (context?.previousPersonalized) {
+        queryClient.setQueryData(["/api/feed/personalized"], context.previousPersonalized);
+      }
+      if (context?.previousTrending) {
+        queryClient.setQueryData(["/api/feed/trending"], context.previousTrending);
+      }
+      if (context?.previousFollowing) {
+        queryClient.setQueryData(["/api/feed/following"], context.previousFollowing);
+      }
+      if (context?.previousText) {
+        setCommentText(context.previousText);
+      }
+      toast({
+        title: "Error",
+        description: "Failed to post comment",
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      // Always refetch to sync with server
+      queryClient.invalidateQueries({ queryKey: ["/api/feed/personalized"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/feed/trending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/feed/following"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
+    },
+    onSuccess: () => {
       toast({ title: "Comment posted!" });
     },
   });
