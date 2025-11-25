@@ -19,6 +19,7 @@ import { SkillsSection } from "@/components/SkillsSection";
 import { WorkExperienceSection } from "@/components/WorkExperienceSection";
 import { StudentCoursesSection } from "@/components/StudentCoursesSection";
 import { CVExportButton } from "@/components/CVExportButton";
+import { TeacherCoursesSection } from "@/components/TeacherCoursesSection";
 import { Award, TrendingUp, Zap, Trophy, Clock, Shield, Users, UserPlus, UserMinus, CheckCircle, Edit, Mail, Phone, Globe, Briefcase, GraduationCap, Plus, Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState } from "react";
@@ -569,6 +570,13 @@ export default function Profile() {
                 isOwnProfile={isViewingOwnProfile}
                 userId={targetUserId!}
               />
+            </div>
+          )}
+
+          {/* Teacher Courses Section - For teachers to manage and validate courses */}
+          {user.role === "teacher" && isViewingOwnProfile && (
+            <div className="mt-6">
+              <TeacherCoursesSection />
             </div>
           )}
         </>

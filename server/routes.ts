@@ -2051,21 +2051,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const { validationNote } = req.body;
 
-      // Get the course
-      const [course] = await db
-        .select()
+      // Get the course with student info
+      const [courseData] = await db
+        .select({
+          course: studentCourses,
+          student: {
+            id: users.id,
+            university: users.university,
+          },
+        })
         .from(studentCourses)
+        .innerJoin(users, eq(studentCourses.userId, users.id))
         .where(eq(studentCourses.id, id))
         .limit(1);
 
-      if (!course) {
+      if (!courseData) {
         return res.status(404).json({ error: "Course not found" });
       }
+
+      const { course, student } = courseData;
 
       // Check if the teacher is the assigned teacher for this course
       if (course.assignedTeacherId && course.assignedTeacherId !== req.user.id) {
         return res.status(403).json({ 
           error: "Only the assigned teacher can validate this course" 
+        });
+      }
+
+      // Check if student and teacher belong to the same institution
+      const teacherUniversity = req.user.university;
+      const studentUniversity = student.university;
+      
+      if (!teacherUniversity || !studentUniversity || teacherUniversity !== studentUniversity) {
+        return res.status(403).json({ 
+          error: "Teacher and student must belong to the same institution to validate courses" 
         });
       }
 
@@ -2130,7 +2149,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get pending validations for a teacher
+  // Get all courses assigned to a teacher (for teacher's course management section)
+  app.get("/api/teacher/courses", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    if (req.user.role !== 'teacher') {
+      return res.status(403).json({ error: "Only teachers can view their assigned courses" });
+    }
+
+    try {
+      const teacherCourses = await db
+        .select({
+          course: studentCourses,
+          student: {
+            id: users.id,
+            displayName: users.displayName,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            profileImageUrl: users.profileImageUrl,
+            university: users.university,
+          },
+        })
+        .from(studentCourses)
+        .innerJoin(users, eq(studentCourses.userId, users.id))
+        .where(eq(studentCourses.assignedTeacherId, req.user.id))
+        .orderBy(desc(studentCourses.createdAt));
+
+      // Add validation eligibility info (same institution check)
+      const teacherUniversity = req.user.university;
+      const formatted = teacherCourses.map(({ course, student }) => ({
+        ...course,
+        student,
+        canValidate: !course.isValidated && 
+                     teacherUniversity && 
+                     student.university === teacherUniversity,
+        validationBlockedReason: !teacherUniversity ? "Teacher has no institution set" :
+                                 !student.university ? "Student has no institution set" :
+                                 student.university !== teacherUniversity ? "Different institutions" : null,
+      }));
+
+      res.json(formatted);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get pending validations for a teacher (only same institution)
   app.get("/api/teacher/pending-validations", async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).send("Unauthorized");
@@ -2141,6 +2207,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
+      const teacherUniversity = req.user.university;
+      
       const pending = await db
         .select({
           course: studentCourses,
@@ -2150,6 +2218,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             firstName: users.firstName,
             lastName: users.lastName,
             profileImageUrl: users.profileImageUrl,
+            university: users.university,
           },
         })
         .from(studentCourses)
@@ -2160,10 +2229,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ))
         .orderBy(desc(studentCourses.createdAt));
 
-      const formatted = pending.map(({ course, student }) => ({
-        ...course,
-        student,
-      }));
+      // Filter to only show pending validations from same institution
+      const formatted = pending
+        .filter(({ student }) => 
+          teacherUniversity && student.university === teacherUniversity
+        )
+        .map(({ course, student }) => ({
+          ...course,
+          student,
+        }));
 
       res.json(formatted);
     } catch (error: any) {
