@@ -36,6 +36,7 @@ import {
   educationRecords,
   userProfiles,
   jobExperience,
+  studentCourses,
 } from "@shared/schema";
 import { calculateTotalPoints, getRankTier } from "./rankTiers";
 import { faker } from "@faker-js/faker";
@@ -2106,11 +2107,163 @@ async function seedDatabase() {
       description: "Leading UX design for enterprise products. Managing team of 5 designers.",
       isCurrent: true,
     },
+    // Demo Student Work Experience
+    {
+      userId: insertedUsers[0].id, // Demo Student
+      position: "Software Developer Intern",
+      organization: "TechStart Innovations",
+      startDate: "2024-06",
+      endDate: "2024-08",
+      description: "Developed features for a React-based dashboard application. Collaborated with senior developers on code reviews and agile sprints.",
+      isCurrent: false,
+    },
+    {
+      userId: insertedUsers[0].id, // Demo Student
+      position: "Web Development Tutor",
+      organization: "Demo University Peer Tutoring",
+      startDate: "2023-09",
+      endDate: "Present",
+      description: "Tutoring fellow students in HTML, CSS, JavaScript, and React fundamentals. Helping with debugging and project guidance.",
+      isCurrent: true,
+    },
+    // Alex Chen (Student)
+    {
+      userId: insertedUsers[4].id, // Alex Chen
+      position: "Research Assistant",
+      organization: "Tech University AI Lab",
+      startDate: "2024-01",
+      endDate: "Present",
+      description: "Assisting with machine learning research projects. Preparing datasets and running experiments.",
+      isCurrent: true,
+    },
   ];
 
   console.log("Inserting job experience...");
   const insertedJobExperience = await db.insert(jobExperience).values(mockJobExperience).onConflictDoNothing().returning();
   console.log(`Inserted ${insertedJobExperience.length} job experience records`);
+
+  // ============================================================================
+  // STUDENT COURSES (For CV-like profile)
+  // ============================================================================
+
+  const mockStudentCourses = [
+    // Demo Student courses
+    {
+      userId: insertedUsers[0].id, // Demo Student
+      courseName: "Introduction to Web Development",
+      courseCode: "CS101",
+      institution: "Demo University",
+      instructor: "Demo Teacher",
+      semester: "Fall",
+      year: 2023,
+      grade: "A",
+      credits: 3,
+      description: "Fundamentals of HTML, CSS, and JavaScript for building modern web applications.",
+      assignedTeacherId: insertedUsers[1].id, // Demo Teacher
+      isValidated: true,
+      validatedBy: insertedUsers[1].id,
+      validatedAt: new Date("2024-01-15"),
+      validationNote: "Excellent performance in all projects.",
+    },
+    {
+      userId: insertedUsers[0].id, // Demo Student
+      courseName: "Data Structures and Algorithms",
+      courseCode: "CS201",
+      institution: "Demo University",
+      instructor: "Demo Teacher",
+      semester: "Spring",
+      year: 2024,
+      grade: "A-",
+      credits: 4,
+      description: "Study of fundamental data structures and algorithm design techniques.",
+      assignedTeacherId: insertedUsers[1].id, // Demo Teacher
+      isValidated: true,
+      validatedBy: insertedUsers[1].id,
+      validatedAt: new Date("2024-06-01"),
+    },
+    {
+      userId: insertedUsers[0].id, // Demo Student
+      courseName: "React and Modern Frontend",
+      courseCode: "CS305",
+      institution: "Demo University",
+      instructor: "Guest Instructor",
+      semester: "Fall",
+      year: 2024,
+      grade: "In Progress",
+      credits: 3,
+      description: "Building interactive user interfaces with React, state management, and modern tooling.",
+      isValidated: false,
+    },
+    // Alex Chen courses
+    {
+      userId: insertedUsers[4].id, // Alex Chen
+      courseName: "Machine Learning Fundamentals",
+      courseCode: "CS401",
+      institution: "Tech University",
+      instructor: "Dr. Sarah Smith",
+      semester: "Fall",
+      year: 2024,
+      grade: "A",
+      credits: 4,
+      description: "Introduction to machine learning algorithms and their applications.",
+      assignedTeacherId: insertedUsers[8].id, // Dr. Sarah Smith
+      isValidated: true,
+      validatedBy: insertedUsers[8].id,
+      validatedAt: new Date("2024-12-01"),
+      validationNote: "Outstanding research contributions.",
+    },
+    {
+      userId: insertedUsers[4].id, // Alex Chen
+      courseName: "Deep Learning",
+      courseCode: "CS502",
+      institution: "Tech University",
+      instructor: "Dr. Sarah Smith",
+      semester: "Spring",
+      year: 2024,
+      grade: "A+",
+      credits: 4,
+      description: "Neural networks, CNNs, RNNs, and transformer architectures.",
+      assignedTeacherId: insertedUsers[8].id, // Dr. Sarah Smith
+      isValidated: true,
+      validatedBy: insertedUsers[8].id,
+      validatedAt: new Date("2024-06-15"),
+    },
+    // Jamie Rodriguez courses
+    {
+      userId: insertedUsers[5].id, // Jamie Rodriguez
+      courseName: "Mobile App Development",
+      courseCode: "CS320",
+      institution: "Tech University",
+      instructor: "Prof. Michael Johnson",
+      semester: "Fall",
+      year: 2024,
+      grade: "B+",
+      credits: 3,
+      description: "Cross-platform mobile development with React Native.",
+      assignedTeacherId: insertedUsers[9].id, // Prof. Michael Johnson
+      isValidated: false,
+    },
+    {
+      userId: insertedUsers[5].id, // Jamie Rodriguez
+      courseName: "Database Systems",
+      courseCode: "CS310",
+      institution: "Tech University",
+      instructor: "Prof. Michael Johnson",
+      semester: "Spring",
+      year: 2024,
+      grade: "A-",
+      credits: 4,
+      description: "Relational database design, SQL, and NoSQL databases.",
+      assignedTeacherId: insertedUsers[9].id, // Prof. Michael Johnson
+      isValidated: true,
+      validatedBy: insertedUsers[9].id,
+      validatedAt: new Date("2024-06-20"),
+    },
+  ];
+
+  console.log("Inserting student courses...");
+  const insertedStudentCourses = await db.insert(studentCourses).values(mockStudentCourses).onConflictDoNothing().returning();
+  console.log(`Inserted ${insertedStudentCourses.length} student courses`);
 
   // ============================================================================
   // ADDITIONAL CERTIFICATIONS (Teachers receiving from Universities/Industries)
