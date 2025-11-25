@@ -237,18 +237,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Legacy logout endpoint for backwards compatibility
-  app.get("/api/logout", async (req: Request, res: Response) => {
-    try {
-      // Redirect to home page with a message (for backwards compatibility)
-      // Modern clients should use the POST /api/auth/logout endpoint
-      console.log("User accessed legacy logout endpoint");
-      res.redirect('/');
-    } catch (error) {
-      console.error("Error during logout:", error);
-      res.status(500).json({ message: "Logout failed" });
-    }
-  });
 
   // ========================================================================
   // POSTS ENDPOINTS
