@@ -9,6 +9,7 @@ import type { UserBadge, Badge as BadgeType, Endorsement, Skill, User, Certifica
 import { BadgeIcon } from "@/components/BadgeIcon";
 import { AchievementTimeline } from "@/components/AchievementTimeline";
 import { CertificateShowcase } from "@/components/CertificateShowcase";
+import { RecruiterFeedbackSection } from "@/components/RecruiterFeedbackSection";
 import { RankTierBadge } from "@/components/RankTierBadge";
 import { PostCard } from "@/components/PostCard";
 import { EditProfileModal } from "@/components/EditProfileModal";
@@ -503,6 +504,14 @@ export default function Profile() {
               engagementScore={user.engagementScore || 0}
             />
           </Card>
+
+          {/* Recruiter Feedback Insights */}
+          {targetUserId && (
+            <RecruiterFeedbackSection 
+              userId={targetUserId} 
+              isOwnProfile={isViewingOwnProfile}
+            />
+          )}
         </>
       )}
 

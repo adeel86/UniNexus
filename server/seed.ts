@@ -1945,7 +1945,34 @@ async function seedDatabase() {
       category: "technical_skills",
       feedback: "Strong technical skills demonstrated. Excellent communication abilities and great cultural fit. Would recommend for internship program and potentially full-time role after graduation. Could benefit from more exposure to system design concepts.",
       context: "interview",
-      isPublic: false,
+      isPublic: true,
+    },
+    {
+      recruiterId: insertedUsers[11].id, // David Williams (TechCorp)
+      studentId: insertedUsers[0].id, // Demo Student
+      rating: 4,
+      category: "problem_solving",
+      feedback: "Demonstrated strong analytical thinking during the technical assessment. Approached complex problems methodically and showed good debugging skills. Would benefit from more exposure to large-scale system architecture.",
+      context: "challenge",
+      isPublic: true,
+    },
+    {
+      recruiterId: insertedUsers[3].id, // Demo Industry Partner
+      studentId: insertedUsers[0].id, // Demo Student
+      rating: 4,
+      category: "communication",
+      feedback: "Clear and articulate communication during presentations. Good at explaining technical concepts to non-technical stakeholders. Could improve on written documentation skills.",
+      context: "project_review",
+      isPublic: true,
+    },
+    {
+      recruiterId: insertedUsers[11].id, // David Williams (TechCorp)
+      studentId: insertedUsers[0].id, // Demo Student
+      rating: 3,
+      category: "leadership",
+      feedback: "Shows potential for leadership but needs more experience leading teams. Good at taking initiative and motivating others. Recommend more exposure to project management methodologies.",
+      context: "general",
+      isPublic: true,
     },
     {
       recruiterId: insertedUsers[11].id, // David Williams (TechCorp)
@@ -1954,7 +1981,16 @@ async function seedDatabase() {
       category: "technical_skills",
       feedback: "Outstanding problem-solving abilities and deep knowledge of ML algorithms. Strong portfolio demonstrates real-world experience. Top candidate - highly recommend for our ML Engineering team. Already extended offer.",
       context: "interview",
-      isPublic: false,
+      isPublic: true,
+    },
+    {
+      recruiterId: insertedUsers[3].id,
+      studentId: insertedUsers[5].id, // Alex Rivera
+      rating: 5,
+      category: "teamwork",
+      feedback: "Excellent collaborator who works well in diverse teams. Showed great ability to integrate different perspectives and drive consensus on technical decisions.",
+      context: "challenge",
+      isPublic: true,
     },
     {
       recruiterId: insertedUsers[3].id,
@@ -1963,7 +1999,16 @@ async function seedDatabase() {
       category: "soft_skills",
       feedback: "Exceptional design skills and creative problem-solving approach. Great team player with excellent collaboration abilities. Perfect fit for UI/UX design roles. Would love to have on our design team.",
       context: "project_review",
-      isPublic: false,
+      isPublic: true,
+    },
+    {
+      recruiterId: insertedUsers[11].id,
+      studentId: insertedUsers[6].id, // Jordan Chen
+      rating: 5,
+      category: "communication",
+      feedback: "Excellent presentation skills and ability to articulate design decisions clearly. Strong portfolio showcasing user-centered design thinking.",
+      context: "interview",
+      isPublic: true,
     },
     {
       recruiterId: insertedUsers[11].id,
@@ -1972,7 +2017,16 @@ async function seedDatabase() {
       category: "communication",
       feedback: "Excellent analytical skills with strong data visualization abilities. Clear and effective communicator. Great candidate for data analyst and data scientist roles. Strong potential for growth. Would benefit from more cloud computing experience.",
       context: "interview",
-      isPublic: false,
+      isPublic: true,
+    },
+    {
+      recruiterId: insertedUsers[3].id,
+      studentId: insertedUsers[7].id, // Maya Patel
+      rating: 4,
+      category: "technical_skills",
+      feedback: "Strong Python and data analysis skills. Good understanding of statistical methods and machine learning concepts. Would recommend focusing on deploying models to production.",
+      context: "challenge",
+      isPublic: true,
     },
   ];
 
