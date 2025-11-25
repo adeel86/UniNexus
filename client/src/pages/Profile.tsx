@@ -16,6 +16,8 @@ import { EditProfileModal } from "@/components/EditProfileModal";
 import { JobExperienceModal } from "@/components/JobExperienceModal";
 import { EducationSection } from "@/components/EducationSection";
 import { SkillsSection } from "@/components/SkillsSection";
+import { WorkExperienceSection } from "@/components/WorkExperienceSection";
+import { StudentCoursesSection } from "@/components/StudentCoursesSection";
 import { Award, TrendingUp, Zap, Trophy, Clock, Shield, Users, UserPlus, UserMinus, CheckCircle, Edit, Mail, Phone, Globe, Briefcase, GraduationCap, Plus, Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState } from "react";
@@ -545,6 +547,26 @@ export default function Profile() {
               userId={targetUserId!}
             />
           </div>
+
+          {/* Work Experience Section - Available for students */}
+          {user.role === "student" && (
+            <div className="mt-6">
+              <WorkExperienceSection
+                isOwnProfile={isViewingOwnProfile}
+                userId={targetUserId!}
+              />
+            </div>
+          )}
+
+          {/* Student Courses Section - For students with teacher validation */}
+          {user.role === "student" && (
+            <div className="mt-6">
+              <StudentCoursesSection
+                isOwnProfile={isViewingOwnProfile}
+                userId={targetUserId!}
+              />
+            </div>
+          )}
         </>
       )}
 

@@ -25,7 +25,7 @@ const jobExperienceSchema = z.object({
 type JobExperienceFormData = z.infer<typeof jobExperienceSchema>;
 
 interface JobExperience {
-  id: number;
+  id: string;
   userId: string;
   position: string;
   organization: string;
@@ -97,7 +97,7 @@ export function JobExperienceModal({ open, onOpenChange, experience, userId }: J
       const previousExperiences = queryClient.getQueryData<JobExperience[]>([`/api/users/${userId}/job-experience`]);
       
       const optimisticExperience = {
-        id: Date.now(),
+        id: `temp-${Date.now()}`,
         userId,
         ...newExperience,
       };
