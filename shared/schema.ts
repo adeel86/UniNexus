@@ -80,6 +80,9 @@ export const usersRelations = relations(users, ({ many }) => ({
   messagesSent: many(messages),
   groupMemberships: many(groupMembers),
   educationRecords: many(educationRecords),
+  workExperience: many(jobExperience),
+  studentCourses: many(studentCourses),
+  coursesValidated: many(studentCourses, { relationName: "validator" }),
 }));
 
 export type User = typeof users.$inferSelect;
@@ -1224,3 +1227,62 @@ export const insertJobExperienceSchema = createInsertSchema(jobExperience).omit(
 
 export type JobExperience = typeof jobExperience.$inferSelect;
 export type InsertJobExperience = z.infer<typeof insertJobExperienceSchema>;
+
+// ============================================================================
+// STUDENT COURSES (Courses added to student profile with teacher validation)
+// ============================================================================
+
+export const studentCourses = pgTable("student_courses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  courseName: varchar("course_name", { length: 200 }).notNull(),
+  courseCode: varchar("course_code", { length: 50 }),
+  institution: varchar("institution", { length: 200 }),
+  instructor: varchar("instructor", { length: 200 }), // Name of the instructor
+  semester: varchar("semester", { length: 50 }), // e.g., "Fall 2024"
+  year: integer("year"), // Year completed
+  grade: varchar("grade", { length: 20 }), // A, B, C or percentage
+  credits: integer("credits"),
+  description: text("description"),
+  
+  // Validation by teacher
+  isValidated: boolean("is_validated").notNull().default(false),
+  validatedBy: varchar("validated_by").references(() => users.id, { onDelete: 'set null' }),
+  validatedAt: timestamp("validated_at"),
+  validationNote: text("validation_note"),
+  
+  // Link to assigned teacher for validation eligibility
+  assignedTeacherId: varchar("assigned_teacher_id").references(() => users.id, { onDelete: 'set null' }),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const studentCoursesRelations = relations(studentCourses, ({ one }) => ({
+  user: one(users, {
+    fields: [studentCourses.userId],
+    references: [users.id],
+  }),
+  validator: one(users, {
+    fields: [studentCourses.validatedBy],
+    references: [users.id],
+    relationName: "validator",
+  }),
+  assignedTeacher: one(users, {
+    fields: [studentCourses.assignedTeacherId],
+    references: [users.id],
+  }),
+}));
+
+export const insertStudentCourseSchema = createInsertSchema(studentCourses).omit({
+  id: true,
+  isValidated: true,
+  validatedBy: true,
+  validatedAt: true,
+  validationNote: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type StudentCourse = typeof studentCourses.$inferSelect;
+export type InsertStudentCourse = z.infer<typeof insertStudentCourseSchema>;
