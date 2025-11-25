@@ -44,6 +44,7 @@ import {
   userProfiles,
   educationRecords,
   jobExperience,
+  studentCourses,
   insertPostSchema,
   insertCommentSchema,
   insertReactionSchema,
@@ -66,6 +67,7 @@ import {
   insertTeacherContentSchema,
   insertEducationRecordSchema,
   insertJobExperienceSchema,
+  insertStudentCourseSchema,
 } from "@shared/schema";
 import OpenAI from "openai";
 import jwt from "jsonwebtoken";
@@ -1898,6 +1900,272 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(jobExperience.id, id));
 
       res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
+  // STUDENT COURSES ENDPOINTS (Profile courses with teacher validation)
+  // ========================================================================
+
+  // Get student courses for a user
+  app.get("/api/users/:userId/student-courses", async (req: Request, res: Response) => {
+    try {
+      const { userId } = req.params;
+
+      const coursesResult = await db
+        .select({
+          course: studentCourses,
+          validator: {
+            id: users.id,
+            displayName: users.displayName,
+            firstName: users.firstName,
+            lastName: users.lastName,
+          },
+        })
+        .from(studentCourses)
+        .leftJoin(users, eq(studentCourses.validatedBy, users.id))
+        .where(eq(studentCourses.userId, userId))
+        .orderBy(desc(studentCourses.year), desc(studentCourses.createdAt));
+
+      const formattedCourses = coursesResult.map(({ course, validator }) => ({
+        ...course,
+        validator: validator?.id ? validator : null,
+      }));
+
+      res.json(formattedCourses);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Add a student course
+  app.post("/api/student-courses", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const validated = insertStudentCourseSchema.parse({
+        ...req.body,
+        userId: req.user.id,
+      });
+
+      const [course] = await db
+        .insert(studentCourses)
+        .values(validated)
+        .returning();
+
+      res.json(course);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Update a student course
+  app.patch("/api/student-courses/:id", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { id } = req.params;
+
+      // Verify ownership
+      const [existing] = await db
+        .select()
+        .from(studentCourses)
+        .where(eq(studentCourses.id, id))
+        .limit(1);
+
+      if (!existing) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+
+      if (existing.userId !== req.user.id) {
+        return res.status(403).json({ error: "Not authorized to update this course" });
+      }
+
+      // Don't allow changing validation fields through update
+      const { isValidated, validatedBy, validatedAt, validationNote, ...updateData } = req.body;
+
+      const [updated] = await db
+        .update(studentCourses)
+        .set({ ...updateData, updatedAt: new Date() })
+        .where(eq(studentCourses.id, id))
+        .returning();
+
+      res.json(updated);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete a student course
+  app.delete("/api/student-courses/:id", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { id } = req.params;
+
+      // Verify ownership
+      const [existing] = await db
+        .select()
+        .from(studentCourses)
+        .where(eq(studentCourses.id, id))
+        .limit(1);
+
+      if (!existing) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+
+      if (existing.userId !== req.user.id) {
+        return res.status(403).json({ error: "Not authorized to delete this course" });
+      }
+
+      await db
+        .delete(studentCourses)
+        .where(eq(studentCourses.id, id));
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Validate a student course (teachers only)
+  app.post("/api/student-courses/:id/validate", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    // Only teachers can validate courses
+    if (req.user.role !== 'teacher') {
+      return res.status(403).json({ error: "Only teachers can validate courses" });
+    }
+
+    try {
+      const { id } = req.params;
+      const { validationNote } = req.body;
+
+      // Get the course
+      const [course] = await db
+        .select()
+        .from(studentCourses)
+        .where(eq(studentCourses.id, id))
+        .limit(1);
+
+      if (!course) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+
+      // Check if the teacher is the assigned teacher for this course
+      if (course.assignedTeacherId && course.assignedTeacherId !== req.user.id) {
+        return res.status(403).json({ 
+          error: "Only the assigned teacher can validate this course" 
+        });
+      }
+
+      const [validated] = await db
+        .update(studentCourses)
+        .set({
+          isValidated: true,
+          validatedBy: req.user.id,
+          validatedAt: new Date(),
+          validationNote: validationNote || null,
+          updatedAt: new Date(),
+        })
+        .where(eq(studentCourses.id, id))
+        .returning();
+
+      res.json(validated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Remove validation from a student course (teacher who validated or course owner)
+  app.delete("/api/student-courses/:id/validation", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { id } = req.params;
+
+      const [course] = await db
+        .select()
+        .from(studentCourses)
+        .where(eq(studentCourses.id, id))
+        .limit(1);
+
+      if (!course) {
+        return res.status(404).json({ error: "Course not found" });
+      }
+
+      // Only the validator or course owner can remove validation
+      const canRemove = course.validatedBy === req.user.id || course.userId === req.user.id;
+      if (!canRemove) {
+        return res.status(403).json({ error: "Not authorized to remove validation" });
+      }
+
+      const [updated] = await db
+        .update(studentCourses)
+        .set({
+          isValidated: false,
+          validatedBy: null,
+          validatedAt: null,
+          validationNote: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(studentCourses.id, id))
+        .returning();
+
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get pending validations for a teacher
+  app.get("/api/teacher/pending-validations", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    if (req.user.role !== 'teacher') {
+      return res.status(403).json({ error: "Only teachers can view pending validations" });
+    }
+
+    try {
+      const pending = await db
+        .select({
+          course: studentCourses,
+          student: {
+            id: users.id,
+            displayName: users.displayName,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            profileImageUrl: users.profileImageUrl,
+          },
+        })
+        .from(studentCourses)
+        .innerJoin(users, eq(studentCourses.userId, users.id))
+        .where(and(
+          eq(studentCourses.assignedTeacherId, req.user.id),
+          eq(studentCourses.isValidated, false)
+        ))
+        .orderBy(desc(studentCourses.createdAt));
+
+      const formatted = pending.map(({ course, student }) => ({
+        ...course,
+        student,
+      }));
+
+      res.json(formatted);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
