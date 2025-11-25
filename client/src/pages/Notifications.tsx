@@ -2,19 +2,21 @@ import { useAuth } from '@/lib/AuthContext';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Bell, Check, CheckCheck, Trash2, Award, MessageSquare, Heart, Trophy } from 'lucide-react';
+import { Bell, Check, CheckCheck, Trash2, Award, MessageSquare, Heart, Trophy, Loader2 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { formatDistanceToNow } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
 import type { Notification } from '@shared/schema';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
+import { useState } from 'react';
 
 export default function Notifications() {
   const { userData } = useAuth();
   const [, navigate] = useLocation();
   const isMobile = useIsMobile();
   const { toast } = useToast();
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   
   const { data: notifications = [], isLoading } = useQuery<Notification[]>({
     queryKey: ['/api/notifications'],
@@ -23,12 +25,23 @@ export default function Notifications() {
 
   const markAsReadMutation = useMutation({
     mutationFn: async (notificationId: string) => {
+      setProcessingIds(prev => new Set(prev).add(notificationId));
       return apiRequest("PATCH", `/api/notifications/${notificationId}/read`, {});
     },
-    onSuccess: () => {
+    onSuccess: (_, notificationId) => {
       queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      setProcessingIds(prev => {
+        const next = new Set(prev);
+        next.delete(notificationId);
+        return next;
+      });
     },
-    onError: () => {
+    onError: (_, notificationId) => {
+      setProcessingIds(prev => {
+        const next = new Set(prev);
+        next.delete(notificationId);
+        return next;
+      });
       toast({ title: "Failed to mark notification as read", variant: "destructive" });
     },
   });
@@ -48,13 +61,24 @@ export default function Notifications() {
 
   const deleteNotificationMutation = useMutation({
     mutationFn: async (notificationId: string) => {
+      setProcessingIds(prev => new Set(prev).add(notificationId));
       return apiRequest("DELETE", `/api/notifications/${notificationId}`, {});
     },
-    onSuccess: () => {
+    onSuccess: (_, notificationId) => {
       queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      setProcessingIds(prev => {
+        const next = new Set(prev);
+        next.delete(notificationId);
+        return next;
+      });
       toast({ title: "Notification deleted" });
     },
-    onError: () => {
+    onError: (_, notificationId) => {
+      setProcessingIds(prev => {
+        const next = new Set(prev);
+        next.delete(notificationId);
+        return next;
+      });
       toast({ title: "Failed to delete notification", variant: "destructive" });
     },
   });
@@ -204,6 +228,7 @@ export default function Notifications() {
                         size="icon"
                         variant="ghost"
                         className="h-8 w-8"
+                        disabled={processingIds.has(notification.id)}
                         onClick={(e) => {
                           e.stopPropagation();
                           markAsReadMutation.mutate(notification.id);
@@ -211,13 +236,18 @@ export default function Notifications() {
                         title="Mark as read"
                         data-testid={`button-mark-read-${notification.id}`}
                       >
-                        <Check className="h-4 w-4" />
+                        {processingIds.has(notification.id) ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Check className="h-4 w-4" />
+                        )}
                       </Button>
                     )}
                     <Button
                       size="icon"
                       variant="ghost"
                       className="h-8 w-8 text-muted-foreground"
+                      disabled={processingIds.has(notification.id)}
                       onClick={(e) => {
                         e.stopPropagation();
                         deleteNotificationMutation.mutate(notification.id);
@@ -225,7 +255,11 @@ export default function Notifications() {
                       title="Delete notification"
                       data-testid={`button-delete-notification-${notification.id}`}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      {processingIds.has(notification.id) ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
                     </Button>
                   </div>
                 </div>

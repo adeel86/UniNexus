@@ -141,6 +141,60 @@ export function PostCard({ post: initialPost }: PostCardProps) {
     },
   });
 
+  // Remove reaction mutation for toggling reactions off
+  const removeReactionMutation = useMutation({
+    mutationFn: async (reactionId: string) => {
+      return apiRequest("DELETE", `/api/reactions/${reactionId}`, {});
+    },
+    onMutate: async (reactionId: string) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/feed/personalized"] });
+      await queryClient.cancelQueries({ queryKey: ["/api/feed/trending"] });
+      await queryClient.cancelQueries({ queryKey: ["/api/feed/following"] });
+      await queryClient.cancelQueries({ queryKey: ["/api/posts"] });
+
+      const previousPersonalized = queryClient.getQueryData(["/api/feed/personalized"]);
+      const previousTrending = queryClient.getQueryData(["/api/feed/trending"]);
+      const previousFollowing = queryClient.getQueryData(["/api/feed/following"]);
+
+      const updatePosts = (oldData: PostWithAuthor[] | undefined) => {
+        if (!oldData) return oldData;
+        return oldData.map((p: PostWithAuthor) =>
+          p.id === post.id
+            ? { ...p, reactions: p.reactions.filter((r: Reaction) => r.id !== reactionId) }
+            : p
+        );
+      };
+
+      queryClient.setQueryData(["/api/feed/personalized"], updatePosts);
+      queryClient.setQueryData(["/api/feed/trending"], updatePosts);
+      queryClient.setQueryData(["/api/feed/following"], updatePosts);
+
+      return { previousPersonalized, previousTrending, previousFollowing };
+    },
+    onError: (err, reactionId, context) => {
+      if (context?.previousPersonalized) {
+        queryClient.setQueryData(["/api/feed/personalized"], context.previousPersonalized);
+      }
+      if (context?.previousTrending) {
+        queryClient.setQueryData(["/api/feed/trending"], context.previousTrending);
+      }
+      if (context?.previousFollowing) {
+        queryClient.setQueryData(["/api/feed/following"], context.previousFollowing);
+      }
+      toast({
+        title: "Error",
+        description: "Failed to remove reaction",
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/feed/personalized"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/feed/trending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/feed/following"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
+    },
+  });
+
   const commentMutation = useMutation({
     mutationFn: async () => {
       return apiRequest("POST", "/api/comments", {
@@ -311,11 +365,24 @@ export function PostCard({ post: initialPost }: PostCardProps) {
   const handleReaction = (type: string) => {
     if (!auth.userData) return;
     
+    // Check if user already has this reaction
     const existingReaction = post.reactions.find(
       (r: Reaction) => r.userId === auth.userData?.id && r.type === type
     );
     
-    if (!existingReaction) {
+    if (existingReaction) {
+      // Toggle off - remove the existing reaction
+      removeReactionMutation.mutate(existingReaction.id);
+    } else {
+      // Check if user has a different reaction type to remove first
+      const otherReaction = post.reactions.find(
+        (r: Reaction) => r.userId === auth.userData?.id && r.type !== type
+      );
+      if (otherReaction) {
+        // Remove old reaction before adding new one
+        removeReactionMutation.mutate(otherReaction.id);
+      }
+      // Add new reaction
       reactionMutation.mutate(type);
     }
   };
