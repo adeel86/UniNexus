@@ -2186,12 +2186,27 @@ async function seedDatabase() {
       courseName: "React and Modern Frontend",
       courseCode: "CS305",
       institution: "Demo University",
-      instructor: "Guest Instructor",
+      instructor: "Demo Teacher",
       semester: "Fall",
       year: 2024,
-      grade: "In Progress",
+      grade: "A-",
       credits: 3,
       description: "Building interactive user interfaces with React, state management, and modern tooling.",
+      assignedTeacherId: insertedUsers[1].id, // Demo Teacher - pending validation
+      isValidated: false,
+    },
+    {
+      userId: insertedUsers[0].id, // Demo Student
+      courseName: "Database Systems",
+      courseCode: "CS310",
+      institution: "Demo University",
+      instructor: "Demo Teacher",
+      semester: "Fall",
+      year: 2024,
+      grade: "B+",
+      credits: 4,
+      description: "Relational databases, SQL, NoSQL, and database design principles.",
+      assignedTeacherId: insertedUsers[1].id, // Demo Teacher - pending validation
       isValidated: false,
     },
     // Alex Chen courses
