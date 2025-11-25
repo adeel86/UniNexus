@@ -18,6 +18,7 @@ import { EducationSection } from "@/components/EducationSection";
 import { SkillsSection } from "@/components/SkillsSection";
 import { WorkExperienceSection } from "@/components/WorkExperienceSection";
 import { StudentCoursesSection } from "@/components/StudentCoursesSection";
+import { CVExportButton } from "@/components/CVExportButton";
 import { Award, TrendingUp, Zap, Trophy, Clock, Shield, Users, UserPlus, UserMinus, CheckCircle, Edit, Mail, Phone, Globe, Briefcase, GraduationCap, Plus, Trash2 } from "lucide-react";
 import { useLocation } from "wouter";
 import { useState } from "react";
@@ -262,7 +263,7 @@ export default function Profile() {
           
           {/* Edit Profile button (only show when viewing own profile) */}
           {isViewingOwnProfile && (
-            <div>
+            <div className="flex items-center gap-2 flex-wrap">
               <Button
                 onClick={() => setEditProfileOpen(true)}
                 variant="outline"
@@ -273,6 +274,9 @@ export default function Profile() {
                 <Edit className="mr-2 h-5 w-5" />
                 Edit Profile
               </Button>
+              {user.role === "student" && (
+                <CVExportButton userId={targetUserId!} />
+              )}
             </div>
           )}
           

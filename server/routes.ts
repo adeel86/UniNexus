@@ -2172,6 +2172,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ========================================================================
+  // CV EXPORT ENDPOINT
+  // ========================================================================
+
+  // Get CV data for a user (authenticated, owner-only export)
+  app.get("/api/cv-export/:userId", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    const { userId } = req.params;
+
+    // Only allow users to export their own CV
+    if (req.user.id !== userId) {
+      return res.status(403).json({ error: "You can only export your own CV" });
+    }
+
+    try {
+      // Get user data (only public fields)
+      const [user] = await db
+        .select({
+          id: users.id,
+          displayName: users.displayName,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+          university: users.university,
+          bio: users.bio,
+          role: users.role,
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Get education records
+      const education = await db
+        .select()
+        .from(educationRecords)
+        .where(eq(educationRecords.userId, userId))
+        .orderBy(desc(educationRecords.startDate));
+
+      // Get work experience
+      const workExperience = await db
+        .select()
+        .from(jobExperience)
+        .where(eq(jobExperience.userId, userId))
+        .orderBy(desc(jobExperience.startDate));
+
+      // Get student courses (with sanitized validation info)
+      const coursesRaw = await db
+        .select({
+          id: studentCourses.id,
+          courseName: studentCourses.courseName,
+          courseCode: studentCourses.courseCode,
+          institution: studentCourses.institution,
+          instructor: studentCourses.instructor,
+          semester: studentCourses.semester,
+          year: studentCourses.year,
+          grade: studentCourses.grade,
+          description: studentCourses.description,
+          isValidated: studentCourses.isValidated,
+          validatedAt: studentCourses.validatedAt,
+        })
+        .from(studentCourses)
+        .where(eq(studentCourses.userId, userId))
+        .orderBy(desc(studentCourses.year));
+
+      // Get user skills with skill names
+      const skillsRaw = await db
+        .select({
+          id: userSkills.id,
+          skillId: userSkills.skillId,
+          level: userSkills.level,
+          skillName: skills.name,
+        })
+        .from(userSkills)
+        .leftJoin(skills, eq(userSkills.skillId, skills.id))
+        .where(eq(userSkills.userId, userId));
+
+      const cvData = {
+        user,
+        education,
+        workExperience,
+        courses: coursesRaw,
+        skills: skillsRaw.map(s => ({
+          id: s.id,
+          name: s.skillName || s.skillId,
+          level: s.level,
+        })),
+      };
+
+      res.json(cvData);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
   // USER SKILLS ENDPOINTS
   // ========================================================================
 
