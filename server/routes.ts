@@ -698,6 +698,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update post (only author can update)
+  app.patch("/api/posts/:postId", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { postId } = req.params;
+      const { content, category, tags } = req.body;
+
+      // Check if user is the author
+      const [existingPost] = await db
+        .select()
+        .from(posts)
+        .where(eq(posts.id, postId))
+        .limit(1);
+
+      if (!existingPost) {
+        return res.status(404).json({ error: "Post not found" });
+      }
+
+      if (existingPost.authorId !== req.user.id) {
+        return res.status(403).json({ error: "You can only edit your own posts" });
+      }
+
+      const [updatedPost] = await db
+        .update(posts)
+        .set({
+          content: content ?? existingPost.content,
+          category: category ?? existingPost.category,
+          tags: tags ?? existingPost.tags,
+          updatedAt: new Date(),
+        })
+        .where(eq(posts.id, postId))
+        .returning();
+
+      res.json(updatedPost);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete post (only author or admin can delete)
+  app.delete("/api/posts/:postId", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { postId } = req.params;
+
+      // Check if user is the author or an admin
+      const [existingPost] = await db
+        .select()
+        .from(posts)
+        .where(eq(posts.id, postId))
+        .limit(1);
+
+      if (!existingPost) {
+        return res.status(404).json({ error: "Post not found" });
+      }
+
+      const isAdmin = req.user.role === 'master_admin' || req.user.role === 'university_admin';
+      if (existingPost.authorId !== req.user.id && !isAdmin) {
+        return res.status(403).json({ error: "You can only delete your own posts" });
+      }
+
+      // Delete associated reactions and comments first
+      await db.delete(reactions).where(eq(reactions.postId, postId));
+      await db.delete(comments).where(eq(comments.postId, postId));
+      
+      // Delete the post
+      await db.delete(posts).where(eq(posts.id, postId));
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ========================================================================
   // COMMENTS ENDPOINTS
   // ========================================================================
@@ -743,6 +823,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(newComment);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete comment (only author or post author can delete)
+  app.delete("/api/comments/:commentId", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { commentId } = req.params;
+
+      // Get the comment
+      const [comment] = await db
+        .select()
+        .from(comments)
+        .where(eq(comments.id, commentId))
+        .limit(1);
+
+      if (!comment) {
+        return res.status(404).json({ error: "Comment not found" });
+      }
+
+      // Get the post to check if user is post author
+      const [post] = await db
+        .select()
+        .from(posts)
+        .where(eq(posts.id, comment.postId))
+        .limit(1);
+
+      const isAdmin = req.user.role === 'master_admin' || req.user.role === 'university_admin';
+      const isCommentAuthor = comment.authorId === req.user.id;
+      const isPostAuthor = post && post.authorId === req.user.id;
+
+      if (!isCommentAuthor && !isPostAuthor && !isAdmin) {
+        return res.status(403).json({ error: "You can only delete your own comments or comments on your posts" });
+      }
+
+      await db.delete(comments).where(eq(comments.id, commentId));
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 
@@ -808,6 +931,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(newReaction);
     } catch (error: any) {
       res.status(400).json({ error: error.message });
+    }
+  });
+
+  // Delete reaction (toggle off)
+  app.delete("/api/reactions/:postId/:type", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { postId, type } = req.params;
+
+      // Find and delete the reaction
+      const [deleted] = await db
+        .delete(reactions)
+        .where(
+          and(
+            eq(reactions.postId, postId),
+            eq(reactions.userId, req.user.id),
+            eq(reactions.type, type)
+          )
+        )
+        .returning();
+
+      if (!deleted) {
+        return res.status(404).json({ error: "Reaction not found" });
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 
@@ -2499,6 +2653,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .limit(20);
 
       res.json(userNotifications);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Mark notification as read
+  app.patch("/api/notifications/:notificationId/read", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { notificationId } = req.params;
+
+      const [notification] = await db
+        .select()
+        .from(notifications)
+        .where(eq(notifications.id, notificationId))
+        .limit(1);
+
+      if (!notification) {
+        return res.status(404).json({ error: "Notification not found" });
+      }
+
+      if (notification.userId !== req.user.id) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      const [updated] = await db
+        .update(notifications)
+        .set({ isRead: true })
+        .where(eq(notifications.id, notificationId))
+        .returning();
+
+      res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Mark all notifications as read
+  app.patch("/api/notifications/mark-all-read", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      await db
+        .update(notifications)
+        .set({ isRead: true })
+        .where(eq(notifications.userId, req.user.id));
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete notification
+  app.delete("/api/notifications/:notificationId", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { notificationId } = req.params;
+
+      const [notification] = await db
+        .select()
+        .from(notifications)
+        .where(eq(notifications.id, notificationId))
+        .limit(1);
+
+      if (!notification) {
+        return res.status(404).json({ error: "Notification not found" });
+      }
+
+      if (notification.userId !== req.user.id) {
+        return res.status(403).json({ error: "Not authorized" });
+      }
+
+      await db.delete(notifications).where(eq(notifications.id, notificationId));
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Clear all notifications
+  app.delete("/api/notifications/clear-all", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      await db.delete(notifications).where(eq(notifications.userId, req.user.id));
+
+      res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

@@ -1,17 +1,33 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "./UserAvatar";
-import { Heart, MessageCircle, Share2, ThumbsUp, Lightbulb, Handshake, BadgeCheck } from "lucide-react";
+import { Heart, MessageCircle, Share2, ThumbsUp, Lightbulb, Handshake, BadgeCheck, MoreHorizontal, Edit, Trash2, X } from "lucide-react";
 import type { Post, User, Comment, Reaction } from "@shared/schema";
 import { useState, useMemo } from "react";
 import { Textarea } from "@/components/ui/textarea";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Badge } from "@/components/ui/badge";
 import { formatDistanceToNow } from "date-fns";
 import { VideoPlayer } from "@/components/VideoPlayer";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type PostWithAuthor = Post & {
   author: User;
@@ -36,6 +52,10 @@ export function PostCard({ post: initialPost }: PostCardProps) {
   const queryClient = useQueryClient();
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(initialPost.content || "");
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
 
   // Get the latest post data from cache (for optimistic updates) or fall back to prop
   const post = useMemo(() => {
@@ -200,11 +220,99 @@ export function PostCard({ post: initialPost }: PostCardProps) {
     },
   });
 
+  // Edit post mutation
+  const editPostMutation = useMutation({
+    mutationFn: async (content: string) => {
+      return apiRequest("PATCH", `/api/posts/${post.id}`, { content });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/feed/personalized"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/feed/trending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/feed/following"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
+      setIsEditing(false);
+      toast({ title: "Post updated!" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update post", variant: "destructive" });
+    },
+  });
+
+  // Delete post mutation
+  const deletePostMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("DELETE", `/api/posts/${post.id}`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/feed/personalized"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/feed/trending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/feed/following"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
+      toast({ title: "Post deleted" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete post", variant: "destructive" });
+    },
+  });
+
+  // Delete comment mutation
+  const deleteCommentMutation = useMutation({
+    mutationFn: async (commentId: string) => {
+      return apiRequest("DELETE", `/api/comments/${commentId}`, {});
+    },
+    onMutate: async (commentId: string) => {
+      await queryClient.cancelQueries({ queryKey: ["/api/feed/personalized"] });
+      await queryClient.cancelQueries({ queryKey: ["/api/feed/trending"] });
+      await queryClient.cancelQueries({ queryKey: ["/api/feed/following"] });
+
+      const previousPersonalized = queryClient.getQueryData(["/api/feed/personalized"]);
+      const previousTrending = queryClient.getQueryData(["/api/feed/trending"]);
+      const previousFollowing = queryClient.getQueryData(["/api/feed/following"]);
+
+      const updatePosts = (oldData: PostWithAuthor[] | undefined) => {
+        if (!oldData) return oldData;
+        return oldData.map((p: PostWithAuthor) =>
+          p.id === post.id
+            ? { ...p, comments: p.comments.filter((c: Comment) => c.id !== commentId) }
+            : p
+        );
+      };
+
+      queryClient.setQueryData(["/api/feed/personalized"], updatePosts);
+      queryClient.setQueryData(["/api/feed/trending"], updatePosts);
+      queryClient.setQueryData(["/api/feed/following"], updatePosts);
+
+      return { previousPersonalized, previousTrending, previousFollowing };
+    },
+    onError: (err, commentId, context) => {
+      if (context?.previousPersonalized) {
+        queryClient.setQueryData(["/api/feed/personalized"], context.previousPersonalized);
+      }
+      if (context?.previousTrending) {
+        queryClient.setQueryData(["/api/feed/trending"], context.previousTrending);
+      }
+      if (context?.previousFollowing) {
+        queryClient.setQueryData(["/api/feed/following"], context.previousFollowing);
+      }
+      toast({ title: "Failed to delete comment", variant: "destructive" });
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/feed/personalized"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/feed/trending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/feed/following"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
+      setCommentToDelete(null);
+    },
+    onSuccess: () => {
+      toast({ title: "Comment deleted" });
+    },
+  });
+
   const handleReaction = (type: string) => {
     if (!auth.userData) return;
     
     const existingReaction = post.reactions.find(
-      (r) => r.userId === auth.userData?.id && r.type === type
+      (r: Reaction) => r.userId === auth.userData?.id && r.type === type
     );
     
     if (!existingReaction) {
@@ -213,12 +321,16 @@ export function PostCard({ post: initialPost }: PostCardProps) {
   };
 
   const getReactionCount = (type: string) => {
-    return post.reactions.filter((r) => r.type === type).length;
+    return post.reactions.filter((r: Reaction) => r.type === type).length;
   };
 
   const hasUserReacted = (type: string) => {
-    return post.reactions.some((r) => r.userId === auth.userData?.id && r.type === type);
+    return post.reactions.some((r: Reaction) => r.userId === auth.userData?.id && r.type === type);
   };
+
+  const isOwnPost = auth.userData?.id === post.authorId;
+  const isAdmin = auth.userData?.role === 'master_admin' || auth.userData?.role === 'university_admin';
+  const canModifyPost = isOwnPost || isAdmin;
 
   return (
     <Card className="p-6" data-testid={`post-${post.id}`}>
@@ -249,11 +361,72 @@ export function PostCard({ post: initialPost }: PostCardProps) {
             )}
           </div>
         </div>
+        {canModifyPost && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" data-testid="button-post-menu">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {isOwnPost && (
+                <DropdownMenuItem
+                  onClick={() => {
+                    setEditContent(post.content || "");
+                    setIsEditing(true);
+                  }}
+                  data-testid="button-edit-post"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit Post
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem
+                onClick={() => setShowDeleteDialog(true)}
+                className="text-destructive"
+                data-testid="button-delete-post"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Post
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
       {/* Post Content */}
       <div className="mb-4">
-        <p className="text-base leading-relaxed whitespace-pre-wrap">{post.content}</p>
+        {isEditing ? (
+          <div className="space-y-2">
+            <Textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              className="min-h-24"
+              data-testid="input-edit-content"
+            />
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={() => editPostMutation.mutate(editContent)}
+                disabled={editPostMutation.isPending}
+                data-testid="button-save-edit"
+              >
+                Save
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setIsEditing(false)}
+                data-testid="button-cancel-edit"
+              >
+                <X className="h-4 w-4 mr-1" />
+                Cancel
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-base leading-relaxed whitespace-pre-wrap">{post.content}</p>
+        )}
         
         {/* Legacy single image support */}
         {post.imageUrl && (
@@ -268,7 +441,7 @@ export function PostCard({ post: initialPost }: PostCardProps) {
         {/* Multiple images from mediaUrls */}
         {post.mediaUrls && post.mediaUrls.length > 0 && (
           <div className={`mt-4 grid gap-2 ${post.mediaUrls.length === 1 ? 'grid-cols-1' : post.mediaUrls.length === 2 ? 'grid-cols-2' : 'grid-cols-3'}`}>
-            {post.mediaUrls.map((url, index) => (
+            {post.mediaUrls.map((url: string, index: number) => (
               <img
                 key={index}
                 src={url}
@@ -293,7 +466,7 @@ export function PostCard({ post: initialPost }: PostCardProps) {
 
         {post.tags && post.tags.length > 0 && (
           <div className="flex gap-2 mt-3 flex-wrap">
-            {post.tags.map((tag) => (
+            {post.tags.map((tag: string) => (
               <Badge key={tag} variant="outline" className="text-xs">
                 #{tag}
               </Badge>
@@ -364,26 +537,90 @@ export function PostCard({ post: initialPost }: PostCardProps) {
           {/* Comments List */}
           {post.comments.length > 0 && (
             <div className="space-y-3">
-              {post.comments.map((comment) => (
-                <div key={comment.id} className="flex gap-3" data-testid={`comment-${comment.id}`}>
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-sm font-semibold">
-                    ?
-                  </div>
-                  <div className="flex-1 bg-muted rounded-lg p-3">
-                    <div className="font-medium text-sm mb-1">
-                      User
+              {post.comments.map((comment: Comment & { author?: User }) => {
+                const canDeleteComment = 
+                  auth.userData?.id === comment.authorId || 
+                  auth.userData?.id === post.authorId ||
+                  isAdmin;
+                
+                return (
+                  <div key={comment.id} className="flex gap-3 group" data-testid={`comment-${comment.id}`}>
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center text-white text-sm font-semibold shrink-0">
+                      {comment.author?.firstName?.[0] || "?"}
                     </div>
-                    <p className="text-sm">{comment.content}</p>
-                    <div className="text-xs text-muted-foreground mt-1">
-                      {comment.createdAt && formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                    <div className="flex-1 bg-muted rounded-lg p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="font-medium text-sm">
+                          {comment.author ? `${comment.author.firstName} ${comment.author.lastName}` : "User"}
+                        </div>
+                        {canDeleteComment && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => setCommentToDelete(comment.id)}
+                            data-testid={`button-delete-comment-${comment.id}`}
+                          >
+                            <Trash2 className="h-3 w-3 text-muted-foreground" />
+                          </Button>
+                        )}
+                      </div>
+                      <p className="text-sm">{comment.content}</p>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {comment.createdAt && formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
       )}
+
+      {/* Delete Post Dialog */}
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Post</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this post? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletePostMutation.mutate()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Comment Dialog */}
+      <AlertDialog open={!!commentToDelete} onOpenChange={(open) => !open && setCommentToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Comment</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this comment? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-comment">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => commentToDelete && deleteCommentMutation.mutate(commentToDelete)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-comment"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

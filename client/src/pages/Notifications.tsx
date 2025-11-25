@@ -1,22 +1,87 @@
 import { useAuth } from '@/lib/AuthContext';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Bell, Check, ExternalLink, Award, MessageSquare, Heart, Trophy } from 'lucide-react';
+import { Bell, Check, CheckCheck, Trash2, Award, MessageSquare, Heart, Trophy } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { formatDistanceToNow } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
 import type { Notification } from '@shared/schema';
+import { queryClient, apiRequest } from '@/lib/queryClient';
+import { useToast } from '@/hooks/use-toast';
 
 export default function Notifications() {
   const { userData } = useAuth();
   const [, navigate] = useLocation();
   const isMobile = useIsMobile();
+  const { toast } = useToast();
   
   const { data: notifications = [], isLoading } = useQuery<Notification[]>({
     queryKey: ['/api/notifications'],
     refetchInterval: 5000, // Poll every 5 seconds for real-time updates
   });
+
+  const markAsReadMutation = useMutation({
+    mutationFn: async (notificationId: string) => {
+      return apiRequest("PATCH", `/api/notifications/${notificationId}/read`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+    },
+    onError: () => {
+      toast({ title: "Failed to mark notification as read", variant: "destructive" });
+    },
+  });
+
+  const markAllReadMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("PATCH", `/api/notifications/mark-all-read`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      toast({ title: "All notifications marked as read" });
+    },
+    onError: () => {
+      toast({ title: "Failed to mark all as read", variant: "destructive" });
+    },
+  });
+
+  const deleteNotificationMutation = useMutation({
+    mutationFn: async (notificationId: string) => {
+      return apiRequest("DELETE", `/api/notifications/${notificationId}`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      toast({ title: "Notification deleted" });
+    },
+    onError: () => {
+      toast({ title: "Failed to delete notification", variant: "destructive" });
+    },
+  });
+
+  const clearAllMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("DELETE", `/api/notifications/clear-all`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      toast({ title: "All notifications cleared" });
+    },
+    onError: () => {
+      toast({ title: "Failed to clear notifications", variant: "destructive" });
+    },
+  });
+
+  const handleNotificationClick = (notification: Notification) => {
+    if (!notification.isRead) {
+      markAsReadMutation.mutate(notification.id);
+    }
+    if (notification.link) {
+      navigate(notification.link);
+    }
+  };
+
+  const unreadCount = notifications.filter((n: Notification) => !n.isRead).length;
 
   const getNotificationIcon = (type: string) => {
     switch (type) {
@@ -51,11 +116,48 @@ export default function Notifications() {
 
   return (
     <div className="container mx-auto p-4 max-w-2xl">
-      <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold mb-2">Notifications</h1>
-        <p className="text-muted-foreground">
-          Stay updated with your latest activities
-        </p>
+      <div className="flex items-start justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold mb-2">Notifications</h1>
+          <p className="text-muted-foreground">
+            Stay updated with your latest activities
+            {unreadCount > 0 && (
+              <span className="ml-2 text-primary font-medium">
+                ({unreadCount} unread)
+              </span>
+            )}
+          </p>
+        </div>
+        {notifications.length > 0 && (
+          <div className="flex gap-2 flex-shrink-0">
+            {unreadCount > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => markAllReadMutation.mutate()}
+                disabled={markAllReadMutation.isPending}
+                data-testid="button-mark-all-read"
+              >
+                <CheckCheck className="h-4 w-4 mr-2" />
+                Mark All Read
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                if (confirm("Are you sure you want to clear all notifications?")) {
+                  clearAllMutation.mutate();
+                }
+              }}
+              disabled={clearAllMutation.isPending}
+              data-testid="button-clear-all"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Clear All
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="space-y-3">
@@ -67,40 +169,65 @@ export default function Notifications() {
             </CardContent>
           </Card>
         ) : (
-          notifications.map((notification) => (
+          notifications.map((notification: Notification) => (
             <Card
               key={notification.id}
               className={`hover-elevate cursor-pointer ${
                 !notification.isRead ? 'bg-primary/5 border-primary/20' : ''
               }`}
-              onClick={() => {
-                if (notification.link) {
-                  navigate(notification.link);
-                }
-              }}
               data-testid={`notification-${notification.id}`}
             >
               <CardContent className="p-4">
                 <div className="flex gap-3">
-                  <div className="flex-shrink-0">
-                    {getNotificationIcon(notification.type)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium mb-1">{notification.title}</p>
-                    <p className="text-sm text-muted-foreground mb-2">
-                      {notification.message}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {notification.createdAt && formatDistanceToNow(new Date(notification.createdAt), {
-                        addSuffix: true,
-                      })}
-                    </p>
-                  </div>
-                  {!notification.isRead && (
+                  <div 
+                    className="flex-1 flex gap-3 min-w-0"
+                    onClick={() => handleNotificationClick(notification)}
+                  >
                     <div className="flex-shrink-0">
-                      <div className="h-2 w-2 rounded-full bg-primary" />
+                      {getNotificationIcon(notification.type)}
                     </div>
-                  )}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium mb-1">{notification.title}</p>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        {notification.message}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {notification.createdAt && formatDistanceToNow(new Date(notification.createdAt), {
+                          addSuffix: true,
+                        })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {!notification.isRead && (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-8 w-8"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          markAsReadMutation.mutate(notification.id);
+                        }}
+                        title="Mark as read"
+                        data-testid={`button-mark-read-${notification.id}`}
+                      >
+                        <Check className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 text-muted-foreground"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteNotificationMutation.mutate(notification.id);
+                      }}
+                      title="Delete notification"
+                      data-testid={`button-delete-notification-${notification.id}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
