@@ -35,19 +35,48 @@ interface ChunkWithScore {
   contentTitle: string;
 }
 
+function splitLongSentence(sentence: string, maxLength: number): string[] {
+  if (sentence.length <= maxLength) {
+    return [sentence];
+  }
+  
+  const words = sentence.split(/\s+/);
+  const result: string[] = [];
+  let currentPart = "";
+  
+  for (const word of words) {
+    if ((currentPart + " " + word).length > maxLength && currentPart.length > 0) {
+      result.push(currentPart.trim());
+      currentPart = word;
+    } else {
+      currentPart = currentPart ? currentPart + " " + word : word;
+    }
+  }
+  
+  if (currentPart.trim()) {
+    result.push(currentPart.trim());
+  }
+  
+  return result;
+}
+
 function chunkText(text: string, chunkSize: number = CHUNK_SIZE, overlap: number = CHUNK_OVERLAP): string[] {
   const chunks: string[] = [];
   const sentences = text.split(/(?<=[.!?])\s+/);
   let currentChunk = "";
   
   for (const sentence of sentences) {
-    if ((currentChunk + " " + sentence).length > chunkSize && currentChunk.length > 0) {
-      chunks.push(currentChunk.trim());
-      const words = currentChunk.split(" ");
-      const overlapWords = words.slice(-Math.floor(overlap / 5));
-      currentChunk = overlapWords.join(" ") + " " + sentence;
-    } else {
-      currentChunk = currentChunk ? currentChunk + " " + sentence : sentence;
+    const sentenceParts = splitLongSentence(sentence, chunkSize);
+    
+    for (const part of sentenceParts) {
+      if ((currentChunk + " " + part).length > chunkSize && currentChunk.length > 0) {
+        chunks.push(currentChunk.trim());
+        const words = currentChunk.split(" ");
+        const overlapWords = words.slice(-Math.floor(overlap / 5));
+        currentChunk = overlapWords.join(" ") + " " + part;
+      } else {
+        currentChunk = currentChunk ? currentChunk + " " + part : part;
+      }
     }
   }
   
