@@ -3672,6 +3672,17 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         return res.status(400).json({ error: "Already joined this challenge" });
       }
 
+      // Get challenge info for notification
+      const [challenge] = await db
+        .select()
+        .from(challenges)
+        .where(eq(challenges.id, challengeId))
+        .limit(1);
+
+      if (!challenge) {
+        return res.status(404).json({ error: "Challenge not found" });
+      }
+
       const [participant] = await db.insert(challengeParticipants).values({
         challengeId,
         userId: req.user.id,
@@ -3684,18 +3695,17 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         })
         .where(eq(challenges.id, challengeId));
 
-      await db
-        .update(users)
-        .set({
-          engagementScore: sql`${users.engagementScore} + 10`,
-        })
-        .where(eq(users.id, req.user.id));
+      // Award points for joining: +10 engagement, +5 challenge points
+      await applyPointDelta(req.user.id, {
+        engagementDelta: 10,
+        challengeDelta: 5,
+      });
 
       await db.insert(notifications).values({
         userId: req.user.id,
         type: 'challenge',
         title: 'Challenge Joined!',
-        message: 'You have successfully joined a new challenge. Good luck!',
+        message: `You joined "${challenge.title}" and earned +5 Challenge Points! Submit your solution to earn more.`,
         link: '/challenges',
       });
 
@@ -3742,10 +3752,11 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         .where(eq(challengeParticipants.id, participant.id))
         .returning();
 
-      // Award points for submission using the new helper
+      // Award points for submission: +20 engagement, +15 problem-solver, +25 challenge points
       await applyPointDelta(req.user.id, {
         engagementDelta: 20,
         problemSolverDelta: 15,
+        challengeDelta: 25,
       });
 
       // Get challenge details for certificate
@@ -6681,11 +6692,10 @@ ${materialsContext || 'No materials have been uploaded yet. Please ask the teach
           const [newCourse] = await db
             .insert(courses)
             .values({
-              title: 'General Q&A',
+              name: 'General Q&A',
               code: 'GENERAL-QA',
               description: 'General problem-solving and Q&A discussions',
               instructorId: req.user.id,
-              category: 'general',
             })
             .returning();
           qaCourseId = newCourse.id;

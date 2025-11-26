@@ -74,9 +74,10 @@ export default function Challenges() {
       queryClient.invalidateQueries({ queryKey: ["/api/challenges"] });
       queryClient.invalidateQueries({ queryKey: ["/api/challenges/my-participations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/me"] });
       toast({
-        title: "Challenge Joined!",
-        description: "You've successfully joined the challenge. Good luck!",
+        title: "Challenge Joined! +5 Challenge Points",
+        description: "You've joined the challenge and earned points! Submit your solution to earn +25 more Challenge Points.",
       });
     },
     onError: (error: any) => {
@@ -96,11 +97,12 @@ export default function Challenges() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/challenges/my-participations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/me"] });
       setSubmissionUrl("");
       setSelectedChallenge(null);
       toast({
-        title: "Submission Received!",
-        description: "Your submission has been recorded successfully.",
+        title: "Submission Received! +25 Challenge Points",
+        description: "Your solution has been submitted. You earned +25 Challenge Points! Winners will earn bonus points based on their final ranking.",
       });
     },
     onError: (error: any) => {
@@ -174,6 +176,27 @@ export default function Challenges() {
           Join exciting competitions, showcase your skills, and win amazing prizes!
         </p>
       </div>
+
+      <Card className="p-4 mb-6 bg-gradient-to-r from-purple-600/10 via-pink-600/10 to-blue-600/10 border-purple-500/20">
+        <div className="flex flex-col md:flex-row md:items-center gap-4">
+          <div className="flex items-center gap-3">
+            <Award className="h-10 w-10 text-primary" />
+            <div>
+              <h3 className="font-semibold">Earn Challenge Points</h3>
+              <p className="text-sm text-muted-foreground">
+                Compete and climb the leaderboard!
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-3 md:ml-auto text-sm">
+            <Badge variant="outline" className="py-1">Join: +5 pts</Badge>
+            <Badge variant="outline" className="py-1">Submit: +25 pts</Badge>
+            <Badge variant="outline" className="py-1">1st Place: +500 pts</Badge>
+            <Badge variant="outline" className="py-1">2nd: +300 pts</Badge>
+            <Badge variant="outline" className="py-1">3rd: +200 pts</Badge>
+          </div>
+        </div>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <Card className="border-2 border-purple-500/20">
