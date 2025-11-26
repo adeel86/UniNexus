@@ -1,11 +1,11 @@
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Lightbulb, Plus, X, ChevronUp } from "lucide-react";
+import { Lightbulb, Plus, X, Award } from "lucide-react";
 import type { UserSkill, Skill } from "@shared/schema";
 import { useState } from "react";
 import { AddSkillModal } from "./AddSkillModal";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -15,9 +15,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+
+interface UserSkillWithCount extends UserSkill {
+  skill: Skill;
+  endorsementCount?: number;
+}
 
 interface SkillsSectionProps {
-  userSkills: (UserSkill & { skill: Skill })[];
+  userSkills: UserSkillWithCount[];
   isOwnProfile: boolean;
   userId: string;
 }
@@ -38,6 +51,9 @@ const levelLabels = {
 
 export function SkillsSection({ userSkills, isOwnProfile, userId }: SkillsSectionProps) {
   const [addModalOpen, setAddModalOpen] = useState(false);
+  const [endorseModalOpen, setEndorseModalOpen] = useState(false);
+  const [selectedSkill, setSelectedSkill] = useState<UserSkillWithCount | null>(null);
+  const [endorsementComment, setEndorsementComment] = useState("");
   const { toast } = useToast();
 
   const deleteMutation = useMutation({
@@ -66,6 +82,31 @@ export function SkillsSection({ userSkills, isOwnProfile, userId }: SkillsSectio
     },
   });
 
+  const endorseMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/endorsements", {
+        endorsedUserId: userId,
+        skillId: selectedSkill?.skillId,
+        comment: endorsementComment,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/user-skills/${userId}`] });
+      queryClient.invalidateQueries({ queryKey: [`/api/endorsements/${userId}`] });
+      toast({ title: "Skill endorsed successfully!" });
+      setEndorseModalOpen(false);
+      setEndorsementComment("");
+      setSelectedSkill(null);
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Failed to endorse skill", 
+        description: error.message || "Please try again",
+        variant: "destructive" 
+      });
+    },
+  });
+
   const handleDelete = (id: string) => {
     if (confirm("Are you sure you want to remove this skill?")) {
       deleteMutation.mutate(id);
@@ -74,6 +115,11 @@ export function SkillsSection({ userSkills, isOwnProfile, userId }: SkillsSectio
 
   const handleLevelChange = (id: string, level: string) => {
     updateLevelMutation.mutate({ id, level });
+  };
+
+  const handleEndorseClick = (userSkill: UserSkillWithCount) => {
+    setSelectedSkill(userSkill);
+    setEndorseModalOpen(true);
   };
 
   return (
@@ -146,14 +192,30 @@ export function SkillsSection({ userSkills, isOwnProfile, userId }: SkillsSectio
                   </Button>
                 </div>
               ) : (
-                <Badge
-                  variant="secondary"
-                  className={`${levelColors[userSkill.level as keyof typeof levelColors] || levelColors.beginner} px-3 py-1.5 text-sm gap-1`}
-                >
-                  <Lightbulb className="h-3 w-3" />
-                  {userSkill.skill.name}
-                  <span className="text-xs opacity-75">• {levelLabels[userSkill.level as keyof typeof levelLabels]}</span>
-                </Badge>
+                <div className="flex items-center gap-1">
+                  <Badge
+                    variant="secondary"
+                    className={`${levelColors[userSkill.level as keyof typeof levelColors] || levelColors.beginner} px-3 py-1.5 text-sm gap-1`}
+                  >
+                    <Lightbulb className="h-3 w-3" />
+                    {userSkill.skill.name}
+                    <span className="text-xs opacity-75">• {levelLabels[userSkill.level as keyof typeof levelLabels]}</span>
+                    {(userSkill.endorsementCount || 0) > 0 && (
+                      <span className="ml-1 bg-primary/20 text-primary px-1.5 rounded text-xs font-medium">
+                        +{userSkill.endorsementCount}
+                      </span>
+                    )}
+                  </Badge>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-7 px-2 opacity-70 hover:opacity-100"
+                    onClick={() => handleEndorseClick(userSkill)}
+                    data-testid={`button-endorse-skill-${userSkill.id}`}
+                  >
+                    <Award className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               )}
             </div>
           ))}
@@ -166,6 +228,52 @@ export function SkillsSection({ userSkills, isOwnProfile, userId }: SkillsSectio
         userId={userId}
         existingSkillIds={userSkills.map(us => us.skillId)}
       />
+
+      <Dialog open={endorseModalOpen} onOpenChange={setEndorseModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="font-heading text-xl flex items-center gap-2">
+              <Award className="h-5 w-5 text-primary" />
+              Endorse {selectedSkill?.skill.name}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="endorsement-comment">Comment (Optional)</Label>
+              <Textarea
+                id="endorsement-comment"
+                placeholder="Share why you're endorsing this skill..."
+                value={endorsementComment}
+                onChange={(e) => setEndorsementComment(e.target.value)}
+                className="min-h-[100px] mt-2"
+                data-testid="textarea-endorse-comment"
+              />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setEndorseModalOpen(false);
+                  setEndorsementComment("");
+                  setSelectedSkill(null);
+                }}
+                data-testid="button-cancel-endorse"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => endorseMutation.mutate()}
+                disabled={endorseMutation.isPending}
+                data-testid="button-submit-endorse"
+              >
+                {endorseMutation.isPending ? "Endorsing..." : "Endorse Skill"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

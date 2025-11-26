@@ -399,15 +399,60 @@ async function seedDatabase() {
 
   if (insertedUsers.length > 0 && insertedSkills.length > 0) {
     // Only assign skills to student and teacher roles (not university_admin, industry_professional, master_admin)
+    // Skills: 0=JavaScript, 1=Python, 2=React, 3=UI/UX, 4=Data Analysis, 5=ML, 6=Communication, 7=Teamwork, 8=Problem Solving, 9=Figma
     const userSkillAssignments = [
-      { userId: insertedUsers[0].id, skillId: insertedSkills[0].id, level: "advanced" }, // Demo Student
-      { userId: insertedUsers[0].id, skillId: insertedSkills[1].id, level: "intermediate" }, // Demo Student
-      { userId: insertedUsers[0].id, skillId: insertedSkills[2].id, level: "advanced" }, // Demo Student
-      { userId: insertedUsers[1].id, skillId: insertedSkills[3].id, level: "expert" }, // Demo Teacher
-      { userId: insertedUsers[1].id, skillId: insertedSkills[0].id, level: "intermediate" }, // Demo Teacher
-      { userId: insertedUsers[1].id, skillId: insertedSkills[9].id, level: "expert" }, // Demo Teacher
-      // Removed: insertedUsers[2] (university_admin), [3] (industry_professional), [4] (master_admin)
+      // Demo Student (index 0)
+      { userId: insertedUsers[0].id, skillId: insertedSkills[0].id, level: "advanced" }, // JavaScript
+      { userId: insertedUsers[0].id, skillId: insertedSkills[1].id, level: "intermediate" }, // Python
+      { userId: insertedUsers[0].id, skillId: insertedSkills[2].id, level: "advanced" }, // React
+      { userId: insertedUsers[0].id, skillId: insertedSkills[6].id, level: "intermediate" }, // Communication
+      { userId: insertedUsers[0].id, skillId: insertedSkills[8].id, level: "advanced" }, // Problem Solving
+      // Demo Teacher (index 1)
+      { userId: insertedUsers[1].id, skillId: insertedSkills[3].id, level: "expert" }, // UI/UX
+      { userId: insertedUsers[1].id, skillId: insertedSkills[0].id, level: "intermediate" }, // JavaScript
+      { userId: insertedUsers[1].id, skillId: insertedSkills[9].id, level: "expert" }, // Figma
+      { userId: insertedUsers[1].id, skillId: insertedSkills[6].id, level: "expert" }, // Communication
     ];
+
+    // Add skills for regular mock students (indices 5+ are typically students)
+    // Only add if we have enough users (checking for safety)
+    if (insertedUsers.length > 5) {
+      // Alex Rivera (index 5)
+      userSkillAssignments.push(
+        { userId: insertedUsers[5].id, skillId: insertedSkills[0].id, level: "expert" }, // JavaScript
+        { userId: insertedUsers[5].id, skillId: insertedSkills[2].id, level: "expert" }, // React
+        { userId: insertedUsers[5].id, skillId: insertedSkills[1].id, level: "advanced" }, // Python
+        { userId: insertedUsers[5].id, skillId: insertedSkills[5].id, level: "intermediate" }, // ML
+        { userId: insertedUsers[5].id, skillId: insertedSkills[8].id, level: "advanced" } // Problem Solving
+      );
+    }
+    if (insertedUsers.length > 6 && insertedUsers[6].role === 'student') {
+      // Jordan Chen (index 6 if student)
+      userSkillAssignments.push(
+        { userId: insertedUsers[6].id, skillId: insertedSkills[3].id, level: "expert" }, // UI/UX
+        { userId: insertedUsers[6].id, skillId: insertedSkills[9].id, level: "expert" }, // Figma
+        { userId: insertedUsers[6].id, skillId: insertedSkills[6].id, level: "advanced" }, // Communication
+        { userId: insertedUsers[6].id, skillId: insertedSkills[7].id, level: "intermediate" } // Teamwork
+      );
+    }
+    if (insertedUsers.length > 8) {
+      // Taylor Kim (index 8 if student)
+      userSkillAssignments.push(
+        { userId: insertedUsers[8].id, skillId: insertedSkills[4].id, level: "expert" }, // Data Analysis
+        { userId: insertedUsers[8].id, skillId: insertedSkills[1].id, level: "advanced" }, // Python
+        { userId: insertedUsers[8].id, skillId: insertedSkills[5].id, level: "intermediate" }, // ML
+        { userId: insertedUsers[8].id, skillId: insertedSkills[8].id, level: "advanced" } // Problem Solving
+      );
+    }
+    if (insertedUsers.length > 9) {
+      // Sam Patel (index 9)
+      userSkillAssignments.push(
+        { userId: insertedUsers[9].id, skillId: insertedSkills[0].id, level: "advanced" }, // JavaScript
+        { userId: insertedUsers[9].id, skillId: insertedSkills[2].id, level: "advanced" }, // React
+        { userId: insertedUsers[9].id, skillId: insertedSkills[7].id, level: "advanced" }, // Teamwork
+        { userId: insertedUsers[9].id, skillId: insertedSkills[6].id, level: "intermediate" } // Communication
+      );
+    }
 
     console.log("Assigning skills to users...");
     const assignedSkills = await db.insert(userSkills).values(userSkillAssignments).onConflictDoNothing().returning();

@@ -2493,7 +2493,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .where(eq(userSkills.userId, userId))
         .orderBy(skills.name);
 
-      res.json(userSkillsData);
+      // Get endorsement counts for each skill
+      const endorsementCounts = await db
+        .select({
+          skillId: endorsements.skillId,
+          count: sql<number>`COUNT(*)::integer`,
+        })
+        .from(endorsements)
+        .where(
+          and(
+            eq(endorsements.endorsedUserId, userId),
+            sql`${endorsements.skillId} IS NOT NULL`
+          )
+        )
+        .groupBy(endorsements.skillId);
+
+      const countMap = new Map(endorsementCounts.map(e => [e.skillId, e.count]));
+
+      // Add endorsementCount to each skill
+      const userSkillsWithCounts = userSkillsData.map(us => ({
+        ...us,
+        endorsementCount: countMap.get(us.skillId) || 0,
+      }));
+
+      res.json(userSkillsWithCounts);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
