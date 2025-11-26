@@ -6537,6 +6537,415 @@ ${materialsContext || 'No materials have been uploaded yet. Please ask the teach
     }
   });
 
+  // ========================================================================
+  // PROBLEM-SOLVING Q&A SYSTEM
+  // ========================================================================
+
+  // Get all Q&A questions (general problem-solving, not course-specific)
+  app.get("/api/qa/questions", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { resolved, limit = 20, offset = 0 } = req.query;
+
+      // Use a "general-qa" placeholder course ID for non-course questions
+      const questions = await db
+        .select({
+          id: courseDiscussions.id,
+          title: courseDiscussions.title,
+          content: courseDiscussions.content,
+          isQuestion: courseDiscussions.isQuestion,
+          isResolved: courseDiscussions.isResolved,
+          replyCount: courseDiscussions.replyCount,
+          upvoteCount: courseDiscussions.upvoteCount,
+          createdAt: courseDiscussions.createdAt,
+          authorId: courseDiscussions.authorId,
+          courseId: courseDiscussions.courseId,
+          author: users,
+        })
+        .from(courseDiscussions)
+        .leftJoin(users, eq(courseDiscussions.authorId, users.id))
+        .where(
+          and(
+            eq(courseDiscussions.isQuestion, true),
+            resolved !== undefined
+              ? eq(courseDiscussions.isResolved, resolved === 'true')
+              : sql`TRUE`
+          )
+        )
+        .orderBy(desc(courseDiscussions.createdAt))
+        .limit(Number(limit))
+        .offset(Number(offset));
+
+      res.json(questions);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get a single question with answers
+  app.get("/api/qa/questions/:questionId", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { questionId } = req.params;
+
+      const [question] = await db
+        .select({
+          id: courseDiscussions.id,
+          title: courseDiscussions.title,
+          content: courseDiscussions.content,
+          isQuestion: courseDiscussions.isQuestion,
+          isResolved: courseDiscussions.isResolved,
+          replyCount: courseDiscussions.replyCount,
+          upvoteCount: courseDiscussions.upvoteCount,
+          createdAt: courseDiscussions.createdAt,
+          authorId: courseDiscussions.authorId,
+          courseId: courseDiscussions.courseId,
+          author: users,
+        })
+        .from(courseDiscussions)
+        .leftJoin(users, eq(courseDiscussions.authorId, users.id))
+        .where(eq(courseDiscussions.id, questionId));
+
+      if (!question) {
+        return res.status(404).json({ error: "Question not found" });
+      }
+
+      // Get answers
+      const answers = await db
+        .select({
+          id: discussionReplies.id,
+          content: discussionReplies.content,
+          upvoteCount: discussionReplies.upvoteCount,
+          createdAt: discussionReplies.createdAt,
+          authorId: discussionReplies.authorId,
+          author: users,
+        })
+        .from(discussionReplies)
+        .leftJoin(users, eq(discussionReplies.authorId, users.id))
+        .where(eq(discussionReplies.discussionId, questionId))
+        .orderBy(desc(discussionReplies.upvoteCount), desc(discussionReplies.createdAt));
+
+      // Check if current user has upvoted the question
+      const [userQuestionUpvote] = await db
+        .select()
+        .from(discussionUpvotes)
+        .where(
+          and(
+            eq(discussionUpvotes.discussionId, questionId),
+            eq(discussionUpvotes.userId, req.user.id)
+          )
+        );
+
+      res.json({
+        ...question,
+        answers,
+        userHasUpvoted: !!userQuestionUpvote,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create a new Q&A question
+  app.post("/api/qa/questions", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { title, content, courseId } = req.body;
+
+      if (!title || !content) {
+        return res.status(400).json({ error: "Title and content are required" });
+      }
+
+      // Find or create a general Q&A course for non-course-specific questions
+      let qaCourseId = courseId;
+      if (!qaCourseId) {
+        const [generalCourse] = await db
+          .select()
+          .from(courses)
+          .where(eq(courses.code, 'GENERAL-QA'))
+          .limit(1);
+
+        if (generalCourse) {
+          qaCourseId = generalCourse.id;
+        } else {
+          // Create general Q&A course if it doesn't exist
+          const [newCourse] = await db
+            .insert(courses)
+            .values({
+              title: 'General Q&A',
+              code: 'GENERAL-QA',
+              description: 'General problem-solving and Q&A discussions',
+              instructorId: req.user.id,
+              category: 'general',
+            })
+            .returning();
+          qaCourseId = newCourse.id;
+        }
+      }
+
+      const [newQuestion] = await db
+        .insert(courseDiscussions)
+        .values({
+          courseId: qaCourseId,
+          authorId: req.user.id,
+          title,
+          content,
+          isQuestion: true,
+        })
+        .returning();
+
+      // Award +10 problem-solver points for asking a question
+      await db
+        .update(users)
+        .set({ 
+          problemSolverScore: sql`COALESCE(${users.problemSolverScore}, 0) + 10`,
+          totalPoints: sql`COALESCE(${users.totalPoints}, 0) + 10`
+        })
+        .where(eq(users.id, req.user.id));
+
+      res.json(newQuestion);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Answer a Q&A question
+  app.post("/api/qa/questions/:questionId/answers", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { questionId } = req.params;
+      const { content } = req.body;
+
+      if (!content) {
+        return res.status(400).json({ error: "Content is required" });
+      }
+
+      // Verify question exists
+      const [question] = await db
+        .select()
+        .from(courseDiscussions)
+        .where(eq(courseDiscussions.id, questionId));
+
+      if (!question) {
+        return res.status(404).json({ error: "Question not found" });
+      }
+
+      const [newAnswer] = await db
+        .insert(discussionReplies)
+        .values({
+          discussionId: questionId,
+          authorId: req.user.id,
+          content,
+        })
+        .returning();
+
+      // Update reply count
+      await db
+        .update(courseDiscussions)
+        .set({ replyCount: sql`${courseDiscussions.replyCount} + 1` })
+        .where(eq(courseDiscussions.id, questionId));
+
+      // Award +15 problem-solver points for answering
+      await db
+        .update(users)
+        .set({ 
+          problemSolverScore: sql`COALESCE(${users.problemSolverScore}, 0) + 15`,
+          totalPoints: sql`COALESCE(${users.totalPoints}, 0) + 15`
+        })
+        .where(eq(users.id, req.user.id));
+
+      // Notify question author
+      if (question.authorId !== req.user.id) {
+        await db.insert(notifications).values({
+          userId: question.authorId,
+          type: 'answer',
+          title: 'New Answer',
+          message: `${req.user.firstName} ${req.user.lastName} answered your question: "${question.title}"`,
+          link: `/problem-solving/${questionId}`,
+        });
+      }
+
+      res.json(newAnswer);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Upvote a question or answer
+  app.post("/api/qa/upvote", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { questionId, answerId } = req.body;
+
+      if (!questionId && !answerId) {
+        return res.status(400).json({ error: "Either questionId or answerId is required" });
+      }
+
+      // Check if already upvoted
+      const existingUpvote = await db
+        .select()
+        .from(discussionUpvotes)
+        .where(
+          and(
+            eq(discussionUpvotes.userId, req.user.id),
+            questionId 
+              ? eq(discussionUpvotes.discussionId, questionId)
+              : eq(discussionUpvotes.replyId, answerId)
+          )
+        );
+
+      if (existingUpvote.length > 0) {
+        // Remove upvote
+        await db
+          .delete(discussionUpvotes)
+          .where(eq(discussionUpvotes.id, existingUpvote[0].id));
+
+        // Decrease upvote count
+        if (questionId) {
+          await db
+            .update(courseDiscussions)
+            .set({ upvoteCount: sql`${courseDiscussions.upvoteCount} - 1` })
+            .where(eq(courseDiscussions.id, questionId));
+        } else {
+          await db
+            .update(discussionReplies)
+            .set({ upvoteCount: sql`${discussionReplies.upvoteCount} - 1` })
+            .where(eq(discussionReplies.id, answerId));
+        }
+
+        res.json({ upvoted: false });
+      } else {
+        // Add upvote
+        await db
+          .insert(discussionUpvotes)
+          .values({
+            userId: req.user.id,
+            discussionId: questionId || null,
+            replyId: answerId || null,
+          });
+
+        // Increase upvote count
+        if (questionId) {
+          await db
+            .update(courseDiscussions)
+            .set({ upvoteCount: sql`${courseDiscussions.upvoteCount} + 1` })
+            .where(eq(courseDiscussions.id, questionId));
+
+          // Award +2 points to question author
+          const [question] = await db.select().from(courseDiscussions).where(eq(courseDiscussions.id, questionId));
+          if (question && question.authorId !== req.user.id) {
+            await db
+              .update(users)
+              .set({ 
+                problemSolverScore: sql`COALESCE(${users.problemSolverScore}, 0) + 2`,
+                totalPoints: sql`COALESCE(${users.totalPoints}, 0) + 2`
+              })
+              .where(eq(users.id, question.authorId));
+          }
+        } else {
+          await db
+            .update(discussionReplies)
+            .set({ upvoteCount: sql`${discussionReplies.upvoteCount} + 1` })
+            .where(eq(discussionReplies.id, answerId));
+
+          // Award +5 points to answer author
+          const [answer] = await db.select().from(discussionReplies).where(eq(discussionReplies.id, answerId));
+          if (answer && answer.authorId !== req.user.id) {
+            await db
+              .update(users)
+              .set({ 
+                problemSolverScore: sql`COALESCE(${users.problemSolverScore}, 0) + 5`,
+                totalPoints: sql`COALESCE(${users.totalPoints}, 0) + 5`
+              })
+              .where(eq(users.id, answer.authorId));
+          }
+        }
+
+        res.json({ upvoted: true });
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Mark question as resolved
+  app.post("/api/qa/questions/:questionId/resolve", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { questionId } = req.params;
+      const { answerId } = req.body;
+
+      const [question] = await db
+        .select()
+        .from(courseDiscussions)
+        .where(eq(courseDiscussions.id, questionId));
+
+      if (!question) {
+        return res.status(404).json({ error: "Question not found" });
+      }
+
+      if (question.authorId !== req.user.id && req.user.role !== 'teacher' && req.user.role !== 'master_admin') {
+        return res.status(403).json({ error: "Only the question author can mark it as resolved" });
+      }
+
+      await db
+        .update(courseDiscussions)
+        .set({ isResolved: true })
+        .where(eq(courseDiscussions.id, questionId));
+
+      // Award +20 bonus points to the accepted answer author
+      if (answerId) {
+        const [acceptedAnswer] = await db
+          .select()
+          .from(discussionReplies)
+          .where(eq(discussionReplies.id, answerId));
+
+        if (acceptedAnswer) {
+          await db
+            .update(users)
+            .set({ 
+              problemSolverScore: sql`COALESCE(${users.problemSolverScore}, 0) + 20`,
+              totalPoints: sql`COALESCE(${users.totalPoints}, 0) + 20`
+            })
+            .where(eq(users.id, acceptedAnswer.authorId));
+
+          // Notify the answer author
+          if (acceptedAnswer.authorId !== req.user.id) {
+            await db.insert(notifications).values({
+              userId: acceptedAnswer.authorId,
+              type: 'badge',
+              title: 'Answer Accepted!',
+              message: `Your answer was marked as the solution and you earned +20 Problem-Solver Points!`,
+              link: `/problem-solving/${questionId}`,
+            });
+          }
+        }
+      }
+
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

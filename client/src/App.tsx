@@ -18,6 +18,7 @@ import IndustryDashboard from "@/pages/IndustryDashboard";
 import MasterAdminDashboard from "@/pages/MasterAdminDashboard";
 import Leaderboard from "@/pages/Leaderboard";
 import Challenges from "@/pages/Challenges";
+import ProblemSolving from "@/pages/ProblemSolving";
 import GlobalChallengeMap from "@/pages/GlobalChallengeMap";
 import Profile from "@/pages/Profile";
 import CourseDetail from "@/pages/CourseDetail";
@@ -107,6 +108,11 @@ function Router() {
           <Route path="/leaderboard" component={Leaderboard} />
           <Route path="/challenges" component={Challenges} />
           <Route path="/challenges/map" component={GlobalChallengeMap} />
+          <Route path="/problem-solving">
+            <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional']}>
+              <ProblemSolving />
+            </RoleGuard>
+          </Route>
           <Route path="/profile">
             <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional']}>
               <Profile />

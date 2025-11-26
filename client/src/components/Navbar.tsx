@@ -2,7 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "./UserAvatar";
-import { Bell, LogOut, Menu, Trophy, Target, MessageCircle, Users, UsersRound, Compass } from "lucide-react";
+import { Bell, LogOut, Menu, Trophy, Target, MessageCircle, Users, UsersRound, Compass, Lightbulb } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -173,6 +173,20 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                     <a>
                       <Target className="h-4 w-4" />
                       <span>Challenges</span>
+                    </a>
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className={`text-white hover:bg-white/20 gap-2 ${location === '/problem-solving' ? 'bg-white/20' : ''}`}
+                  data-testid="nav-link-problem-solving"
+                >
+                  <Link href="/problem-solving">
+                    <a>
+                      <Lightbulb className="h-4 w-4" />
+                      <span>Q&A</span>
                     </a>
                   </Link>
                 </Button>
