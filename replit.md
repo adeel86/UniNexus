@@ -53,7 +53,24 @@ Preferred communication style: Simple, everyday language.
 ## External Dependencies
 
 - **Firebase Services**: Firebase Authentication (client-side email/password), Firebase Admin SDK (server-side token verification), Firebase Storage (media uploads - if configured). Development mode bypasses Firebase.
-- **AI/ML Integration**: OpenAI API (GPT models) for post suggestions, career guidance chatbot, and content moderation, requiring `OPENAI_API_KEY`.
+- **AI/ML Integration**: OpenAI API (GPT models) for post suggestions, career guidance chatbot, content moderation, and hyper-localized course chatbot with RAG, requiring `OPENAI_API_KEY`.
+
+### Hyper-Localized AI Course Chatbot
+- **Purpose**: Students can ask questions about course materials and receive AI-generated answers based ONLY on teacher-uploaded content.
+- **Implementation**: RAG (Retrieval Augmented Generation) with OpenAI embeddings (`text-embedding-3-small`) and GPT-4o for chat responses.
+- **Database Tables**:
+  - `teacherContentChunks`: Stores chunked content with vector embeddings for similarity search
+  - `aiChatSessions`: Chat sessions per student per course
+  - `aiChatMessages`: Message history with citation references
+- **Text Processing**: Content is chunked (800 tokens with 100 token overlap) and indexed with embeddings for semantic search.
+- **Authorization**: Students must be enrolled in a course to access its AI tutor; content filtered by courseId.
+- **API Endpoints**:
+  - `POST /api/ai/course-chat` - Send message to AI course tutor
+  - `GET /api/ai/course-chat/:courseId/history` - Get chat sessions for a course
+  - `GET /api/ai/course-chat/session/:sessionId` - Get messages for a session
+  - `GET /api/ai/course-chat/:courseId/status` - Check if course has indexed content
+  - `POST /api/teacher-content/:contentId/index` - Index teacher content for RAG (teacher only)
+- **Frontend Component**: `StudentAITutor.tsx` - Dialog component for course-specific AI chat with citations.
 - **Replit Platform Services**: Replit Auth (OAuth/OIDC), Replit Secrets (environment variables).
 - **Third-Party Libraries**: `@radix-ui/*`, `@tanstack/react-query`, `date-fns`, `nanoid`, `passport`, `ws`.
 - **Development Tools**: `tsx`, `esbuild`, `drizzle-kit`, Vite plugins.

@@ -5185,6 +5185,146 @@ Make it personalized, constructive, and actionable. Use a professional but encou
   });
 
   // ========================================================================
+  // HYPER-LOCALIZED AI COURSE CHATBOT API
+  // ========================================================================
+
+  const aiChatbot = await import("./aiChatbot");
+
+  // Send message to AI course chatbot
+  app.post("/api/ai/course-chat", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { courseId, message, sessionId } = req.body;
+
+      if (!courseId || !message) {
+        return res.status(400).json({ error: "courseId and message are required" });
+      }
+
+      // Verify student is enrolled in the course
+      const isEnrolled = await aiChatbot.verifyStudentEnrollment(req.user.id, courseId);
+      if (!isEnrolled) {
+        return res.status(403).json({ error: "You must be enrolled in this course to use the AI tutor" });
+      }
+
+      // Get or create session
+      const activeSessionId = sessionId || await aiChatbot.createOrGetSession(req.user.id, courseId);
+
+      // Save user message
+      await aiChatbot.saveMessage(activeSessionId, 'user', message);
+
+      // Generate AI response
+      const response = await aiChatbot.generateChatResponse(courseId, activeSessionId, message, req.user.id);
+
+      // Save assistant message with citations
+      await aiChatbot.saveMessage(
+        activeSessionId, 
+        'assistant', 
+        response.answer, 
+        response.citations.map(c => c.contentId)
+      );
+
+      res.json({
+        sessionId: activeSessionId,
+        answer: response.answer,
+        citations: response.citations,
+      });
+    } catch (error: any) {
+      console.error("AI course chat error:", error);
+      res.status(500).json({ error: error.message || "Failed to generate response" });
+    }
+  });
+
+  // Get chat history for a course session
+  app.get("/api/ai/course-chat/:courseId/history", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { courseId } = req.params;
+
+      // Verify enrollment
+      const isEnrolled = await aiChatbot.verifyStudentEnrollment(req.user.id, courseId);
+      if (!isEnrolled) {
+        return res.status(403).json({ error: "You must be enrolled in this course" });
+      }
+
+      const sessions = await aiChatbot.getUserSessions(req.user.id, courseId);
+      res.json(sessions);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get messages for a specific session
+  app.get("/api/ai/course-chat/session/:sessionId", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { sessionId } = req.params;
+      const messages = await aiChatbot.getChatHistory(sessionId);
+      res.json(messages);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get course content availability for AI chat
+  app.get("/api/ai/course-chat/:courseId/status", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { courseId } = req.params;
+
+      // Verify enrollment
+      const isEnrolled = await aiChatbot.verifyStudentEnrollment(req.user.id, courseId);
+      if (!isEnrolled) {
+        return res.status(403).json({ error: "You must be enrolled in this course" });
+      }
+
+      const chunkCount = await aiChatbot.getContentChunkCount(courseId);
+      const courseInfo = await aiChatbot.getCourseInfo(courseId);
+
+      res.json({
+        courseId,
+        courseName: courseInfo?.name || "Unknown Course",
+        instructorName: courseInfo?.instructorName || "Instructor",
+        indexedChunks: chunkCount,
+        isReady: chunkCount > 0,
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Index teacher content (teacher only endpoint)
+  app.post("/api/teacher-content/:contentId/index", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    // Only teachers and admins can index content
+    if (req.user.role !== 'teacher' && req.user.role !== 'master_admin') {
+      return res.status(403).json({ error: "Only teachers can index content" });
+    }
+
+    try {
+      const { contentId } = req.params;
+      const chunksIndexed = await aiChatbot.indexTeacherContent(contentId);
+      res.json({ success: true, chunksIndexed });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // ========================================================================
   // POST BOOSTS API
   // ========================================================================
 
