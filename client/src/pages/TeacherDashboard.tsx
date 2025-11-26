@@ -72,7 +72,7 @@ export default function TeacherDashboard() {
     mutationFn: async () => {
       return apiRequest("POST", "/api/endorsements", {
         endorsedUserId: selectedStudent?.id,
-        skillId: selectedSkill || null,
+        skillId: selectedSkill === "general" ? null : selectedSkill || null,
         comment: endorsementComment,
       });
     },
@@ -480,7 +480,7 @@ export default function TeacherDashboard() {
                   <SelectValue placeholder="Select a skill" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">General Endorsement</SelectItem>
+                  <SelectItem value="general">General Endorsement</SelectItem>
                   {skills.map((skill) => (
                     <SelectItem key={skill.id} value={skill.id}>
                       {skill.name}
