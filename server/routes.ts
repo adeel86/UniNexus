@@ -9,6 +9,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { setupAuth, verifyToken, isAuthenticated, type AuthRequest } from "./firebaseAuth";
+import { initializeCloudStorage, uploadToCloud, uploadMultipleToCloud, isCloudStorageAvailable, type UploadOptions } from "./cloudStorage";
 import {
   users,
   posts,
@@ -6052,10 +6053,19 @@ Make it personalized, constructive, and actionable. Use a professional but encou
   });
 
   // ========================================================================
-  // FILE UPLOAD API (Images & Videos)
+  // FILE UPLOAD API (Images & Videos) - Cloud Storage with Local Fallback
   // ========================================================================
 
-  // Create uploads directory if it doesn't exist
+  // Initialize cloud storage on startup
+  initializeCloudStorage().then(available => {
+    if (available) {
+      console.log('✓ Cloud storage ready for file uploads');
+    } else {
+      console.log('! Cloud storage unavailable, using local storage fallback');
+    }
+  });
+
+  // Create local uploads directory as fallback
   const uploadsDir = path.join(process.cwd(), 'uploads');
   const imagesDir = path.join(uploadsDir, 'images');
   const videosDir = path.join(uploadsDir, 'videos');
@@ -6070,20 +6080,12 @@ Make it personalized, constructive, and actionable. Use a professional but encou
     fs.mkdirSync(videosDir, { recursive: true });
   }
 
-  // Configure multer for image uploads
-  const imageStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-      cb(null, imagesDir);
-    },
-    filename: (req, file, cb) => {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      const ext = path.extname(file.originalname);
-      cb(null, `image-${uniqueSuffix}${ext}`);
-    }
-  });
+  // Configure multer to use memory storage for cloud uploads
+  const memoryStorage = multer.memoryStorage();
 
+  // Configure multer for image uploads (memory storage for cloud)
   const imageUpload = multer({
-    storage: imageStorage,
+    storage: memoryStorage,
     limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
     fileFilter: (req, file, cb) => {
       const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
@@ -6095,20 +6097,9 @@ Make it personalized, constructive, and actionable. Use a professional but encou
     }
   });
 
-  // Configure multer for video uploads
-  const videoStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-      cb(null, videosDir);
-    },
-    filename: (req, file, cb) => {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      const ext = path.extname(file.originalname);
-      cb(null, `video-${uniqueSuffix}${ext}`);
-    }
-  });
-
+  // Configure multer for video uploads (memory storage for cloud)
   const videoUpload = multer({
-    storage: videoStorage,
+    storage: memoryStorage,
     limits: { fileSize: 100 * 1024 * 1024 }, // 100MB limit
     fileFilter: (req, file, cb) => {
       const allowedTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-matroska'];
@@ -6120,10 +6111,24 @@ Make it personalized, constructive, and actionable. Use a professional but encou
     }
   });
 
-  // Serve uploaded files statically
+  // Serve locally uploaded files as fallback
   app.use('/uploads', express.static(uploadsDir));
 
-  // Upload image endpoint
+  // Helper function to save file locally (fallback)
+  async function saveFileLocally(buffer: Buffer, folder: string, filename: string): Promise<string> {
+    const targetDir = path.join(uploadsDir, folder);
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
+    }
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(filename);
+    const uniqueFilename = `${folder.slice(0, -1)}-${uniqueSuffix}${ext}`;
+    const filePath = path.join(targetDir, uniqueFilename);
+    fs.writeFileSync(filePath, buffer);
+    return `/uploads/${folder}/${uniqueFilename}`;
+  }
+
+  // Upload image endpoint - Cloud storage with local fallback
   app.post("/api/upload/image", imageUpload.single('image'), async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).send("Unauthorized");
@@ -6134,14 +6139,34 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         return res.status(400).json({ error: "No image file provided" });
       }
 
-      const imageUrl = `/uploads/images/${req.file.filename}`;
+      let imageUrl: string;
+
+      // Try cloud storage first
+      if (isCloudStorageAvailable()) {
+        const result = await uploadToCloud(req.file.buffer, {
+          folder: 'images',
+          contentType: req.file.mimetype,
+          originalFilename: req.file.originalname,
+        });
+        
+        if (result) {
+          imageUrl = result.url;
+        } else {
+          // Fall back to local storage
+          imageUrl = await saveFileLocally(req.file.buffer, 'images', req.file.originalname);
+        }
+      } else {
+        // Use local storage
+        imageUrl = await saveFileLocally(req.file.buffer, 'images', req.file.originalname);
+      }
+
       res.json({ url: imageUrl });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
-  // Upload video endpoint
+  // Upload video endpoint - Cloud storage with local fallback
   app.post("/api/upload/video", videoUpload.single('video'), async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).send("Unauthorized");
@@ -6152,14 +6177,34 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         return res.status(400).json({ error: "No video file provided" });
       }
 
-      const videoUrl = `/uploads/videos/${req.file.filename}`;
+      let videoUrl: string;
+
+      // Try cloud storage first
+      if (isCloudStorageAvailable()) {
+        const result = await uploadToCloud(req.file.buffer, {
+          folder: 'videos',
+          contentType: req.file.mimetype,
+          originalFilename: req.file.originalname,
+        });
+        
+        if (result) {
+          videoUrl = result.url;
+        } else {
+          // Fall back to local storage
+          videoUrl = await saveFileLocally(req.file.buffer, 'videos', req.file.originalname);
+        }
+      } else {
+        // Use local storage
+        videoUrl = await saveFileLocally(req.file.buffer, 'videos', req.file.originalname);
+      }
+
       res.json({ url: videoUrl });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
   });
 
-  // Upload multiple images endpoint (for galleries/posts with multiple images)
+  // Upload multiple images endpoint - Cloud storage with local fallback
   app.post("/api/upload/images", imageUpload.array('images', 10), async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).send("Unauthorized");
@@ -6170,7 +6215,38 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         return res.status(400).json({ error: "No image files provided" });
       }
 
-      const urls = req.files.map(file => `/uploads/images/${file.filename}`);
+      const urls: string[] = [];
+
+      // Try cloud storage first
+      if (isCloudStorageAvailable()) {
+        const results = await uploadMultipleToCloud(
+          req.files.map(file => ({
+            buffer: file.buffer,
+            options: {
+              folder: 'images' as const,
+              contentType: file.mimetype,
+              originalFilename: file.originalname,
+            }
+          }))
+        );
+        
+        if (results.length === req.files.length) {
+          urls.push(...results.map(r => r.url));
+        } else {
+          // Some uploads failed, fall back to local for all
+          for (const file of req.files) {
+            const url = await saveFileLocally(file.buffer, 'images', file.originalname);
+            urls.push(url);
+          }
+        }
+      } else {
+        // Use local storage
+        for (const file of req.files) {
+          const url = await saveFileLocally(file.buffer, 'images', file.originalname);
+          urls.push(url);
+        }
+      }
+
       res.json({ urls });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -6235,26 +6311,14 @@ Make it personalized, constructive, and actionable. Use a professional but encou
   // TEACHER CONTENT MANAGEMENT API
   // ========================================================================
 
-  // Multer configuration for document uploads
+  // Multer configuration for document uploads (using memory storage for cloud)
   const documentsDir = path.join(uploadsDir, 'documents');
   if (!fs.existsSync(documentsDir)) {
     fs.mkdirSync(documentsDir, { recursive: true });
   }
 
-  const documentStorage = multer.diskStorage({
-    destination: (req, file, cb) => {
-      cb(null, documentsDir);
-    },
-    filename: (req, file, cb) => {
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-      const ext = path.extname(file.originalname);
-      const baseName = path.basename(file.originalname, ext).replace(/[^a-z0-9]/gi, '_');
-      cb(null, `${baseName}-${uniqueSuffix}${ext}`);
-    }
-  });
-
   const documentUpload = multer({
-    storage: documentStorage,
+    storage: memoryStorage,
     limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
     fileFilter: (req, file, cb) => {
       const allowedTypes = [
@@ -6273,10 +6337,10 @@ Make it personalized, constructive, and actionable. Use a professional but encou
     }
   });
 
-  // Serve uploaded documents
+  // Serve uploaded documents (local fallback)
   app.use('/uploads/documents', express.static(documentsDir));
 
-  // Upload teacher content document
+  // Upload teacher content document - Cloud storage with local fallback
   app.post("/api/teacher-content/upload", documentUpload.single('document'), async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).send("Unauthorized");
@@ -6292,7 +6356,26 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         return res.status(400).json({ error: "No document file provided" });
       }
 
-      const fileUrl = `/uploads/documents/${req.file.filename}`;
+      let fileUrl: string;
+
+      // Try cloud storage first
+      if (isCloudStorageAvailable()) {
+        const result = await uploadToCloud(req.file.buffer, {
+          folder: 'documents',
+          contentType: req.file.mimetype,
+          originalFilename: req.file.originalname,
+        });
+        
+        if (result) {
+          fileUrl = result.url;
+        } else {
+          // Fall back to local storage
+          fileUrl = await saveFileLocally(req.file.buffer, 'documents', req.file.originalname);
+        }
+      } else {
+        // Use local storage
+        fileUrl = await saveFileLocally(req.file.buffer, 'documents', req.file.originalname);
+      }
       
       // Parse additional fields from request body
       const { title, description, courseId, tags, isPublic } = req.body;
