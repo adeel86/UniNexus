@@ -5880,45 +5880,39 @@ Make it personalized, constructive, and actionable. Use a professional but encou
       const followingIds = following.map(f => f.followingId);
 
       // Find similar users based on interests, university, and engagement
-      const recommendations = await db
-        .select({
-          user: users,
-          commonInterests: sql`
-            ARRAY_LENGTH(
-              ARRAY(
-                SELECT UNNEST(${users.interests})
-                INTERSECT
-                SELECT UNNEST(${currentUser.interests}::text[])
-              ),
-              1
-            )
-          `.as('common_interests'),
-          sameUniversity: sql`${users.university} = ${currentUser.university}`.as('same_university'),
-          similarityScore: sql`
-            (COALESCE(ARRAY_LENGTH(
-              ARRAY(
-                SELECT UNNEST(${users.interests})
-                INTERSECT
-                SELECT UNNEST(${currentUser.interests}::text[])
-              ),
-              1
-            ), 0) * 10 +
-            CASE WHEN ${users.university} = ${currentUser.university} THEN 20 ELSE 0 END +
-            CASE WHEN ${users.role} = ${currentUser.role} THEN 10 ELSE 0 END +
-            ${users.engagementScore} * 0.1)
-          `.as('similarity_score'),
-        })
+      // Using simpler approach to avoid SQL type casting issues
+      const allUsers = await db
+        .select()
         .from(users)
-        .where(
-          and(
-            sql`${users.id} != ${userId}`,
-            followingIds.length > 0
-              ? sql`${users.id} NOT IN (${followingIds.join(', ')})`
-              : sql`TRUE`
-          )
-        )
-        .orderBy(sql`similarity_score DESC`)
-        .limit(Number(limit));
+        .where(sql`${users.id} != ${userId}`)
+        .limit(100);
+
+      // Filter and score in JavaScript to avoid PostgreSQL array casting issues
+      const currentInterests = currentUser.interests || [];
+      const recommendations = allUsers
+        .filter(user => !followingIds.includes(user.id))
+        .map(user => {
+          const userInterests = user.interests || [];
+          const sharedSkills = currentInterests.filter(interest => 
+            userInterests.some(ui => ui.toLowerCase() === interest.toLowerCase())
+          );
+          
+          // Calculate recommendation score
+          let score = 0;
+          score += sharedSkills.length * 10; // 10 points per shared interest
+          if (user.university === currentUser.university) score += 20;
+          if (user.role === currentUser.role) score += 10;
+          score += (user.engagementScore || 0) * 0.1;
+
+          return {
+            ...user,
+            mutualConnections: 0, // Would need another query to calculate
+            sharedSkills,
+            recommendationScore: Math.round(score),
+          };
+        })
+        .sort((a, b) => b.recommendationScore - a.recommendationScore)
+        .slice(0, Number(limit));
 
       res.json(recommendations);
     } catch (error: any) {
@@ -5926,35 +5920,58 @@ Make it personalized, constructive, and actionable. Use a professional but encou
     }
   });
 
-  // Cross-university discovery
+  // Cross-university discovery - returns university statistics
   app.get("/api/discovery/universities", async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
     try {
-      // Get trending students from other universities
-      const topStudents = await db
-        .select({
-          user: users,
-          postCount: sql`COUNT(DISTINCT ${posts.id})`.as('post_count'),
-          followerCount: sql`COUNT(DISTINCT ${followers.id})`.as('follower_count'),
-        })
+      // Get all students with universities (other than current user's)
+      const allStudents = await db
+        .select()
         .from(users)
-        .leftJoin(posts, eq(users.id, posts.authorId))
-        .leftJoin(followers, eq(users.id, followers.followingId))
         .where(
           and(
             eq(users.role, 'student'),
-            sql`${users.university} != ${req.user.university}`,
-            sql`${users.isVerified} = true`
+            sql`${users.university} IS NOT NULL`,
+            sql`${users.university} != ''`,
+            req.user.university 
+              ? sql`${users.university} != ${req.user.university}`
+              : sql`TRUE`
           )
-        )
-        .groupBy(users.id)
-        .orderBy(sql`(post_count * 2 + follower_count) DESC`)
-        .limit(20);
+        );
 
-      res.json(topStudents);
+      // Group by university and calculate stats in JavaScript
+      const universityMap = new Map<string, { 
+        students: typeof allStudents, 
+        majors: Set<string>,
+        totalEngagement: number 
+      }>();
+
+      for (const student of allStudents) {
+        const uni = student.university!;
+        if (!universityMap.has(uni)) {
+          universityMap.set(uni, { students: [], majors: new Set(), totalEngagement: 0 });
+        }
+        const uniData = universityMap.get(uni)!;
+        uniData.students.push(student);
+        if (student.major) uniData.majors.add(student.major);
+        uniData.totalEngagement += student.engagementScore || 0;
+      }
+
+      // Convert to array format expected by frontend
+      const universities = Array.from(universityMap.entries())
+        .map(([university, data]) => ({
+          university,
+          studentCount: data.students.length,
+          topMajors: Array.from(data.majors).slice(0, 5),
+          avgEngagementScore: Math.round(data.totalEngagement / data.students.length),
+        }))
+        .sort((a, b) => b.studentCount - a.studentCount)
+        .slice(0, 20);
+
+      res.json(universities);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
