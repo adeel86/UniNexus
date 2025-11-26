@@ -35,6 +35,21 @@ Preferred communication style: Simple, everyday language.
 - **Relationships**: One-to-many, many-to-many (via join tables), self-referential, and computed fields for scores.
 - **Storage Interface**: `IStorage` interface abstraction with `DatabaseStorage` implementation.
 
+### Media Storage (Cloud Storage)
+- **Service**: Firebase Cloud Storage with local fallback.
+- **Implementation**: `server/cloudStorage.ts` module with upload, multi-upload, and delete functions.
+- **Supported Media Types**:
+  - Images: JPEG, PNG, GIF, WebP (10MB max)
+  - Videos: MP4, WebM, QuickTime, MKV (100MB max)
+  - Documents: PDF, DOC, DOCX, TXT, PPT, PPTX (50MB max)
+- **Endpoints**:
+  - `POST /api/upload/image` - Single image upload
+  - `POST /api/upload/images` - Multiple images (up to 10)
+  - `POST /api/upload/video` - Video upload
+  - `POST /api/teacher-content/upload` - Teacher document upload
+- **Configuration**: Requires Firebase service account JSON at `serviceAccountKey.json` and `VITE_FIREBASE_STORAGE_BUCKET` secret.
+- **Fallback**: Automatically falls back to local `uploads/` directory if cloud storage is unavailable.
+
 ## External Dependencies
 
 - **Firebase Services**: Firebase Authentication (client-side email/password), Firebase Admin SDK (server-side token verification), Firebase Storage (media uploads - if configured). Development mode bypasses Firebase.
