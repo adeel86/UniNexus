@@ -35,7 +35,7 @@ export async function initializeCloudStorage(): Promise<boolean> {
 
     const existingApps = admin.apps;
     if (existingApps.length === 0) {
-      let serviceAccountPath = new URL("../serviceAccountKey.json", import.meta.url);
+      let serviceAccountPath = new URL(`../${process.env.VITE_FIREBASE_SERVICE_ACCOUNT_PATH}`, import.meta.url);
       
       if (process.env.VITE_FIREBASE_SERVICE_ACCOUNT_PATH) {
         const envPath = new URL(`../${process.env.VITE_FIREBASE_SERVICE_ACCOUNT_PATH}`, import.meta.url);
