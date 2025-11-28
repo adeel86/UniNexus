@@ -1,4 +1,4 @@
-import { Home, Users, Trophy, MessageSquare, Bell, User, BarChart, Building2, Briefcase, Shield, Lightbulb } from 'lucide-react';
+import { Home, Users, Trophy, MessageSquare, Bell, User, BarChart, Building2, Briefcase, Shield, Lightbulb, GraduationCap } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/lib/AuthContext';
 import { cn } from '@/lib/utils';
@@ -13,8 +13,8 @@ interface NavItem {
 const navigationItems: NavItem[] = [
   // Student Navigation - Most complete with distinct routes
   { icon: Home, label: 'Home', path: '/', roles: ['student'] },
+  { icon: GraduationCap, label: 'Courses', path: '/courses', roles: ['student'] },
   { icon: Trophy, label: 'Challenges', path: '/challenges', roles: ['student'] },
-  { icon: Lightbulb, label: 'Q&A', path: '/problem-solving', roles: ['student'] },
   { icon: Bell, label: 'Notifications', path: '/notifications', roles: ['student'] },
   { icon: User, label: 'Profile', path: '/profile', roles: ['student'] },
   

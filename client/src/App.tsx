@@ -22,6 +22,7 @@ import ProblemSolving from "@/pages/ProblemSolving";
 import GlobalChallengeMap from "@/pages/GlobalChallengeMap";
 import Profile from "@/pages/Profile";
 import CourseDetail from "@/pages/CourseDetail";
+import Courses from "@/pages/Courses";
 import VerifyCertificate from "@/pages/VerifyCertificate";
 import Network from "@/pages/Network";
 import Messages from "@/pages/Messages";
@@ -121,6 +122,11 @@ function Router() {
           <Route path="/settings">
             <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional']}>
               <Settings />
+            </RoleGuard>
+          </Route>
+          <Route path="/courses">
+            <RoleGuard allowedRoles={['student']}>
+              <Courses />
             </RoleGuard>
           </Route>
           <Route path="/courses/:courseId" component={CourseDetail} />

@@ -2754,6 +2754,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get enrolled courses for the current user
+  app.get("/api/me/enrolled-courses", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const enrolledCoursesData = await db
+        .select({
+          enrollment: courseEnrollments,
+          course: courses,
+          instructor: {
+            id: users.id,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            avatarUrl: users.profileImageUrl,
+          },
+        })
+        .from(courseEnrollments)
+        .innerJoin(courses, eq(courseEnrollments.courseId, courses.id))
+        .leftJoin(users, eq(courses.instructorId, users.id))
+        .where(eq(courseEnrollments.studentId, req.user.id))
+        .orderBy(desc(courseEnrollments.enrolledAt));
+
+      // Get discussion counts for each course
+      const coursesWithStats = await Promise.all(
+        enrolledCoursesData.map(async (data) => {
+          const discussionCountResult = await db
+            .select({ count: sql<number>`count(*)` })
+            .from(courseDiscussions)
+            .where(eq(courseDiscussions.courseId, data.course.id));
+          
+          const enrollmentCountResult = await db
+            .select({ count: sql<number>`count(*)` })
+            .from(courseEnrollments)
+            .where(eq(courseEnrollments.courseId, data.course.id));
+
+          return {
+            ...data.course,
+            instructor: data.instructor,
+            enrolledAt: data.enrollment.enrolledAt,
+            discussionCount: Number(discussionCountResult[0]?.count || 0),
+            enrollmentCount: Number(enrollmentCountResult[0]?.count || 0),
+          };
+        })
+      );
+
+      res.json(coursesWithStats);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Get detailed course information including instructor, enrollments, discussions
   app.get("/api/courses/:id", async (req: Request, res: Response) => {
     try {
