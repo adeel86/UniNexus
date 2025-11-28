@@ -31,7 +31,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { TeacherAIChat } from "@/components/TeacherAIChat";
+import { StudentAITutor } from "@/components/StudentAITutor";
 
 type CourseDetails = {
   id: string;
@@ -556,13 +556,12 @@ export default function CourseDetail() {
         </TabsContent>
       </Tabs>
 
-      {/* Teacher AI Chat Modal */}
-      <TeacherAIChat
+      {/* Student AI Tutor Modal - Hyper-Localized Course Chatbot */}
+      <StudentAITutor
         open={showTeacherAI}
         onOpenChange={setShowTeacherAI}
-        teacherId={course.instructor.id}
-        courseId={courseId}
-        teacherName={`${course.instructor.firstName} ${course.instructor.lastName}`}
+        courseId={courseId!}
+        courseName={course.title}
       />
     </div>
   );
