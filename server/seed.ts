@@ -31,6 +31,7 @@ import {
   groups,
   groupMembers,
   groupPosts,
+  teacherContent,
   aiInteractionEvents,
   moderationActions,
   educationRecords,
@@ -728,6 +729,119 @@ async function seedDatabase() {
       const insertedReplies = await db.insert(discussionReplies).values(mockReplies).onConflictDoNothing().returning();
       console.log(`Inserted ${insertedReplies.length} replies`);
     }
+
+    // ============================================================================
+    // TEACHER CONTENT (Course Materials)
+    // ============================================================================
+
+    const mockTeacherContent = [
+      // Demo Teacher content for Web Development course
+      {
+        teacherId: insertedUsers[1].id, // Demo Teacher
+        courseId: insertedCourses[0].id,
+        title: "Introduction to JavaScript Fundamentals",
+        description: "Comprehensive guide to JavaScript basics including variables, functions, and control flow.",
+        contentType: "pdf",
+        fileUrl: "https://storage.uninexus.app/content/js-fundamentals.pdf",
+        metadata: JSON.stringify({ pages: 45, fileSize: "2.3MB", version: "1.2" }),
+        tags: ["JavaScript", "Web Development", "Fundamentals", "Programming"],
+        isPublic: true,
+      },
+      {
+        teacherId: insertedUsers[1].id, // Demo Teacher
+        courseId: insertedCourses[0].id,
+        title: "React Hooks Deep Dive",
+        description: "Advanced tutorial on React hooks including useState, useEffect, useContext, and custom hooks.",
+        contentType: "video",
+        fileUrl: "https://storage.uninexus.app/videos/react-hooks-tutorial.mp4",
+        metadata: JSON.stringify({ duration: "1:23:45", resolution: "1080p", transcript: true }),
+        tags: ["React", "Hooks", "Frontend", "JavaScript"],
+        isPublic: true,
+      },
+      {
+        teacherId: insertedUsers[1].id, // Demo Teacher
+        courseId: insertedCourses[0].id,
+        title: "CSS Grid & Flexbox Layout Masterclass",
+        description: "Complete guide to modern CSS layout techniques with practical examples.",
+        contentType: "text",
+        textContent: "# CSS Grid and Flexbox\n\nThis guide covers modern CSS layout techniques...\n\n## Flexbox Basics\nFlexbox is designed for one-dimensional layouts...\n\n## CSS Grid\nCSS Grid excels at two-dimensional layouts...",
+        tags: ["CSS", "Grid", "Flexbox", "Layout", "Web Design"],
+        isPublic: true,
+      },
+      // Dr. Sarah Smith content for Machine Learning course
+      {
+        teacherId: insertedUsers[8].id, // Dr. Sarah Smith
+        courseId: insertedCourses[1].id,
+        title: "Introduction to Neural Networks",
+        description: "Foundational concepts of neural networks including perceptrons, activation functions, and backpropagation.",
+        contentType: "pdf",
+        fileUrl: "https://storage.uninexus.app/content/neural-networks-intro.pdf",
+        metadata: JSON.stringify({ pages: 78, fileSize: "5.1MB", citations: 42 }),
+        tags: ["Machine Learning", "Neural Networks", "AI", "Deep Learning"],
+        isPublic: true,
+      },
+      {
+        teacherId: insertedUsers[8].id, // Dr. Sarah Smith
+        courseId: insertedCourses[1].id,
+        title: "Python for Data Science - Lecture Notes",
+        description: "Comprehensive lecture notes covering NumPy, Pandas, and Matplotlib for data analysis.",
+        contentType: "doc",
+        fileUrl: "https://storage.uninexus.app/content/python-data-science.docx",
+        metadata: JSON.stringify({ pages: 120, lastUpdated: "2024-10-15" }),
+        tags: ["Python", "Data Science", "NumPy", "Pandas", "Visualization"],
+        isPublic: true,
+      },
+      {
+        teacherId: insertedUsers[8].id, // Dr. Sarah Smith
+        courseId: insertedCourses[1].id,
+        title: "Model Evaluation Techniques",
+        description: "Video lecture on cross-validation, ROC curves, precision-recall, and model selection strategies.",
+        contentType: "video",
+        fileUrl: "https://storage.uninexus.app/videos/model-evaluation.mp4",
+        metadata: JSON.stringify({ duration: "45:30", resolution: "1080p", slides: true }),
+        tags: ["Machine Learning", "Model Evaluation", "Cross-Validation", "Metrics"],
+        isPublic: true,
+      },
+      // Prof. Michael Johnson content for Data Science course
+      {
+        teacherId: insertedUsers[9].id, // Prof. Michael Johnson
+        courseId: insertedCourses[2].id,
+        title: "SQL Fundamentals for Data Analysis",
+        description: "Complete SQL tutorial covering SELECT, JOIN, GROUP BY, and window functions.",
+        contentType: "pdf",
+        fileUrl: "https://storage.uninexus.app/content/sql-fundamentals.pdf",
+        metadata: JSON.stringify({ pages: 65, exercises: 30, difficulty: "intermediate" }),
+        tags: ["SQL", "Databases", "Data Analysis", "Query Optimization"],
+        isPublic: true,
+      },
+      {
+        teacherId: insertedUsers[9].id, // Prof. Michael Johnson
+        courseId: insertedCourses[2].id,
+        title: "Big Data Processing with Apache Spark",
+        description: "Introduction to distributed computing and big data processing using Apache Spark.",
+        contentType: "link",
+        fileUrl: "https://spark.apache.org/docs/latest/quick-start.html",
+        metadata: JSON.stringify({ externalLink: true, lastVerified: "2024-11-01" }),
+        tags: ["Big Data", "Apache Spark", "Distributed Computing", "Data Engineering"],
+        isPublic: true,
+      },
+      // Private content example (only for enrolled students)
+      {
+        teacherId: insertedUsers[1].id, // Demo Teacher
+        courseId: insertedCourses[0].id,
+        title: "Final Project Guidelines - CONFIDENTIAL",
+        description: "Detailed instructions and rubric for the final project. For enrolled students only.",
+        contentType: "pdf",
+        fileUrl: "https://storage.uninexus.app/content/final-project-guidelines.pdf",
+        metadata: JSON.stringify({ pages: 12, dueDate: "2024-12-20", maxPoints: 100 }),
+        tags: ["Project", "Guidelines", "Assessment"],
+        isPublic: false,
+      },
+    ];
+
+    console.log("Inserting teacher content...");
+    const insertedTeacherContent = await db.insert(teacherContent).values(mockTeacherContent).onConflictDoNothing().returning();
+    console.log(`Inserted ${insertedTeacherContent.length} teacher content items`);
   }
 
   const mockChallenges = [
