@@ -97,9 +97,8 @@ export default function Notifications() {
   });
 
   const handleNotificationClick = (notification: Notification) => {
-    if (!notification.isRead) {
-      markAsReadMutation.mutate(notification.id);
-    }
+    // Delete the notification and navigate to the linked content
+    deleteNotificationMutation.mutate(notification.id);
     if (notification.link) {
       navigate(notification.link);
     }

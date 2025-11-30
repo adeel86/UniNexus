@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import type { Group, GroupMember } from "@shared/schema";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -78,6 +79,7 @@ type CreateGroupFormData = z.infer<typeof createGroupFormSchema>;
 export default function GroupsDiscovery() {
   const { userData: user } = useAuth();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState("all");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -189,6 +191,7 @@ export default function GroupsDiscovery() {
       queryClient.invalidateQueries({ queryKey: ["/api/groups"] });
       queryClient.invalidateQueries({ queryKey: ["/api/users/groups"] });
       queryClient.invalidateQueries({ queryKey: ["/api/groups", groupId] });
+      navigate(`/groups/${groupId}`);
     },
   });
 

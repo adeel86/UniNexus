@@ -86,7 +86,15 @@ export default function ProblemSolving() {
         : activeTab === "open" 
           ? "?resolved=false" 
           : "";
-      const response = await fetch(`/api/qa/questions${params}`);
+      const headers: Record<string, string> = {};
+      const devToken = localStorage.getItem('dev_token');
+      if (devToken) {
+        headers['Authorization'] = `Bearer ${devToken}`;
+      }
+      const response = await fetch(`/api/qa/questions${params}`, {
+        headers,
+        credentials: "include",
+      });
       if (!response.ok) throw new Error("Failed to fetch questions");
       return response.json();
     },

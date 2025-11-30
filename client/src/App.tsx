@@ -27,6 +27,7 @@ import VerifyCertificate from "@/pages/VerifyCertificate";
 import Network from "@/pages/Network";
 import Messages from "@/pages/Messages";
 import GroupsDiscovery from "@/pages/GroupsDiscovery";
+import GroupPage from "@/pages/GroupPage";
 import Notifications from "@/pages/Notifications";
 import Discovery from "@/pages/Discovery";
 import EthicsDashboard from "@/pages/EthicsDashboard";
@@ -103,6 +104,11 @@ function Router() {
           <Route path="/groups">
             <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional']}>
               <GroupsDiscovery />
+            </RoleGuard>
+          </Route>
+          <Route path="/groups/:id">
+            <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional']}>
+              <GroupPage />
             </RoleGuard>
           </Route>
           <Route path="/notifications" component={Notifications} />

@@ -12,7 +12,6 @@ import { CertificateShowcase } from "@/components/CertificateShowcase";
 import { RecruiterFeedbackSection } from "@/components/RecruiterFeedbackSection";
 import { RankTierBadge } from "@/components/RankTierBadge";
 import { PostCard } from "@/components/PostCard";
-import { EditProfileModal } from "@/components/EditProfileModal";
 import { JobExperienceModal } from "@/components/JobExperienceModal";
 import { EducationSection } from "@/components/EducationSection";
 import { SkillsSection } from "@/components/SkillsSection";
@@ -118,7 +117,6 @@ export default function Profile() {
 
   const [showFollowers, setShowFollowers] = useState(false);
   const [showFollowing, setShowFollowing] = useState(false);
-  const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [jobExperienceModalOpen, setJobExperienceModalOpen] = useState(false);
   const [selectedJobExperience, setSelectedJobExperience] = useState<any>(null);
   const { toast } = useToast();
@@ -809,14 +807,6 @@ export default function Profile() {
           </Card>
         )}
       </div>
-
-      {/* Edit Profile Modal */}
-      <EditProfileModal
-        open={editProfileOpen}
-        onOpenChange={setEditProfileOpen}
-        userId={targetUserId || ""}
-        userRole={user.role}
-      />
 
       {/* Job Experience Modal */}
       <JobExperienceModal
