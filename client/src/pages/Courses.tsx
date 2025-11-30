@@ -10,26 +10,32 @@ import {
   MessageSquare, 
   Sparkles,
   GraduationCap,
-  ArrowRight
+  ArrowRight,
+  CheckCircle,
+  FileText
 } from "lucide-react";
 import { format } from "date-fns";
 
 type EnrolledCourse = {
   id: string;
-  name: string;
-  code: string;
+  studentCourseId: string;
+  courseId: string | null;
+  courseName: string;
+  courseCode: string | null;
   description: string | null;
-  university: string | null;
+  institution: string | null;
   semester: string | null;
-  instructor: {
+  teacher: {
     id: string;
+    displayName: string | null;
     firstName: string | null;
     lastName: string | null;
-    avatarUrl: string | null;
+    profileImageUrl: string | null;
   } | null;
-  enrolledAt: string;
-  discussionCount: number;
-  enrollmentCount: number;
+  enrolledAt: string | null;
+  validatedAt: string | null;
+  materialCount: number;
+  hasAIAccess: boolean;
 };
 
 export default function Courses() {
@@ -66,84 +72,107 @@ export default function Courses() {
           <BookOpen className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-50" />
           <h3 className="font-semibold text-xl mb-2">No Enrolled Courses</h3>
           <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-            You haven't enrolled in any courses yet. Contact your institution or browse available courses to get started.
+            You haven't enrolled in any courses yet. Add courses to your profile and request teacher validation to gain access to AI tutoring.
           </p>
+          <Link href="/settings#profile">
+            <Button data-testid="button-add-courses">
+              <GraduationCap className="h-4 w-4 mr-2" />
+              Add Courses
+            </Button>
+          </Link>
         </Card>
       ) : (
         <div className="grid gap-4">
           {enrolledCourses.map((course) => (
-            <Link key={course.id} href={`/courses/${course.id}`}>
-              <Card 
-                className="hover-elevate cursor-pointer transition-all"
-                data-testid={`card-course-${course.id}`}
-              >
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2 flex-wrap">
-                        <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center flex-shrink-0">
-                          <BookOpen className="h-6 w-6 text-white" />
-                        </div>
-                        <div>
-                          <CardTitle className="text-xl">{course.name}</CardTitle>
-                          <Badge variant="secondary" className="mt-1">
-                            {course.code}
+            <Card 
+              key={course.id}
+              className="hover-elevate transition-all"
+              data-testid={`card-course-${course.id}`}
+            >
+              <CardHeader>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2 flex-wrap">
+                      <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center flex-shrink-0">
+                        <BookOpen className="h-6 w-6 text-white" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-xl">{course.courseName}</CardTitle>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          {course.courseCode && (
+                            <Badge variant="secondary">
+                              {course.courseCode}
+                            </Badge>
+                          )}
+                          <Badge variant="default" className="bg-green-600 gap-1 text-xs">
+                            <CheckCircle className="h-3 w-3" />
+                            Validated & Enrolled
                           </Badge>
                         </div>
                       </div>
-                      <CardDescription className="text-base line-clamp-2 mt-2">
-                        {course.description || "No description available"}
-                      </CardDescription>
                     </div>
-                    <Button variant="ghost" size="icon" className="flex-shrink-0">
-                      <ArrowRight className="h-5 w-5" />
-                    </Button>
+                    <CardDescription className="text-base line-clamp-2 mt-2">
+                      {course.description || "No description available"}
+                    </CardDescription>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between flex-wrap gap-4">
-                    <div className="flex items-center gap-4 flex-wrap">
-                      {course.instructor && (
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage src={course.instructor.avatarUrl || undefined} />
-                            <AvatarFallback className="text-xs">
-                              {course.instructor.firstName?.[0]}
-                              {course.instructor.lastName?.[0]}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-sm text-muted-foreground">
-                            {course.instructor.firstName} {course.instructor.lastName}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                        <Users className="h-4 w-4" />
-                        <span>{course.enrollmentCount} enrolled</span>
+                  {course.courseId && course.hasAIAccess && (
+                    <Link href={`/courses/${course.courseId}`}>
+                      <Button data-testid={`button-view-course-${course.id}`}>
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Ask Teacher's AI
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <div className="flex items-center gap-4 flex-wrap">
+                    {course.teacher && (
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-6 w-6">
+                          <AvatarImage src={course.teacher.profileImageUrl || undefined} />
+                          <AvatarFallback className="text-xs">
+                            {course.teacher.firstName?.[0]}
+                            {course.teacher.lastName?.[0]}
+                          </AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm text-muted-foreground">
+                          {course.teacher.firstName} {course.teacher.lastName}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                        <MessageSquare className="h-4 w-4" />
-                        <span>{course.discussionCount} discussions</span>
-                      </div>
+                    )}
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <FileText className="h-4 w-4" />
+                      <span>{course.materialCount} materials</span>
                     </div>
-                    <div className="flex items-center gap-2">
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {course.hasAIAccess ? (
                       <Badge variant="outline" className="gap-1 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border-purple-500/30">
                         <Sparkles className="h-3 w-3" />
                         AI Tutor Available
                       </Badge>
-                    </div>
+                    ) : (
+                      <Badge variant="outline" className="gap-1 text-muted-foreground">
+                        <FileText className="h-3 w-3" />
+                        No materials yet
+                      </Badge>
+                    )}
                   </div>
-                  {course.university && (
-                    <div className="mt-3 text-sm text-muted-foreground">
-                      {course.university} {course.semester && `- ${course.semester}`}
-                    </div>
-                  )}
+                </div>
+                {course.institution && (
+                  <div className="mt-3 text-sm text-muted-foreground">
+                    {course.institution} {course.semester && `- ${course.semester}`}
+                  </div>
+                )}
+                {course.enrolledAt && (
                   <div className="mt-2 text-xs text-muted-foreground">
                     Enrolled {format(new Date(course.enrolledAt), 'MMM d, yyyy')}
                   </div>
-                </CardContent>
-              </Card>
-            </Link>
+                )}
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}

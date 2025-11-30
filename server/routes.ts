@@ -2026,7 +2026,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Validate a student course (teachers only)
+  // Validate a student course (teachers only) - with auto-enrollment
   app.post("/api/student-courses/:id/validate", async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).send("Unauthorized");
@@ -2078,17 +2078,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // Update the student course with validation and auto-enrollment
       const [validated] = await db
         .update(studentCourses)
         .set({
           isValidated: true,
+          validationStatus: 'validated',
           validatedBy: req.user.id,
           validatedAt: new Date(),
           validationNote: validationNote || null,
+          isEnrolled: true,
+          enrolledAt: new Date(),
           updatedAt: new Date(),
         })
         .where(eq(studentCourses.id, id))
         .returning();
+
+      // If there's a linked course, also create an enrollment in courseEnrollments
+      if (course.courseId) {
+        // Check if enrollment already exists
+        const [existingEnrollment] = await db
+          .select()
+          .from(courseEnrollments)
+          .where(and(
+            eq(courseEnrollments.courseId, course.courseId),
+            eq(courseEnrollments.studentId, student.id)
+          ))
+          .limit(1);
+
+        if (!existingEnrollment) {
+          await db.insert(courseEnrollments).values({
+            courseId: course.courseId,
+            studentId: student.id,
+          });
+        }
+      }
 
       res.json(validated);
     } catch (error: any) {
@@ -2125,15 +2149,92 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .update(studentCourses)
         .set({
           isValidated: false,
+          validationStatus: 'pending',
           validatedBy: null,
           validatedAt: null,
           validationNote: null,
+          isEnrolled: false,
+          enrolledAt: null,
           updatedAt: new Date(),
         })
         .where(eq(studentCourses.id, id))
         .returning();
 
+      // If there was a linked course, remove enrollment
+      if (course.courseId) {
+        await db
+          .delete(courseEnrollments)
+          .where(and(
+            eq(courseEnrollments.courseId, course.courseId),
+            eq(courseEnrollments.studentId, course.userId)
+          ));
+      }
+
       res.json(updated);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get validated/enrolled courses for the current student (for Ask-Teacher AI access)
+  app.get("/api/me/enrolled-courses", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      // Get all validated and enrolled student courses with course details
+      const enrolledCourses = await db
+        .select({
+          studentCourse: studentCourses,
+          course: courses,
+          teacher: {
+            id: users.id,
+            displayName: users.displayName,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            profileImageUrl: users.profileImageUrl,
+          },
+        })
+        .from(studentCourses)
+        .leftJoin(courses, eq(studentCourses.courseId, courses.id))
+        .leftJoin(users, eq(courses.instructorId, users.id))
+        .where(and(
+          eq(studentCourses.userId, req.user.id),
+          eq(studentCourses.isValidated, true),
+          eq(studentCourses.isEnrolled, true)
+        ))
+        .orderBy(desc(studentCourses.enrolledAt));
+
+      // Format with material counts
+      const formattedCourses = await Promise.all(enrolledCourses.map(async ({ studentCourse, course, teacher }) => {
+        let materialCount = 0;
+        if (course?.id) {
+          const materials = await db
+            .select({ count: sql<number>`count(*)` })
+            .from(teacherContent)
+            .where(eq(teacherContent.courseId, course.id));
+          materialCount = materials[0]?.count || 0;
+        }
+
+        return {
+          id: studentCourse.id,
+          studentCourseId: studentCourse.id,
+          courseId: course?.id || null,
+          courseName: course?.name || studentCourse.courseName,
+          courseCode: course?.code || studentCourse.courseCode,
+          description: course?.description || studentCourse.description,
+          institution: course?.university || studentCourse.institution,
+          semester: course?.semester || studentCourse.semester,
+          teacher: teacher || null,
+          enrolledAt: studentCourse.enrolledAt,
+          validatedAt: studentCourse.validatedAt,
+          materialCount,
+          hasAIAccess: !!course?.id && materialCount > 0,
+        };
+      }));
+
+      res.json(formattedCourses);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

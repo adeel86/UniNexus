@@ -77,3 +77,41 @@ Preferred communication style: Simple, everyday language.
 - **Development Tools**: `tsx`, `esbuild`, `drizzle-kit`, Vite plugins.
 - **Session & State Management**: `connect-pg-simple`, `express-session`, `jsonwebtoken`, `memoizee`.
 - **Validation & Type Safety**: Zod, TypeScript, Drizzle-Zod, `@hookform/resolvers`.
+
+## Course Validation & Enrollment System
+
+### Validation Workflow
+- **Institution Matching**: Teachers can only validate student courses if both teacher and student belong to the same institution (university field must match).
+- **Validation Status**: Student courses have a `validationStatus` field with values: `pending`, `validated`, `rejected`.
+- **Auto-Enrollment**: Upon successful validation, students are automatically enrolled in the linked course (if courseId exists).
+  - Sets `isEnrolled=true` and `enrolledAt` in studentCourses table
+  - Creates entry in courseEnrollments table (if course is linked)
+
+### Database Fields (studentCourses table)
+- `courseId`: Links to teacher-created course (enables AI tutoring)
+- `validationStatus`: Enum (pending, validated, rejected)
+- `isValidated`: Boolean for backwards compatibility
+- `isEnrolled`: Boolean indicating enrollment status
+- `enrolledAt`: Timestamp of enrollment
+- `validatedBy`: Reference to validating teacher
+- `validatedAt`: Timestamp of validation
+
+### API Endpoints
+- `POST /api/student-courses/:id/validate` - Validate with institution check and auto-enroll
+- `DELETE /api/student-courses/:id/validation` - Remove validation and enrollment
+- `GET /api/me/enrolled-courses` - Get validated/enrolled courses with AI access info
+- `GET /api/teacher/pending-validations` - Get pending validations (same institution only)
+
+### Teacher Dashboard
+- **Materials Tab**: Unified interface for course creation, material uploads, and validation management
+  - Courses sub-tab: Create and manage courses
+  - Upload sub-tab: Upload course-scoped materials
+  - Validations sub-tab: Review and approve pending student validations
+
+### Student Courses Page
+- Shows only validated and enrolled courses
+- Displays "Ask Teacher's AI" button for courses with materials
+- Indicates material count and AI access availability
+
+## Recent Changes
+- **2024-11-30**: Restructured course validation to enforce institution matching, auto-enrollment, and integrated course/materials management into unified Teacher Dashboard tab.

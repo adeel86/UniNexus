@@ -2306,7 +2306,7 @@ async function seedDatabase() {
   // ============================================================================
 
   const mockStudentCourses = [
-    // Demo Student courses
+    // Demo Student courses - validated and enrolled, linked to courses created by Demo Teacher
     {
       userId: insertedUsers[0].id, // Demo Student
       courseName: "Introduction to Web Development",
@@ -2319,10 +2319,14 @@ async function seedDatabase() {
       credits: 3,
       description: "Fundamentals of HTML, CSS, and JavaScript for building modern web applications.",
       assignedTeacherId: insertedUsers[1].id, // Demo Teacher
+      courseId: insertedCourses[0]?.id || null, // Link to first course
       isValidated: true,
+      validationStatus: "validated" as const,
       validatedBy: insertedUsers[1].id,
       validatedAt: new Date("2024-01-15"),
       validationNote: "Excellent performance in all projects.",
+      isEnrolled: true,
+      enrolledAt: new Date("2024-01-15"),
     },
     {
       userId: insertedUsers[0].id, // Demo Student
@@ -2336,9 +2340,13 @@ async function seedDatabase() {
       credits: 4,
       description: "Study of fundamental data structures and algorithm design techniques.",
       assignedTeacherId: insertedUsers[1].id, // Demo Teacher
+      courseId: insertedCourses[1]?.id || null, // Link to second course
       isValidated: true,
+      validationStatus: "validated" as const,
       validatedBy: insertedUsers[1].id,
       validatedAt: new Date("2024-06-01"),
+      isEnrolled: true,
+      enrolledAt: new Date("2024-06-01"),
     },
     {
       userId: insertedUsers[0].id, // Demo Student
@@ -2353,6 +2361,8 @@ async function seedDatabase() {
       description: "Building interactive user interfaces with React, state management, and modern tooling.",
       assignedTeacherId: insertedUsers[1].id, // Demo Teacher - pending validation
       isValidated: false,
+      validationStatus: "pending" as const,
+      isEnrolled: false,
     },
     {
       userId: insertedUsers[0].id, // Demo Student
@@ -2367,8 +2377,10 @@ async function seedDatabase() {
       description: "Relational databases, SQL, NoSQL, and database design principles.",
       assignedTeacherId: insertedUsers[1].id, // Demo Teacher - pending validation
       isValidated: false,
+      validationStatus: "pending" as const,
+      isEnrolled: false,
     },
-    // Alex Chen courses
+    // Alex Chen courses - validated and enrolled at Tech University
     {
       userId: insertedUsers[4].id, // Alex Chen
       courseName: "Machine Learning Fundamentals",
@@ -2381,10 +2393,14 @@ async function seedDatabase() {
       credits: 4,
       description: "Introduction to machine learning algorithms and their applications.",
       assignedTeacherId: insertedUsers[8].id, // Dr. Sarah Smith
+      courseId: insertedCourses[2]?.id || null, // Link to AI course
       isValidated: true,
+      validationStatus: "validated" as const,
       validatedBy: insertedUsers[8].id,
       validatedAt: new Date("2024-12-01"),
       validationNote: "Outstanding research contributions.",
+      isEnrolled: true,
+      enrolledAt: new Date("2024-12-01"),
     },
     {
       userId: insertedUsers[4].id, // Alex Chen
@@ -2399,10 +2415,13 @@ async function seedDatabase() {
       description: "Neural networks, CNNs, RNNs, and transformer architectures.",
       assignedTeacherId: insertedUsers[8].id, // Dr. Sarah Smith
       isValidated: true,
+      validationStatus: "validated" as const,
       validatedBy: insertedUsers[8].id,
       validatedAt: new Date("2024-06-15"),
+      isEnrolled: true,
+      enrolledAt: new Date("2024-06-15"),
     },
-    // Jamie Rodriguez courses
+    // Jamie Rodriguez courses - mixed validation states
     {
       userId: insertedUsers[5].id, // Jamie Rodriguez
       courseName: "Mobile App Development",
@@ -2416,6 +2435,8 @@ async function seedDatabase() {
       description: "Cross-platform mobile development with React Native.",
       assignedTeacherId: insertedUsers[9].id, // Prof. Michael Johnson
       isValidated: false,
+      validationStatus: "pending" as const,
+      isEnrolled: false,
     },
     {
       userId: insertedUsers[5].id, // Jamie Rodriguez
@@ -2430,8 +2451,11 @@ async function seedDatabase() {
       description: "Relational database design, SQL, and NoSQL databases.",
       assignedTeacherId: insertedUsers[9].id, // Prof. Michael Johnson
       isValidated: true,
+      validationStatus: "validated" as const,
       validatedBy: insertedUsers[9].id,
       validatedAt: new Date("2024-06-20"),
+      isEnrolled: true,
+      enrolledAt: new Date("2024-06-20"),
     },
   ];
 

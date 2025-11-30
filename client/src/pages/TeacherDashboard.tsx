@@ -31,7 +31,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TeacherContentUpload } from "@/components/TeacherContentUpload";
-import { TeacherCreatedCourses } from "@/components/TeacherCreatedCourses";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function TeacherDashboard() {
@@ -187,19 +186,15 @@ export default function TeacherDashboard() {
         </p>
       </div>
 
-      <Tabs defaultValue="courses" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 max-w-3xl">
-          <TabsTrigger value="courses" data-testid="tab-courses">
+      <Tabs defaultValue="materials" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3 max-w-2xl">
+          <TabsTrigger value="materials" data-testid="tab-materials">
             <GraduationCap className="h-4 w-4 mr-2" />
-            My Courses
+            Courses & Materials
           </TabsTrigger>
           <TabsTrigger value="analytics" data-testid="tab-analytics">
             <TrendingUp className="h-4 w-4 mr-2" />
             Analytics
-          </TabsTrigger>
-          <TabsTrigger value="content" data-testid="tab-content">
-            <FileText className="h-4 w-4 mr-2" />
-            Materials
           </TabsTrigger>
           <TabsTrigger value="feed" data-testid="tab-feed">
             <MessageSquare className="h-4 w-4 mr-2" />
@@ -207,16 +202,12 @@ export default function TeacherDashboard() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="courses">
-          <TeacherCreatedCourses />
+        <TabsContent value="materials">
+          {userData?.id && <TeacherContentUpload teacherId={userData.id} />}
         </TabsContent>
 
         <TabsContent value="feed">
           <UniversalFeed role="teacher" initialCategory="academic" />
-        </TabsContent>
-
-        <TabsContent value="content">
-          {userData?.id && <TeacherContentUpload teacherId={userData.id} />}
         </TabsContent>
 
         <TabsContent value="analytics">
