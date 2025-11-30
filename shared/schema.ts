@@ -342,6 +342,13 @@ export const coursesRelations = relations(courses, ({ one, many }) => ({
 
 export type Course = typeof courses.$inferSelect;
 
+export const insertCourseSchema = createInsertSchema(courses).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertCourse = z.infer<typeof insertCourseSchema>;
+
 // ============================================================================
 // COURSE ENROLLMENTS
 // ============================================================================

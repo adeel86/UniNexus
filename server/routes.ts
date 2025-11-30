@@ -2870,6 +2870,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get courses created by a teacher
+  app.get("/api/me/created-courses", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    // Only teachers can view their created courses
+    if (req.user.role !== 'teacher' && req.user.role !== 'master_admin') {
+      return res.status(403).json({ error: "Only teachers can view created courses" });
+    }
+
+    try {
+      const createdCoursesData = await db
+        .select()
+        .from(courses)
+        .where(eq(courses.instructorId, req.user.id))
+        .orderBy(desc(courses.createdAt));
+
+      // Get enrollment and discussion counts for each course
+      const coursesWithStats = await Promise.all(
+        createdCoursesData.map(async (course) => {
+          const discussionCountResult = await db
+            .select({ count: sql<number>`count(*)` })
+            .from(courseDiscussions)
+            .where(eq(courseDiscussions.courseId, course.id));
+          
+          const enrollmentCountResult = await db
+            .select({ count: sql<number>`count(*)` })
+            .from(courseEnrollments)
+            .where(eq(courseEnrollments.courseId, course.id));
+
+          return {
+            ...course,
+            discussionCount: Number(discussionCountResult[0]?.count || 0),
+            enrollmentCount: Number(enrollmentCountResult[0]?.count || 0),
+          };
+        })
+      );
+
+      res.json(coursesWithStats);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Create a new course (teachers only)
+  app.post("/api/courses", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    // Only teachers can create courses
+    if (req.user.role !== 'teacher') {
+      return res.status(403).json({ error: "Only teachers can create courses" });
+    }
+
+    try {
+      const { name, code, description, university, semester } = req.body;
+
+      if (!name || !code) {
+        return res.status(400).json({ error: "Course name and code are required" });
+      }
+
+      // Check if course code already exists
+      const existingCourse = await db
+        .select()
+        .from(courses)
+        .where(eq(courses.code, code))
+        .limit(1);
+
+      if (existingCourse.length > 0) {
+        return res.status(400).json({ error: "A course with this code already exists" });
+      }
+
+      const [newCourse] = await db
+        .insert(courses)
+        .values({
+          name,
+          code,
+          description: description || null,
+          university: university || req.user.university || null,
+          instructorId: req.user.id,
+          semester: semester || null,
+        })
+        .returning();
+
+      res.json(newCourse);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Get detailed course information including instructor, enrollments, discussions
   app.get("/api/courses/:id", async (req: Request, res: Response) => {
     try {

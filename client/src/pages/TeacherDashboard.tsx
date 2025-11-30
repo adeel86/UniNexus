@@ -6,7 +6,7 @@ import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, Award, Users, Target, Plus, Shield, Sparkles, MessageSquare, FileText } from "lucide-react";
+import { TrendingUp, Award, Users, Target, Plus, Shield, Sparkles, MessageSquare, FileText, GraduationCap } from "lucide-react";
 import { useState } from "react";
 import { CreatePostModal } from "@/components/CreatePostModal";
 import { SuggestedPosts } from "@/components/SuggestedPosts";
@@ -31,6 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { TeacherContentUpload } from "@/components/TeacherContentUpload";
+import { TeacherCreatedCourses } from "@/components/TeacherCreatedCourses";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function TeacherDashboard() {
@@ -186,21 +187,29 @@ export default function TeacherDashboard() {
         </p>
       </div>
 
-      <Tabs defaultValue="analytics" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 max-w-2xl">
+      <Tabs defaultValue="courses" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4 max-w-3xl">
+          <TabsTrigger value="courses" data-testid="tab-courses">
+            <GraduationCap className="h-4 w-4 mr-2" />
+            My Courses
+          </TabsTrigger>
           <TabsTrigger value="analytics" data-testid="tab-analytics">
             <TrendingUp className="h-4 w-4 mr-2" />
             Analytics
           </TabsTrigger>
           <TabsTrigger value="content" data-testid="tab-content">
             <FileText className="h-4 w-4 mr-2" />
-            Course Materials
+            Materials
           </TabsTrigger>
           <TabsTrigger value="feed" data-testid="tab-feed">
             <MessageSquare className="h-4 w-4 mr-2" />
-            Community Feed
+            Feed
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="courses">
+          <TeacherCreatedCourses />
+        </TabsContent>
 
         <TabsContent value="feed">
           <UniversalFeed role="teacher" initialCategory="academic" />
