@@ -5173,7 +5173,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
             .orderBy(desc(messages.createdAt))
             .limit(1);
 
-          // Get unread count for current user
+          // Get unread count for current user (exclude messages sent by the user)
           const allMessages = await db
             .select()
             .from(messages)
@@ -5181,7 +5181,10 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
           const unreadMessages = allMessages.filter(msg => {
             const readBy = msg.readBy || [];
-            return !readBy.includes(userId);
+            // Only count messages from others that we haven't read
+            // Guard against undefined senderId for legacy data
+            const isFromOtherUser = msg.senderId ? msg.senderId !== userId : true;
+            return isFromOtherUser && !readBy.includes(userId);
           });
 
           return {

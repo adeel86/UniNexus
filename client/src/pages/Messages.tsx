@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Send, MessageCircle, Plus, Search } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -277,9 +278,13 @@ export default function Messages() {
                               {otherUser.firstName} {otherUser.lastName}
                             </p>
                             {conversation.unreadCount > 0 && (
-                              <span className="bg-primary text-primary-foreground text-xs font-bold rounded-full px-2 py-0.5">
+                              <Badge 
+                                variant="default" 
+                                className="ml-2 min-w-[1.25rem] justify-center"
+                                data-testid={`badge-unread-${conversation.id}`}
+                              >
                                 {conversation.unreadCount}
-                              </span>
+                              </Badge>
                             )}
                           </div>
                           {conversation.lastMessage && (
