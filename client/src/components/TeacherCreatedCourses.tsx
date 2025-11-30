@@ -130,10 +130,14 @@ export function TeacherCreatedCourses() {
       ) : (
         <div className="space-y-4">
           {createdCourses.map((course) => (
-            <Link key={course.id} href={`/courses/${course.id}`}>
+            <Link 
+              key={course.id} 
+              href={`/courses/${course.id}`}
+              data-testid={`link-created-course-${course.id}`}
+            >
               <div
                 className="border rounded-md p-4 hover-elevate cursor-pointer"
-                data-testid={`created-course-${course.id}`}
+                data-testid={`card-created-course-${course.id}`}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3">
