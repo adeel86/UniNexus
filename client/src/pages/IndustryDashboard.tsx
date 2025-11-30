@@ -4,10 +4,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import type { User, RecruiterFeedback, insertChallengeSchema } from "@shared/schema";
+import type { User, RecruiterFeedback, insertChallengeSchema, Challenge } from "@shared/schema";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
-import { Search, Briefcase, Users, Trophy, Plus, Calendar, TrendingUp, MessageSquare, Star, ClipboardList } from "lucide-react";
+import { Search, Briefcase, Users, Trophy, Plus, Calendar, TrendingUp, MessageSquare, Star, ClipboardList, Award, Medal, ExternalLink } from "lucide-react";
 import { UniversalFeed } from "@/components/UniversalFeed";
 import { useState } from "react";
 import {
@@ -114,6 +114,16 @@ export default function IndustryDashboard() {
     queryKey: ["/api/recruiter-feedback/my-feedback"],
   });
 
+  // Fetch challenges organized by this user
+  const { data: myChallenges = [] } = useQuery<Challenge[]>({
+    queryKey: ["/api/challenges"],
+  });
+
+  // State for ranking modal
+  const [isRankingModalOpen, setIsRankingModalOpen] = useState(false);
+  const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
+  const [participants, setParticipants] = useState<any[]>([]);
+
   const createChallengeMutation = useMutation({
     mutationFn: async (data: z.infer<typeof insertChallengeSchema>) => {
       return await apiRequest("POST", "/api/challenges", data);
@@ -180,6 +190,60 @@ export default function IndustryDashboard() {
     });
   };
 
+  // Fetch participants for a challenge
+  const fetchParticipants = async (challengeId: string) => {
+    try {
+      const response = await apiRequest("GET", `/api/challenges/${challengeId}/participants`);
+      const data = await response.json();
+      setParticipants(data.filter((p: any) => p.submittedAt !== null));
+    } catch (error) {
+      console.error("Failed to fetch participants:", error);
+    }
+  };
+
+  // Award ranking mutation
+  const awardRankMutation = useMutation({
+    mutationFn: async ({ participantId, rank }: { participantId: string; rank: number }) => {
+      return apiRequest("POST", `/api/challenges/${participantId}/award-rank-points`, { rank });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Ranking Awarded",
+        description: "The participant has been awarded their ranking and points!",
+      });
+      if (selectedChallenge) {
+        fetchParticipants(selectedChallenge.id);
+      }
+      queryClient.invalidateQueries({ queryKey: ["/api/challenges"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to award ranking",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const openRankingModal = async (challenge: Challenge) => {
+    setSelectedChallenge(challenge);
+    await fetchParticipants(challenge.id);
+    setIsRankingModalOpen(true);
+  };
+
+  const handleAwardRank = (participantId: string, rank: number) => {
+    awardRankMutation.mutate({ participantId, rank });
+  };
+
+  const getRankLabel = (rank: number) => {
+    switch (rank) {
+      case 1: return { label: "1st Place", points: "+500 pts", color: "bg-yellow-500" };
+      case 2: return { label: "2nd Place", points: "+300 pts", color: "bg-gray-400" };
+      case 3: return { label: "3rd Place", points: "+200 pts", color: "bg-orange-600" };
+      default: return { label: `#${rank}`, points: "", color: "bg-muted" };
+    }
+  };
+
   const openFeedbackModal = (student: User) => {
     setSelectedStudent(student);
     setIsFeedbackModalOpen(true);
@@ -229,14 +293,18 @@ export default function IndustryDashboard() {
       </div>
 
       <Tabs defaultValue="analytics" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 max-w-lg">
+        <TabsList className="grid w-full grid-cols-4 max-w-xl">
           <TabsTrigger value="analytics" data-testid="tab-analytics">
             <TrendingUp className="h-4 w-4 mr-2" />
             Talent
           </TabsTrigger>
+          <TabsTrigger value="challenges" data-testid="tab-challenges">
+            <Trophy className="h-4 w-4 mr-2" />
+            Challenges
+          </TabsTrigger>
           <TabsTrigger value="feedback" data-testid="tab-feedback">
             <ClipboardList className="h-4 w-4 mr-2" />
-            My Feedback
+            Feedback
           </TabsTrigger>
           <TabsTrigger value="feed" data-testid="tab-feed">
             <MessageSquare className="h-4 w-4 mr-2" />
@@ -246,6 +314,67 @@ export default function IndustryDashboard() {
 
         <TabsContent value="feed">
           <UniversalFeed role="industry" initialCategory="all" />
+        </TabsContent>
+
+        <TabsContent value="challenges">
+          <Card className="p-6">
+            <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
+              <div>
+                <h2 className="text-xl font-semibold">Manage Your Challenges</h2>
+                <p className="text-sm text-muted-foreground">
+                  Award rankings to participants and distribute challenge points
+                </p>
+              </div>
+              <Button onClick={() => setIsChallengeModalOpen(true)} data-testid="button-create-new-challenge">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Challenge
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              {myChallenges.filter(c => c.organizerId).length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>You haven't created any challenges yet.</p>
+                  <p className="text-sm mt-2">Create a challenge to engage with students!</p>
+                </div>
+              ) : (
+                myChallenges.map((challenge) => (
+                  <Card key={challenge.id} className="p-5" data-testid={`challenge-manage-${challenge.id}`}>
+                    <div className="flex items-start justify-between gap-4 flex-wrap">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <h3 className="font-semibold text-lg">{challenge.title}</h3>
+                          <Badge variant={challenge.status === 'active' ? 'default' : 'secondary'}>
+                            {challenge.status}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            {challenge.participantCount || 0} participants
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground line-clamp-2">{challenge.description}</p>
+                        {challenge.endDate && (
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Ends: {new Date(challenge.endDate).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          onClick={() => openRankingModal(challenge)}
+                          data-testid={`button-manage-rankings-${challenge.id}`}
+                        >
+                          <Award className="h-4 w-4 mr-2" />
+                          Award Rankings
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))
+              )}
+            </div>
+          </Card>
         </TabsContent>
 
         <TabsContent value="feedback">
@@ -581,6 +710,106 @@ export default function IndustryDashboard() {
               </DialogFooter>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Ranking Award Modal */}
+      <Dialog open={isRankingModalOpen} onOpenChange={setIsRankingModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-yellow-500" />
+              Award Rankings - {selectedChallenge?.title}
+            </DialogTitle>
+            <DialogDescription>
+              Assign rankings to participants. Points will be automatically awarded:
+              1st Place: +500 pts, 2nd Place: +300 pts, 3rd Place: +200 pts
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {participants.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Medal className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No submissions yet for this challenge.</p>
+              </div>
+            ) : (
+              participants.map((participant, index) => (
+                <Card key={participant.id} className="p-4" data-testid={`participant-${participant.id}`}>
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <div className="flex items-center gap-3">
+                      <UserAvatar user={participant.user} size="md" />
+                      <div>
+                        <p className="font-medium">
+                          {participant.user?.firstName} {participant.user?.lastName}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Submitted: {new Date(participant.submittedAt).toLocaleDateString()}
+                        </p>
+                        {participant.submissionUrl && (
+                          <a
+                            href={participant.submissionUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:underline flex items-center gap-1 mt-1"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            View Submission
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {participant.rank ? (
+                        <Badge className={`${getRankLabel(participant.rank).color} text-white`}>
+                          {getRankLabel(participant.rank).label} {getRankLabel(participant.rank).points}
+                        </Badge>
+                      ) : (
+                        <>
+                          <Button
+                            size="sm"
+                            onClick={() => handleAwardRank(participant.id, 1)}
+                            disabled={awardRankMutation.isPending}
+                            className="bg-yellow-500 hover:bg-yellow-600"
+                            data-testid={`button-award-1st-${participant.id}`}
+                          >
+                            <Medal className="h-4 w-4 mr-1" />
+                            1st
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleAwardRank(participant.id, 2)}
+                            disabled={awardRankMutation.isPending}
+                            className="bg-gray-400 hover:bg-gray-500"
+                            data-testid={`button-award-2nd-${participant.id}`}
+                          >
+                            <Medal className="h-4 w-4 mr-1" />
+                            2nd
+                          </Button>
+                          <Button
+                            size="sm"
+                            onClick={() => handleAwardRank(participant.id, 3)}
+                            disabled={awardRankMutation.isPending}
+                            className="bg-orange-600 hover:bg-orange-700"
+                            data-testid={`button-award-3rd-${participant.id}`}
+                          >
+                            <Medal className="h-4 w-4 mr-1" />
+                            3rd
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              ))
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRankingModalOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

@@ -262,22 +262,10 @@ export default function Profile() {
             </div>
           </div>
           
-          {/* Edit Profile button (only show when viewing own profile) */}
-          {isViewingOwnProfile && (
+          {/* CV Export button (only show when viewing own student profile) */}
+          {isViewingOwnProfile && user.role === "student" && (
             <div className="flex items-center gap-2 flex-wrap">
-              <Button
-                onClick={() => setEditProfileOpen(true)}
-                variant="outline"
-                size="lg"
-                className="bg-white/20 backdrop-blur text-white border-white/30 hover:bg-white/30"
-                data-testid="button-edit-profile"
-              >
-                <Edit className="mr-2 h-5 w-5" />
-                Edit Profile
-              </Button>
-              {user.role === "student" && (
-                <CVExportButton userId={targetUserId!} />
-              )}
+              <CVExportButton userId={targetUserId!} />
             </div>
           )}
           
@@ -433,71 +421,29 @@ export default function Profile() {
       {/* Student-exclusive features: Achievements, Endorsements, Achievement Timeline */}
       {user && user.role === "student" && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Badges */}
-            <Card className="p-6">
-              <h2 className="font-heading text-xl font-semibold mb-4 flex items-center gap-2">
-                <Trophy className="h-5 w-5 text-yellow-600" />
-                Achievements ({userBadges.length})
-              </h2>
-              {userBadges.length > 0 ? (
-                <div className="grid grid-cols-3 gap-4">
-                  {userBadges.map((ub) => (
-                    <div key={ub.id} className="flex flex-col items-center gap-2">
-                      <BadgeIcon badge={ub.badge} size="lg" />
-                      <div className="text-xs text-center font-medium">{ub.badge.name}</div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Trophy className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>No badges earned yet</p>
-                  <p className="text-sm">Keep engaging to unlock achievements!</p>
-                </div>
-              )}
-            </Card>
-
-            {/* Endorsements */}
-            <Card className="p-6">
-              <h2 className="font-heading text-xl font-semibold mb-4 flex items-center gap-2">
-                <Award className="h-5 w-5 text-purple-600" />
-                Endorsements ({endorsements.length})
-              </h2>
-              {endorsements.length > 0 ? (
-                <div className="space-y-3">
-                  {endorsements.slice(0, 5).map((endorsement) => (
-                    <div key={endorsement.id} className="border-l-2 border-primary pl-3 py-2">
-                      <div className="flex items-center gap-2 mb-1">
-                        <UserAvatar user={endorsement.endorser} size="sm" />
-                        <div>
-                          <div className="font-medium text-sm">
-                            {endorsement.endorser.firstName} {endorsement.endorser.lastName}
-                          </div>
-                          {endorsement.skill && (
-                            <Badge variant="secondary" className="text-xs mt-1">
-                              {endorsement.skill.name}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                      {endorsement.comment && (
-                        <p className="text-sm text-muted-foreground mt-2">
-                          "{endorsement.comment}"
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Award className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p>No endorsements yet</p>
-                  <p className="text-sm">Keep up the great work!</p>
-                </div>
-              )}
-            </Card>
-          </div>
+          {/* Badges */}
+          <Card className="p-6">
+            <h2 className="font-heading text-xl font-semibold mb-4 flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-yellow-600" />
+              Achievements ({userBadges.length})
+            </h2>
+            {userBadges.length > 0 ? (
+              <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+                {userBadges.map((ub) => (
+                  <div key={ub.id} className="flex flex-col items-center gap-2">
+                    <BadgeIcon badge={ub.badge} size="lg" />
+                    <div className="text-xs text-center font-medium">{ub.badge.name}</div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Trophy className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>No badges earned yet</p>
+                <p className="text-sm">Keep engaging to unlock achievements!</p>
+              </div>
+            )}
+          </Card>
 
           {/* Achievement Timeline */}
           <Card className="p-6 mt-6">
@@ -507,7 +453,6 @@ export default function Profile() {
             </h2>
             <AchievementTimeline 
               userBadges={userBadges}
-              endorsements={endorsements}
               engagementScore={user.engagementScore || 0}
             />
           </Card>

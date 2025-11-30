@@ -2317,6 +2317,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .leftJoin(skills, eq(userSkills.skillId, skills.id))
         .where(eq(userSkills.userId, userId));
 
+      // Get user certifications
+      const userCertifications = await db
+        .select()
+        .from(certifications)
+        .where(eq(certifications.userId, userId))
+        .orderBy(desc(certifications.issuedAt));
+
+      // Get challenge participations with rankings
+      const challengeParticipationsData = await db
+        .select({
+          id: challengeParticipants.id,
+          challengeId: challengeParticipants.challengeId,
+          submissionUrl: challengeParticipants.submissionUrl,
+          submittedAt: challengeParticipants.submittedAt,
+          rank: challengeParticipants.rank,
+          joinedAt: challengeParticipants.joinedAt,
+          challenge: challenges,
+        })
+        .from(challengeParticipants)
+        .leftJoin(challenges, eq(challengeParticipants.challengeId, challenges.id))
+        .where(
+          and(
+            eq(challengeParticipants.userId, userId),
+            sql`${challengeParticipants.submittedAt} IS NOT NULL`
+          )
+        )
+        .orderBy(desc(challengeParticipants.submittedAt));
+
+      // Get user badges
+      const userBadgesData = await db
+        .select({
+          id: userBadges.id,
+          earnedAt: userBadges.earnedAt,
+          badge: badges,
+        })
+        .from(userBadges)
+        .leftJoin(badges, eq(userBadges.badgeId, badges.id))
+        .where(eq(userBadges.userId, userId))
+        .orderBy(desc(userBadges.earnedAt));
+
       const cvData = {
         user,
         education,
@@ -2326,6 +2366,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: s.id,
           name: s.skillName || s.skillId,
           level: s.level,
+        })),
+        certifications: userCertifications.map(c => ({
+          id: c.id,
+          title: c.title,
+          description: c.description,
+          issuerName: c.issuerName,
+          type: c.type,
+          issuedAt: c.issuedAt,
+          expiresAt: c.expiresAt,
+        })),
+        challengeParticipations: challengeParticipationsData.map(p => ({
+          id: p.id,
+          challengeTitle: p.challenge?.title || 'Challenge',
+          challengeCategory: p.challenge?.category,
+          submittedAt: p.submittedAt,
+          rank: p.rank,
+        })),
+        badges: userBadgesData.map(b => ({
+          id: b.id,
+          name: b.badge?.name || 'Badge',
+          description: b.badge?.description,
+          tier: b.badge?.tier,
+          earnedAt: b.earnedAt,
         })),
       };
 
@@ -6107,6 +6170,45 @@ Make it personalized, constructive, and actionable. Use a professional but encou
 
       const followingIds = following.map(f => f.followingId);
 
+      // Get all existing connections (accepted)
+      const existingConnections = await db
+        .select()
+        .from(userConnections)
+        .where(
+          and(
+            or(
+              eq(userConnections.requesterId, userId),
+              eq(userConnections.receiverId, userId)
+            ),
+            eq(userConnections.status, 'accepted')
+          )
+        );
+      
+      const connectedUserIds = existingConnections.map(c => 
+        c.requesterId === userId ? c.receiverId : c.requesterId
+      );
+
+      // Get pending connection requests (sent or received)
+      const pendingConnections = await db
+        .select()
+        .from(userConnections)
+        .where(
+          and(
+            or(
+              eq(userConnections.requesterId, userId),
+              eq(userConnections.receiverId, userId)
+            ),
+            eq(userConnections.status, 'pending')
+          )
+        );
+      
+      const pendingUserIds = pendingConnections.map(c => 
+        c.requesterId === userId ? c.receiverId : c.requesterId
+      );
+
+      // Combine all users to exclude
+      const excludeUserIds = new Set([...followingIds, ...connectedUserIds, ...pendingUserIds]);
+
       // Find similar users based on interests, university, and engagement
       // Using simpler approach to avoid SQL type casting issues
       const allUsers = await db
@@ -6118,7 +6220,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
       // Filter and score in JavaScript to avoid PostgreSQL array casting issues
       const currentInterests = currentUser.interests || [];
       const recommendations = allUsers
-        .filter(user => !followingIds.includes(user.id))
+        .filter(user => !excludeUserIds.has(user.id))
         .map(user => {
           const userInterests = user.interests || [];
           const sharedSkills = currentInterests.filter(interest => 

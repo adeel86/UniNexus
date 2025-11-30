@@ -226,55 +226,6 @@ export default function StudentHome() {
             }} 
           />
 
-          {/* Recent Badges */}
-          {userBadges.length > 0 && (
-            <Card className="p-6">
-              <h3 className="font-heading font-semibold text-lg mb-4">Recent Badges</h3>
-              <div className="grid grid-cols-3 gap-3">
-                {userBadges.slice(0, 6).map((ub) => (
-                  <div key={ub.id} className="flex justify-center">
-                    <BadgeIcon badge={ub.badge} size="md" />
-                  </div>
-                ))}
-              </div>
-              {userBadges.length > 6 && (
-                <Link href="/profile">
-                  <a data-testid="link-view-all-badges">
-                    <Button variant="ghost" className="w-full mt-4">
-                      View All {userBadges.length} Badges
-                    </Button>
-                  </a>
-                </Link>
-              )}
-            </Card>
-          )}
-
-          {/* Active Challenges */}
-          {challenges.length > 0 && (
-            <Card className="p-6">
-              <h3 className="font-heading font-semibold text-lg mb-4">Active Challenges</h3>
-              <div className="space-y-3">
-                {challenges.slice(0, 3).map((challenge) => (
-                  <div key={challenge.id} className="border rounded-lg p-3 hover-elevate">
-                    <div className="font-medium text-sm mb-1">{challenge.title}</div>
-                    <div className="text-xs text-muted-foreground mb-2 line-clamp-2">
-                      {challenge.description}
-                    </div>
-                    <BadgePill variant="secondary" className="text-xs">
-                      {challenge.participantCount} participants
-                    </BadgePill>
-                  </div>
-                ))}
-              </div>
-              <Link href="/challenges">
-                <a data-testid="link-view-challenges">
-                  <Button variant="ghost" className="w-full mt-4">
-                    View All Challenges
-                  </Button>
-                </a>
-              </Link>
-            </Card>
-          )}
         </div>
       </div>
 

@@ -62,12 +62,41 @@ interface CVUser {
   role: string;
 }
 
+interface CVCertification {
+  id: string;
+  title: string;
+  description: string | null;
+  issuerName: string | null;
+  type: string | null;
+  issuedAt: Date | null;
+  expiresAt: Date | null;
+}
+
+interface CVChallengeParticipation {
+  id: string;
+  challengeTitle: string;
+  challengeCategory: string | null;
+  submittedAt: Date | null;
+  rank: number | null;
+}
+
+interface CVBadge {
+  id: string;
+  name: string;
+  description: string | null;
+  tier: string | null;
+  earnedAt: Date | null;
+}
+
 interface CVData {
   user: CVUser;
   education: CVEducation[];
   workExperience: CVWorkExperience[];
   courses: CVCourse[];
   skills: CVSkill[];
+  certifications: CVCertification[];
+  challengeParticipations: CVChallengeParticipation[];
+  badges: CVBadge[];
 }
 
 export function CVExportButton({ userId }: CVExportButtonProps) {
@@ -202,6 +231,9 @@ export function CVExportButton({ userId }: CVExportButtonProps) {
   const workExperience = cvData?.workExperience || [];
   const courses = cvData?.courses || [];
   const skills = cvData?.skills || [];
+  const certifications = cvData?.certifications || [];
+  const challengeParticipations = cvData?.challengeParticipations || [];
+  const badges = cvData?.badges || [];
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -368,6 +400,89 @@ export function CVExportButton({ userId }: CVExportButtonProps) {
                         {skill.name}
                         {skill.level && ` (${skill.level})`}
                       </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {certifications.length > 0 && (
+                <div className="section mb-6">
+                  <h2 className="section-title text-base font-semibold text-purple-700 border-b pb-2 mb-4 uppercase tracking-wider">
+                    Digital Certificates
+                  </h2>
+                  <div className="space-y-4">
+                    {certifications.map((cert) => (
+                      <div key={cert.id} className="item">
+                        <div className="flex justify-between items-start gap-2 flex-wrap">
+                          <div>
+                            <h3 className="font-semibold text-sm">{cert.title}</h3>
+                            {cert.issuerName && (
+                              <p className="text-sm text-muted-foreground">Issued by: {cert.issuerName}</p>
+                            )}
+                            {cert.type && (
+                              <span className="text-xs text-muted-foreground capitalize">{cert.type.replace('_', ' ')}</span>
+                            )}
+                          </div>
+                          {cert.issuedAt && (
+                            <span className="text-xs text-muted-foreground">
+                              {formatDate(cert.issuedAt)}
+                            </span>
+                          )}
+                        </div>
+                        {cert.description && (
+                          <p className="text-sm text-muted-foreground mt-2">{cert.description}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {challengeParticipations.length > 0 && (
+                <div className="section mb-6">
+                  <h2 className="section-title text-base font-semibold text-purple-700 border-b pb-2 mb-4 uppercase tracking-wider">
+                    Challenge Participations
+                  </h2>
+                  <div className="space-y-3">
+                    {challengeParticipations.map((participation) => (
+                      <div key={participation.id} className="flex justify-between items-center gap-2 flex-wrap">
+                        <div>
+                          <h3 className="font-medium text-sm">{participation.challengeTitle}</h3>
+                          {participation.challengeCategory && (
+                            <span className="text-xs text-muted-foreground">{participation.challengeCategory}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {participation.rank && (
+                            <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-xs font-medium dark:bg-yellow-900/30 dark:text-yellow-300">
+                              {participation.rank === 1 ? '1st Place' : participation.rank === 2 ? '2nd Place' : participation.rank === 3 ? '3rd Place' : `Rank #${participation.rank}`}
+                            </span>
+                          )}
+                          {participation.submittedAt && (
+                            <span className="text-xs text-muted-foreground">{formatDate(participation.submittedAt)}</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {badges.length > 0 && (
+                <div className="section mb-6">
+                  <h2 className="section-title text-base font-semibold text-purple-700 border-b pb-2 mb-4 uppercase tracking-wider">
+                    Achievements & Badges
+                  </h2>
+                  <div className="flex flex-wrap gap-3">
+                    {badges.map((badge) => (
+                      <div key={badge.id} className="flex items-center gap-2 bg-purple-50 dark:bg-purple-900/20 px-3 py-2 rounded-md">
+                        <div className="text-sm">
+                          <span className="font-medium">{badge.name}</span>
+                          {badge.tier && (
+                            <span className="text-xs text-muted-foreground ml-1">({badge.tier})</span>
+                          )}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>

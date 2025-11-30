@@ -1,12 +1,12 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BadgeIcon } from "@/components/BadgeIcon";
-import { Award, TrendingUp, Users, Zap, Star } from "lucide-react";
-import type { UserBadge, Badge as BadgeType, Endorsement, User, Skill } from "@shared/schema";
+import { TrendingUp, Users, Zap, Star } from "lucide-react";
+import type { UserBadge, Badge as BadgeType } from "@shared/schema";
 
 interface TimelineEvent {
   id: string;
-  type: 'badge' | 'endorsement' | 'milestone';
+  type: 'badge' | 'milestone';
   title: string;
   description: string;
   date: Date;
@@ -17,11 +17,10 @@ interface TimelineEvent {
 
 interface AchievementTimelineProps {
   userBadges: (UserBadge & { badge: BadgeType })[];
-  endorsements: (Endorsement & { endorser: User; skill?: Skill })[];
   engagementScore: number;
 }
 
-export function AchievementTimeline({ userBadges, endorsements, engagementScore }: AchievementTimelineProps) {
+export function AchievementTimeline({ userBadges, engagementScore }: AchievementTimelineProps) {
   const events: TimelineEvent[] = [];
 
   // Add badge events
@@ -34,19 +33,6 @@ export function AchievementTimeline({ userBadges, endorsements, engagementScore 
       date: ub.earnedAt ? new Date(ub.earnedAt) : new Date(),
       badge: ub.badge,
       color: 'purple',
-    });
-  });
-
-  // Add endorsement events
-  endorsements.forEach((e) => {
-    events.push({
-      id: `endorsement-${e.id}`,
-      type: 'endorsement',
-      title: e.skill ? `Endorsed for ${e.skill.name}` : 'Received Endorsement',
-      description: e.comment || `Endorsed by ${e.endorser.firstName} ${e.endorser.lastName}`,
-      date: e.createdAt ? new Date(e.createdAt) : new Date(),
-      icon: Award,
-      color: 'blue',
     });
   });
 
@@ -100,18 +86,16 @@ export function AchievementTimeline({ userBadges, endorsements, engagementScore 
               <div className={`
                 w-10 h-10 rounded-full flex items-center justify-center
                 ${event.type === 'badge' ? 'bg-purple-100 dark:bg-purple-900/30' : ''}
-                ${event.type === 'endorsement' ? 'bg-blue-100 dark:bg-blue-900/30' : ''}
                 ${event.type === 'milestone' ? 'bg-yellow-100 dark:bg-yellow-900/30' : ''}
               `}>
                 {event.badge ? (
                   <BadgeIcon badge={event.badge} size="sm" />
                 ) : Icon ? (
                   <Icon className={`h-5 w-5
-                    ${event.type === 'endorsement' ? 'text-blue-600' : ''}
                     ${event.type === 'milestone' ? 'text-yellow-600' : ''}
                   `} />
                 ) : (
-                  <Award className="h-5 w-5" />
+                  <Star className="h-5 w-5 text-yellow-600" />
                 )}
               </div>
               {!isLast && (
