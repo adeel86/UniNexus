@@ -69,6 +69,7 @@ import {
   insertEducationRecordSchema,
   insertJobExperienceSchema,
   insertStudentCourseSchema,
+  insertCourseSchema,
 } from "@shared/schema";
 import OpenAI from "openai";
 import jwt from "jsonwebtoken";
@@ -2927,7 +2928,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      const { name, code, description, university, semester } = req.body;
+      // Validate request body using insertCourseSchema
+      const courseValidation = insertCourseSchema.safeParse({
+        ...req.body,
+        instructorId: req.user.id,
+      });
+
+      if (!courseValidation.success) {
+        return res.status(400).json({ 
+          error: "Invalid course data",
+          details: courseValidation.error.errors 
+        });
+      }
+
+      const { name, code, description, university, semester } = courseValidation.data;
 
       if (!name || !code) {
         return res.status(400).json({ error: "Course name and code are required" });
