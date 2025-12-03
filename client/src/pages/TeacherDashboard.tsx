@@ -188,17 +188,20 @@ export default function TeacherDashboard() {
 
       <Tabs defaultValue="materials" className="space-y-6">
         <TabsList className="grid w-full grid-cols-3 max-w-2xl">
-          <TabsTrigger value="materials" data-testid="tab-materials">
-            <GraduationCap className="h-4 w-4 mr-2" />
-            Courses & Materials
+          
+          <TabsTrigger value="feed" data-testid="tab-feed">
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Feed
           </TabsTrigger>
+          
           <TabsTrigger value="analytics" data-testid="tab-analytics">
             <TrendingUp className="h-4 w-4 mr-2" />
             Analytics
           </TabsTrigger>
-          <TabsTrigger value="feed" data-testid="tab-feed">
-            <MessageSquare className="h-4 w-4 mr-2" />
-            Feed
+          
+          <TabsTrigger value="materials" data-testid="tab-materials">
+            <GraduationCap className="h-4 w-4 mr-2" />
+            Courses & Materials
           </TabsTrigger>
         </TabsList>
 

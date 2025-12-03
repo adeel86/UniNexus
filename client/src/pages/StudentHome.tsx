@@ -208,11 +208,11 @@ export default function StudentHome() {
             </div>
           </Card>
 
-          {/* Trending Posts */}
-          <TrendingWidget />
-
           {/* Challenge Journey */}
           {user?.id && <ChallengeMilestonesCard userId={user.id} />}
+
+          {/* Trending Posts */}
+          <TrendingWidget />
 
           {/* AI Post Suggestions */}
           <SuggestedPosts 
