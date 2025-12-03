@@ -328,13 +328,28 @@ export const courses = pgTable("courses", {
   university: varchar("university"),
   instructorId: varchar("instructor_id").references(() => users.id, { onDelete: 'set null' }),
   semester: varchar("semester"),
+  
+  // University validation fields
+  universityValidationStatus: varchar("university_validation_status", { length: 20 }).notNull().default('pending'), // pending, validated, rejected
+  isUniversityValidated: boolean("is_university_validated").notNull().default(false),
+  validatedByUniversityAdminId: varchar("validated_by_university_admin_id").references(() => users.id, { onDelete: 'set null' }),
+  universityValidatedAt: timestamp("university_validated_at"),
+  universityValidationNote: text("university_validation_note"),
+  validationRequestedAt: timestamp("validation_requested_at"),
+  
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const coursesRelations = relations(courses, ({ one, many }) => ({
   instructor: one(users, {
     fields: [courses.instructorId],
     references: [users.id],
+  }),
+  universityValidator: one(users, {
+    fields: [courses.validatedByUniversityAdminId],
+    references: [users.id],
+    relationName: "universityValidator",
   }),
   enrollments: many(courseEnrollments),
   discussions: many(courseDiscussions),
@@ -346,7 +361,14 @@ export type Course = typeof courses.$inferSelect;
 
 export const insertCourseSchema = createInsertSchema(courses).omit({
   id: true,
+  universityValidationStatus: true,
+  isUniversityValidated: true,
+  validatedByUniversityAdminId: true,
+  universityValidatedAt: true,
+  universityValidationNote: true,
+  validationRequestedAt: true,
   createdAt: true,
+  updatedAt: true,
 });
 
 export type InsertCourse = z.infer<typeof insertCourseSchema>;
