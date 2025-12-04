@@ -33,6 +33,9 @@ import Discovery from "@/pages/Discovery";
 import EthicsDashboard from "@/pages/EthicsDashboard";
 import TransparencyReport from "@/pages/TransparencyReport";
 import Settings from "@/pages/Settings";
+import MyTeachers from "@/pages/MyTeachers";
+import MyStudents from "@/pages/MyStudents";
+import UniversityTeachers from "@/pages/UniversityTeachers";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -143,6 +146,23 @@ function Router() {
           {/* Admin/Ethics routes */}
           <Route path="/ethics" component={EthicsDashboard} />
           <Route path="/transparency" component={TransparencyReport} />
+          
+          {/* Relationship pages */}
+          <Route path="/my-teachers">
+            <RoleGuard allowedRoles={['student']}>
+              <MyTeachers />
+            </RoleGuard>
+          </Route>
+          <Route path="/my-students">
+            <RoleGuard allowedRoles={['teacher']}>
+              <MyStudents />
+            </RoleGuard>
+          </Route>
+          <Route path="/university-teachers">
+            <RoleGuard allowedRoles={['university', 'university_admin', 'master_admin']}>
+              <UniversityTeachers />
+            </RoleGuard>
+          </Route>
           
           {/* Role-specific routes */}
           <Route path="/teacher-dashboard" component={TeacherDashboard} />

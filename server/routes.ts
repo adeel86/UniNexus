@@ -1559,6 +1559,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get teachers by university (for students to view their institution's teachers)
+  app.get("/api/teachers/university/:university", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { university } = req.params;
+
+      const teachers = await db
+        .select()
+        .from(users)
+        .where(
+          and(
+            eq(users.role, "teacher"),
+            eq(users.university, university)
+          )
+        )
+        .orderBy(users.lastName, users.firstName);
+
+      res.json(teachers);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get students validated/enrolled by a teacher
+  app.get("/api/teachers/:teacherId/students", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { teacherId } = req.params;
+
+      // Get students who are validated by this teacher (through studentCourses)
+      const validatedStudents = await db
+        .select({
+          studentCourse: studentCourses,
+          student: users,
+        })
+        .from(studentCourses)
+        .leftJoin(users, eq(studentCourses.userId, users.id))
+        .where(
+          and(
+            eq(studentCourses.validatedBy, teacherId),
+            eq(studentCourses.isValidated, true)
+          )
+        )
+        .orderBy(desc(studentCourses.validatedAt));
+
+      // Deduplicate students (a student can be validated for multiple courses)
+      const uniqueStudentsMap = new Map();
+      for (const item of validatedStudents) {
+        if (item.student && !uniqueStudentsMap.has(item.student.id)) {
+          uniqueStudentsMap.set(item.student.id, {
+            ...item.student,
+            validatedCourses: [item.studentCourse],
+          });
+        } else if (item.student) {
+          uniqueStudentsMap.get(item.student.id).validatedCourses.push(item.studentCourse);
+        }
+      }
+
+      res.json(Array.from(uniqueStudentsMap.values()));
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Get all teachers for a university (for university dashboard)
+  app.get("/api/university/teachers", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    // Check if user is a university admin (support both role names)
+    const isUniversityAdmin = ['university', 'university_admin', 'master_admin'].includes(req.user.role);
+    if (!isUniversityAdmin) {
+      return res.status(403).json({ error: "Only university admins can access this" });
+    }
+
+    try {
+      const universityName = req.user.university;
+      if (!universityName) {
+        return res.status(400).json({ error: "University not set for this admin" });
+      }
+
+      const teachers = await db
+        .select()
+        .from(users)
+        .where(
+          and(
+            eq(users.role, "teacher"),
+            eq(users.university, universityName)
+          )
+        )
+        .orderBy(users.lastName, users.firstName);
+
+      // Get course counts for each teacher
+      const teachersWithCourses = await Promise.all(
+        teachers.map(async (teacher) => {
+          const teacherCourses = await db
+            .select()
+            .from(courses)
+            .where(eq(courses.instructorId, teacher.id));
+
+          const validatedCount = teacherCourses.filter(c => c.isUniversityValidated).length;
+          const pendingCount = teacherCourses.filter(c => c.universityValidationStatus === 'pending' && !c.isUniversityValidated).length;
+
+          return {
+            ...teacher,
+            courseCount: teacherCourses.length,
+            validatedCourseCount: validatedCount,
+            pendingCourseCount: pendingCount,
+          };
+        })
+      );
+
+      res.json(teachersWithCourses);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Search for users (for network discovery) - MUST BE BEFORE /:userId route
   app.get("/api/users/search", async (req: Request, res: Response) => {
     if (!req.user) {
@@ -3318,44 +3443,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .returning();
 
       res.json(updatedCourse);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // Get teachers from the same university
-  app.get("/api/university/teachers", async (req: Request, res: Response) => {
-    if (!req.user) {
-      return res.status(401).send("Unauthorized");
-    }
-
-    try {
-      const university = req.query.university as string || req.user.university;
-      
-      if (!university) {
-        return res.status(400).json({ error: "University parameter required" });
-      }
-
-      const teachers = await db
-        .select({
-          id: users.id,
-          firstName: users.firstName,
-          lastName: users.lastName,
-          displayName: users.displayName,
-          email: users.email,
-          profileImageUrl: users.profileImageUrl,
-          university: users.university,
-          bio: users.bio,
-          isVerified: users.isVerified,
-        })
-        .from(users)
-        .where(and(
-          eq(users.role, 'teacher'),
-          eq(users.university, university)
-        ))
-        .orderBy(users.firstName, users.lastName);
-
-      res.json(teachers);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }
@@ -7433,6 +7520,50 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         .orderBy(desc(teacherContent.uploadedAt));
 
       res.json(content);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Update teacher content
+  app.patch("/api/teacher-content/:id", async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      const { id } = req.params;
+      const { title, description, tags, isPublic } = req.body;
+
+      // Get the content first to check ownership
+      const [existingContent] = await db
+        .select()
+        .from(teacherContent)
+        .where(eq(teacherContent.id, id));
+
+      if (!existingContent) {
+        return res.status(404).json({ error: "Content not found" });
+      }
+
+      // Check if user is the owner or admin
+      if (existingContent.teacherId !== req.user.id && req.user.role !== 'master_admin') {
+        return res.status(403).json({ error: "Not authorized to update this content" });
+      }
+
+      // Update the content
+      const [updatedContent] = await db
+        .update(teacherContent)
+        .set({
+          title: title || existingContent.title,
+          description: description !== undefined ? description : existingContent.description,
+          tags: tags !== undefined ? tags : existingContent.tags,
+          isPublic: isPublic !== undefined ? isPublic : existingContent.isPublic,
+          updatedAt: new Date(),
+        })
+        .where(eq(teacherContent.id, id))
+        .returning();
+
+      res.json(updatedContent);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

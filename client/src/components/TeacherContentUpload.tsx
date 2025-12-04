@@ -19,13 +19,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Tabs,
   TabsContent,
   TabsList,
@@ -47,7 +40,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Upload, FileText, Trash2, Download, Plus, BookOpen, Users, MessageSquare, GraduationCap, Loader2, FolderOpen, CheckCircle, Clock, Edit2, Send, AlertCircle, XCircle } from "lucide-react";
+import { Upload, FileText, Trash2, Download, Plus, BookOpen, Users, MessageSquare, GraduationCap, Loader2, FolderOpen, CheckCircle, Clock, Edit2, Send, AlertCircle, XCircle, ChevronRight, Pencil } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
 import type { TeacherContent, Course, StudentCourse } from "@shared/schema";
@@ -83,7 +76,18 @@ export function TeacherContentUpload({ teacherId }: TeacherContentUploadProps) {
   const [isPublic, setIsPublic] = useState(true);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [selectedCourseId, setSelectedCourseId] = useState<string>("");
+  
+  // Course materials modal state
+  const [materialsModalOpen, setMaterialsModalOpen] = useState(false);
+  const [selectedCourseForMaterials, setSelectedCourseForMaterials] = useState<CourseWithStats | null>(null);
+  
+  // Material editing state
+  const [editMaterialModalOpen, setEditMaterialModalOpen] = useState(false);
+  const [editingMaterial, setEditingMaterial] = useState<TeacherContent | null>(null);
+  const [editMaterialTitle, setEditMaterialTitle] = useState("");
+  const [editMaterialDescription, setEditMaterialDescription] = useState("");
+  const [editMaterialTags, setEditMaterialTags] = useState("");
+  const [editMaterialIsPublic, setEditMaterialIsPublic] = useState(true);
   
   // Course creation/editing state
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -223,8 +227,13 @@ export function TeacherContentUpload({ teacherId }: TeacherContentUploadProps) {
   // Upload content mutation
   const uploadMutation = useMutation({
     mutationFn: async () => {
-      if (!selectedFile) {
-        throw new Error("Please select a file");
+      if (!selectedFile || !selectedCourseForMaterials) {
+        throw new Error("Please select a file and course");
+      }
+
+      // Additional validation: ensure course is validated
+      if (!selectedCourseForMaterials.isUniversityValidated || selectedCourseForMaterials.universityValidationStatus !== 'validated') {
+        throw new Error("Materials can only be uploaded to university-validated courses");
       }
 
       setIsUploading(true);
@@ -234,9 +243,7 @@ export function TeacherContentUpload({ teacherId }: TeacherContentUploadProps) {
       formData.append("description", description);
       formData.append("tags", tags);
       formData.append("isPublic", isPublic.toString());
-      if (selectedCourseId && selectedCourseId !== "none") {
-        formData.append("courseId", selectedCourseId);
-      }
+      formData.append("courseId", selectedCourseForMaterials.id);
 
       const response = await fetch("/api/teacher-content/upload", {
         method: "POST",
@@ -294,6 +301,32 @@ export function TeacherContentUpload({ teacherId }: TeacherContentUploadProps) {
     },
   });
 
+  // Update material mutation
+  const updateMaterialMutation = useMutation({
+    mutationFn: async () => {
+      if (!editingMaterial) return;
+      return apiRequest("PATCH", `/api/teacher-content/${editingMaterial.id}`, {
+        title: editMaterialTitle,
+        description: editMaterialDescription || null,
+        tags: editMaterialTags.split(",").map(t => t.trim()).filter(Boolean),
+        isPublic: editMaterialIsPublic,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/teacher-content/teacher/${teacherId}`] });
+      toast({ title: "Material updated successfully!" });
+      setEditMaterialModalOpen(false);
+      setEditingMaterial(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to update material",
+        description: error.message || "Please try again",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Validate student course mutation
   const validateMutation = useMutation({
     mutationFn: async ({ id, note }: { id: string; note?: string }) => {
@@ -329,7 +362,6 @@ export function TeacherContentUpload({ teacherId }: TeacherContentUploadProps) {
     setTags("");
     setSelectedFile(null);
     setIsPublic(true);
-    setSelectedCourseId("");
   };
 
   const resetCourseForm = () => {
@@ -383,6 +415,30 @@ export function TeacherContentUpload({ teacherId }: TeacherContentUploadProps) {
     setCourseForValidation(course);
     setValidationNote("");
     setValidationRequestModalOpen(true);
+  };
+
+  const openMaterialsModal = (course: CourseWithStats) => {
+    // Only allow materials management for validated courses
+    if (!course.isUniversityValidated || course.universityValidationStatus !== 'validated') {
+      toast({
+        title: "Course not validated",
+        description: "Materials can only be managed for university-validated courses.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSelectedCourseForMaterials(course);
+    setMaterialsModalOpen(true);
+    resetUploadForm();
+  };
+
+  const openEditMaterialModal = (material: TeacherContent) => {
+    setEditingMaterial(material);
+    setEditMaterialTitle(material.title);
+    setEditMaterialDescription(material.description || "");
+    setEditMaterialTags(material.tags?.join(", ") || "");
+    setEditMaterialIsPublic(material.isPublic);
+    setEditMaterialModalOpen(true);
   };
 
   const handleRequestValidation = () => {
@@ -454,17 +510,18 @@ export function TeacherContentUpload({ teacherId }: TeacherContentUploadProps) {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
+  // Get materials for the selected course
+  const selectedCourseMaterials = selectedCourseForMaterials 
+    ? contentByCourse[selectedCourseForMaterials.id] || []
+    : [];
+
   return (
     <div className="space-y-6">
       <Tabs defaultValue="courses" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 max-w-md">
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
           <TabsTrigger value="courses" data-testid="tab-my-courses">
             <GraduationCap className="h-4 w-4 mr-2" />
             Courses
-          </TabsTrigger>
-          <TabsTrigger value="upload" data-testid="tab-upload">
-            <Upload className="h-4 w-4 mr-2" />
-            Upload
           </TabsTrigger>
           <TabsTrigger value="validations" data-testid="tab-validations">
             <CheckCircle className="h-4 w-4 mr-2" />
@@ -516,7 +573,7 @@ export function TeacherContentUpload({ teacherId }: TeacherContentUploadProps) {
                         University Validated ({validatedCourses.length})
                       </h3>
                       <Accordion type="single" collapsible className="w-full">
-                        {validatedCourses.map((course) => renderCourseAccordionItem(course))}
+                        {validatedCourses.map((course) => renderCourseAccordionItem(course, true))}
                       </Accordion>
                     </div>
                   )}
@@ -529,7 +586,7 @@ export function TeacherContentUpload({ teacherId }: TeacherContentUploadProps) {
                         Pending University Validation ({pendingValidationCourses.length})
                       </h3>
                       <Accordion type="single" collapsible className="w-full">
-                        {pendingValidationCourses.map((course) => renderCourseAccordionItem(course))}
+                        {pendingValidationCourses.map((course) => renderCourseAccordionItem(course, false))}
                       </Accordion>
                     </div>
                   )}
@@ -542,7 +599,7 @@ export function TeacherContentUpload({ teacherId }: TeacherContentUploadProps) {
                         Awaiting Validation Request ({unvalidatedCourses.length})
                       </h3>
                       <Accordion type="single" collapsible className="w-full">
-                        {unvalidatedCourses.map((course) => renderCourseAccordionItem(course))}
+                        {unvalidatedCourses.map((course) => renderCourseAccordionItem(course, false))}
                       </Accordion>
                     </div>
                   )}
@@ -550,207 +607,6 @@ export function TeacherContentUpload({ teacherId }: TeacherContentUploadProps) {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
-
-        {/* Upload Tab */}
-        <TabsContent value="upload" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Upload Course Materials</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {validatedCourses.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-md">
-                  <AlertCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                  <p className="font-medium">No validated courses available</p>
-                  <p className="text-sm mt-1">
-                    You can only upload materials to courses that have been validated by your university.
-                  </p>
-                  <p className="text-sm mt-2">
-                    Create a course and request university validation to get started.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div>
-                    <Label htmlFor="course-select">Select Validated Course *</Label>
-                    <Select
-                      value={selectedCourseId}
-                      onValueChange={setSelectedCourseId}
-                    >
-                      <SelectTrigger id="course-select" data-testid="select-upload-course">
-                        <SelectValue placeholder="Choose a validated course" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {validatedCourses.map((course) => (
-                          <SelectItem key={course.id} value={course.id}>
-                            <div className="flex items-center gap-2">
-                              <CheckCircle className="h-3 w-3 text-green-600" />
-                              {course.code} - {course.name}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Only university-validated courses can receive material uploads
-                    </p>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="file-upload">Document File</Label>
-                    <div className="flex gap-2 mt-1">
-                      <Input
-                        id="file-upload"
-                        type="file"
-                        accept=".pdf,.doc,.docx,.txt,.ppt,.pptx"
-                        onChange={handleFileSelect}
-                        data-testid="input-file-upload"
-                      />
-                      {selectedFile && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setSelectedFile(null)}
-                          data-testid="button-clear-file"
-                        >
-                          Clear
-                        </Button>
-                      )}
-                    </div>
-                    {selectedFile && (
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label htmlFor="content-title">Title</Label>
-                    <Input
-                      id="content-title"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      placeholder="e.g., Week 1 Lecture Notes"
-                      data-testid="input-content-title"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="content-description">Description</Label>
-                    <Textarea
-                      id="content-description"
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Brief description of this material..."
-                      data-testid="textarea-content-description"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="content-tags">Tags</Label>
-                    <Input
-                      id="content-tags"
-                      value={tags}
-                      onChange={(e) => setTags(e.target.value)}
-                      placeholder="e.g., lecture, notes, assignment"
-                      data-testid="input-content-tags"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">Separate with commas</p>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      id="public-switch"
-                      checked={isPublic}
-                      onCheckedChange={setIsPublic}
-                      data-testid="switch-is-public"
-                    />
-                    <Label htmlFor="public-switch">Make public to all students</Label>
-                  </div>
-
-                  <Button
-                    onClick={() => uploadMutation.mutate()}
-                    disabled={!selectedFile || !selectedCourseId || isUploading}
-                    className="w-full"
-                    data-testid="button-upload-content"
-                  >
-                    <Upload className="mr-2 h-4 w-4" />
-                    {isUploading ? "Uploading..." : "Upload Content"}
-                  </Button>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* All uploaded materials */}
-          {teacherContent.length > 0 && (
-            <Card className="mt-6">
-              <CardHeader>
-                <CardTitle>All Uploaded Materials</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {teacherContent.map((content) => {
-                    const linkedCourse = createdCourses.find(c => c.id === content.courseId);
-                    return (
-                      <div
-                        key={content.id}
-                        className="flex items-center justify-between p-3 border rounded-md hover-elevate"
-                        data-testid={`content-item-${content.id}`}
-                      >
-                        <div className="flex items-center gap-3 flex-1">
-                          <FileText className="h-5 w-5 text-primary" />
-                          <div className="flex-1">
-                            <h4 className="font-medium">{content.title}</h4>
-                            <div className="flex items-center gap-2 mt-1 flex-wrap">
-                              {linkedCourse && (
-                                <Badge variant="secondary" className="text-xs">
-                                  {linkedCourse.code}
-                                </Badge>
-                              )}
-                              <span className="text-xs text-muted-foreground">
-                                {content.uploadedAt ? new Date(content.uploadedAt).toLocaleDateString() : "N/A"}
-                              </span>
-                              {content.tags && content.tags.length > 0 && (
-                                <div className="flex gap-1">
-                                  {content.tags.slice(0, 3).map((tag, i) => (
-                                    <Badge key={i} variant="outline" className="text-xs">
-                                      {tag}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex gap-1">
-                          {content.fileUrl && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              asChild
-                            >
-                              <a href={content.fileUrl} download target="_blank" rel="noopener noreferrer">
-                                <Download className="h-4 w-4" />
-                              </a>
-                            </Button>
-                          )}
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => deleteMutation.mutate(content.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </TabsContent>
 
         {/* Validations Tab - Student Course Validations */}
@@ -823,6 +679,261 @@ export function TeacherContentUpload({ teacherId }: TeacherContentUploadProps) {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Course Materials Modal - Opens when clicking on a validated course */}
+      <Dialog open={materialsModalOpen} onOpenChange={setMaterialsModalOpen}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FolderOpen className="h-5 w-5 text-purple-600" />
+              Manage Course Materials
+            </DialogTitle>
+            {selectedCourseForMaterials && (
+              <DialogDescription>
+                {selectedCourseForMaterials.code} - {selectedCourseForMaterials.name}
+              </DialogDescription>
+            )}
+          </DialogHeader>
+
+          <div className="space-y-6">
+            {/* Upload New Material Section */}
+            <div className="border rounded-lg p-4 space-y-4">
+              <h3 className="font-semibold flex items-center gap-2">
+                <Upload className="h-4 w-4" />
+                Upload New Material
+              </h3>
+              
+              <div>
+                <Label htmlFor="file-upload-modal">Document File</Label>
+                <div className="flex gap-2 mt-1">
+                  <Input
+                    id="file-upload-modal"
+                    type="file"
+                    accept=".pdf,.doc,.docx,.txt,.ppt,.pptx"
+                    onChange={handleFileSelect}
+                    data-testid="input-file-upload"
+                  />
+                  {selectedFile && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedFile(null)}
+                      data-testid="button-clear-file"
+                    >
+                      Clear
+                    </Button>
+                  )}
+                </div>
+                {selectedFile && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Selected: {selectedFile.name} ({(selectedFile.size / 1024 / 1024).toFixed(2)} MB)
+                  </p>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="content-title-modal">Title</Label>
+                  <Input
+                    id="content-title-modal"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g., Week 1 Lecture Notes"
+                    data-testid="input-content-title"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="content-tags-modal">Tags</Label>
+                  <Input
+                    id="content-tags-modal"
+                    value={tags}
+                    onChange={(e) => setTags(e.target.value)}
+                    placeholder="lecture, notes, assignment"
+                    data-testid="input-content-tags"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="content-description-modal">Description</Label>
+                <Textarea
+                  id="content-description-modal"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Brief description of this material..."
+                  rows={2}
+                  data-testid="textarea-content-description"
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    id="public-switch-modal"
+                    checked={isPublic}
+                    onCheckedChange={setIsPublic}
+                    data-testid="switch-is-public"
+                  />
+                  <Label htmlFor="public-switch-modal">Make public to all students</Label>
+                </div>
+                <Button
+                  onClick={() => uploadMutation.mutate()}
+                  disabled={!selectedFile || isUploading}
+                  data-testid="button-upload-content"
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  {isUploading ? "Uploading..." : "Upload"}
+                </Button>
+              </div>
+            </div>
+
+            {/* Existing Materials Section */}
+            <div>
+              <h3 className="font-semibold flex items-center gap-2 mb-3">
+                <FileText className="h-4 w-4" />
+                Course Materials ({selectedCourseMaterials.length})
+              </h3>
+              
+              {selectedCourseMaterials.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground border-2 border-dashed rounded-md">
+                  <FileText className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No materials uploaded yet</p>
+                  <p className="text-xs mt-1">Upload your first material above</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {selectedCourseMaterials.map((material) => (
+                    <div
+                      key={material.id}
+                      className="flex items-center justify-between p-3 border rounded-md hover-elevate"
+                      data-testid={`material-item-${material.id}`}
+                    >
+                      <div className="flex items-center gap-3 flex-1">
+                        <FileText className="h-5 w-5 text-primary" />
+                        <div className="flex-1">
+                          <h4 className="font-medium">{material.title}</h4>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <span className="text-xs text-muted-foreground">
+                              {material.uploadedAt ? new Date(material.uploadedAt).toLocaleDateString() : "N/A"}
+                            </span>
+                            {material.isPublic ? (
+                              <Badge variant="secondary" className="text-xs">Public</Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-xs">Private</Badge>
+                            )}
+                            {material.tags && material.tags.length > 0 && (
+                              <div className="flex gap-1">
+                                {material.tags.slice(0, 3).map((tag, i) => (
+                                  <Badge key={i} variant="outline" className="text-xs">
+                                    {tag}
+                                  </Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-1">
+                        {material.fileUrl && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            asChild
+                          >
+                            <a href={material.fileUrl} download target="_blank" rel="noopener noreferrer">
+                              <Download className="h-4 w-4" />
+                            </a>
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEditMaterialModal(material)}
+                          data-testid={`button-edit-material-${material.id}`}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteMutation.mutate(material.id)}
+                          data-testid={`button-delete-material-${material.id}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Material Modal */}
+      <Dialog open={editMaterialModalOpen} onOpenChange={setEditMaterialModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Material</DialogTitle>
+            <DialogDescription>
+              Update the material details below.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-material-title">Title *</Label>
+              <Input
+                id="edit-material-title"
+                value={editMaterialTitle}
+                onChange={(e) => setEditMaterialTitle(e.target.value)}
+                data-testid="input-edit-material-title"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-material-description">Description</Label>
+              <Textarea
+                id="edit-material-description"
+                value={editMaterialDescription}
+                onChange={(e) => setEditMaterialDescription(e.target.value)}
+                rows={3}
+                data-testid="textarea-edit-material-description"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-material-tags">Tags (comma-separated)</Label>
+              <Input
+                id="edit-material-tags"
+                value={editMaterialTags}
+                onChange={(e) => setEditMaterialTags(e.target.value)}
+                placeholder="lecture, notes, assignment"
+                data-testid="input-edit-material-tags"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <Switch
+                id="edit-material-public"
+                checked={editMaterialIsPublic}
+                onCheckedChange={setEditMaterialIsPublic}
+                data-testid="switch-edit-material-public"
+              />
+              <Label htmlFor="edit-material-public">Make public to all students</Label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditMaterialModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => updateMaterialMutation.mutate()}
+              disabled={!editMaterialTitle.trim() || updateMaterialMutation.isPending}
+              data-testid="button-confirm-edit-material"
+            >
+              {updateMaterialMutation.isPending ? "Saving..." : "Save Changes"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Create Course Modal */}
       <Dialog open={createModalOpen} onOpenChange={setCreateModalOpen}>
@@ -1043,9 +1154,8 @@ export function TeacherContentUpload({ teacherId }: TeacherContentUploadProps) {
     </div>
   );
 
-  function renderCourseAccordionItem(course: CourseWithStats) {
+  function renderCourseAccordionItem(course: CourseWithStats, isValidated: boolean) {
     const courseMaterials = contentByCourse[course.id] || [];
-    const canUpload = course.isUniversityValidated;
     const canRequestValidation = !course.isUniversityValidated && course.universityValidationStatus !== 'pending';
 
     return (
@@ -1116,6 +1226,7 @@ export function TeacherContentUpload({ teacherId }: TeacherContentUploadProps) {
               </div>
             )}
             
+            {/* Action Buttons */}
             <div className="flex items-center gap-2 flex-wrap">
               <Button
                 size="sm"
@@ -1129,20 +1240,15 @@ export function TeacherContentUpload({ teacherId }: TeacherContentUploadProps) {
                 </Link>
               </Button>
               
-              {canUpload && (
+              {/* Validated courses can manage materials */}
+              {isValidated && (
                 <Button
                   size="sm"
-                  onClick={() => {
-                    setSelectedCourseId(course.id);
-                    const tabElement = document.querySelector('[data-testid="tab-upload"]');
-                    if (tabElement instanceof HTMLElement) {
-                      tabElement.click();
-                    }
-                  }}
-                  data-testid={`button-upload-to-${course.id}`}
+                  onClick={() => openMaterialsModal(course)}
+                  data-testid={`button-manage-materials-${course.id}`}
                 >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload Material
+                  <FolderOpen className="h-4 w-4 mr-2" />
+                  Manage Materials ({courseMaterials.length})
                 </Button>
               )}
 
@@ -1164,58 +1270,55 @@ export function TeacherContentUpload({ teacherId }: TeacherContentUploadProps) {
                 onClick={() => openEditModal(course)}
                 data-testid={`button-edit-course-${course.id}`}
               >
-                <Edit2 className="h-4 w-4" />
+                <Edit2 className="h-4 w-4 mr-2" />
+                Edit
               </Button>
 
               <Button
                 size="sm"
                 variant="ghost"
                 onClick={() => openDeleteDialog(course)}
+                className="text-destructive hover:text-destructive"
                 data-testid={`button-delete-course-${course.id}`}
               >
-                <Trash2 className="h-4 w-4 text-destructive" />
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
               </Button>
             </div>
 
-            {courseMaterials.length > 0 && (
-              <div className="border-t pt-4 mt-4">
-                <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
-                  <FolderOpen className="h-4 w-4" />
-                  Course Materials
+            {/* Quick view of materials for validated courses */}
+            {isValidated && courseMaterials.length > 0 && (
+              <div className="border-t pt-4 mt-2">
+                <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+                  <FileText className="h-4 w-4" />
+                  Recent Materials
                 </h4>
-                <div className="space-y-2">
-                  {courseMaterials.map((content) => (
+                <div className="space-y-1">
+                  {courseMaterials.slice(0, 3).map((material) => (
                     <div
-                      key={content.id}
-                      className="flex items-center justify-between p-2 border rounded-md"
-                      data-testid={`material-${content.id}`}
+                      key={material.id}
+                      className="flex items-center justify-between text-sm p-2 rounded hover-elevate"
                     >
                       <div className="flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-primary" />
-                        <span className="text-sm">{content.title}</span>
+                        <FileText className="h-4 w-4 text-muted-foreground" />
+                        <span>{material.title}</span>
                       </div>
-                      <div className="flex gap-1">
-                        {content.fileUrl && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            asChild
-                          >
-                            <a href={content.fileUrl} download target="_blank" rel="noopener noreferrer">
-                              <Download className="h-4 w-4" />
-                            </a>
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => deleteMutation.mutate(content.id)}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {material.uploadedAt ? new Date(material.uploadedAt).toLocaleDateString() : ""}
+                      </span>
                     </div>
                   ))}
+                  {courseMaterials.length > 3 && (
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => openMaterialsModal(course)}
+                    >
+                      View all {courseMaterials.length} materials
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  )}
                 </div>
               </div>
             )}

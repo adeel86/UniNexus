@@ -643,29 +643,93 @@ async function seedDatabase() {
   }
 
   const mockCourses = [
+    // Demo Teacher courses with different validation statuses
+    {
+      name: "Introduction to Web Development",
+      code: "WEB101",
+      description: "Learn the fundamentals of HTML, CSS, and JavaScript to build modern websites.",
+      university: "Demo University",
+      instructorId: insertedUsers[1].id, // Demo Teacher
+      semester: "Fall 2024",
+      // VALIDATED - can receive materials
+      universityValidationStatus: "validated",
+      isUniversityValidated: true,
+      validatedByUniversityAdminId: insertedUsers[2].id, // Demo University Admin
+      universityValidatedAt: new Date("2024-10-01"),
+      validationRequestedAt: new Date("2024-09-15"),
+    },
+    {
+      name: "Advanced React Patterns",
+      code: "WEB301",
+      description: "Master advanced React concepts including hooks, context, and performance optimization.",
+      university: "Demo University",
+      instructorId: insertedUsers[1].id, // Demo Teacher
+      semester: "Fall 2024",
+      // PENDING - awaiting university validation
+      universityValidationStatus: "pending",
+      isUniversityValidated: false,
+      validationRequestedAt: new Date("2024-11-01"),
+    },
+    {
+      name: "Node.js Backend Development",
+      code: "WEB201",
+      description: "Build scalable server-side applications with Node.js, Express, and databases.",
+      university: "Demo University",
+      instructorId: insertedUsers[1].id, // Demo Teacher
+      semester: "Spring 2025",
+      // REJECTED - needs revision
+      universityValidationStatus: "rejected",
+      isUniversityValidated: false,
+      universityValidationNote: "Course description needs more detail. Please include learning objectives and prerequisites.",
+      validationRequestedAt: new Date("2024-10-20"),
+    },
+    {
+      name: "Database Systems",
+      code: "CS102",
+      description: "Introduction to relational databases, SQL, and database design principles.",
+      university: "Demo University",
+      instructorId: insertedUsers[1].id, // Demo Teacher
+      semester: "Spring 2025",
+      // NOT YET REQUESTED - default state
+      universityValidationStatus: "pending",
+      isUniversityValidated: false,
+    },
+    // Tech University courses (existing)
     {
       name: "Introduction to Machine Learning",
       code: "CS401",
       description: "Learn the fundamentals of machine learning including supervised and unsupervised learning algorithms.",
       university: "Tech University",
-      instructorId: insertedUsers[3].id,
+      instructorId: insertedUsers[8].id, // Dr. Sarah Smith
       semester: "Fall 2024",
+      // VALIDATED
+      universityValidationStatus: "validated",
+      isUniversityValidated: true,
+      universityValidatedAt: new Date("2024-09-01"),
     },
     {
       name: "Advanced Web Development",
       code: "CS301",
       description: "Master modern web technologies including React, Node.js, and cloud deployment.",
       university: "Tech University",
-      instructorId: insertedUsers[3].id,
+      instructorId: insertedUsers[8].id, // Dr. Sarah Smith
       semester: "Fall 2024",
+      // VALIDATED
+      universityValidationStatus: "validated",
+      isUniversityValidated: true,
+      universityValidatedAt: new Date("2024-09-01"),
     },
     {
       name: "Data Visualization",
       code: "DS201",
       description: "Create compelling visualizations to communicate data insights effectively.",
       university: "Tech University",
-      instructorId: insertedUsers[4].id,
+      instructorId: insertedUsers[9].id, // Prof. David Lee
       semester: "Fall 2024",
+      // VALIDATED
+      universityValidationStatus: "validated",
+      isUniversityValidated: true,
+      universityValidatedAt: new Date("2024-09-01"),
     },
   ];
 
@@ -734,11 +798,16 @@ async function seedDatabase() {
     // TEACHER CONTENT (Course Materials)
     // ============================================================================
 
+    // Teacher content is ONLY allowed for VALIDATED courses (indices: 0, 4, 5, 6)
+    // insertedCourses[0] = "Introduction to Web Development" (VALIDATED, Demo University, Demo Teacher)
+    // insertedCourses[4] = "Introduction to Machine Learning" (VALIDATED, Tech University, Dr. Sarah Smith)
+    // insertedCourses[5] = "Advanced Web Development" (VALIDATED, Tech University, Dr. Sarah Smith)
+    // insertedCourses[6] = "Data Visualization" (VALIDATED, Tech University, Prof. David Lee)
     const mockTeacherContent = [
-      // Demo Teacher content for Web Development course
+      // Demo Teacher content for Introduction to Web Development (VALIDATED course)
       {
         teacherId: insertedUsers[1].id, // Demo Teacher
-        courseId: insertedCourses[0].id,
+        courseId: insertedCourses[0].id, // Introduction to Web Development (VALIDATED)
         title: "Introduction to JavaScript Fundamentals",
         description: "Comprehensive guide to JavaScript basics including variables, functions, and control flow.",
         contentType: "pdf",
@@ -749,18 +818,18 @@ async function seedDatabase() {
       },
       {
         teacherId: insertedUsers[1].id, // Demo Teacher
-        courseId: insertedCourses[0].id,
-        title: "React Hooks Deep Dive",
-        description: "Advanced tutorial on React hooks including useState, useEffect, useContext, and custom hooks.",
-        contentType: "video",
-        fileUrl: "https://storage.uninexus.app/videos/react-hooks-tutorial.mp4",
-        metadata: JSON.stringify({ duration: "1:23:45", resolution: "1080p", transcript: true }),
-        tags: ["React", "Hooks", "Frontend", "JavaScript"],
+        courseId: insertedCourses[0].id, // Introduction to Web Development (VALIDATED)
+        title: "HTML5 & CSS3 Complete Guide",
+        description: "Learn modern HTML5 semantic elements and CSS3 styling techniques.",
+        contentType: "pdf",
+        fileUrl: "https://storage.uninexus.app/content/html-css-guide.pdf",
+        metadata: JSON.stringify({ pages: 68, fileSize: "3.1MB", version: "2.0" }),
+        tags: ["HTML", "CSS", "Web Development", "Frontend"],
         isPublic: true,
       },
       {
         teacherId: insertedUsers[1].id, // Demo Teacher
-        courseId: insertedCourses[0].id,
+        courseId: insertedCourses[0].id, // Introduction to Web Development (VALIDATED)
         title: "CSS Grid & Flexbox Layout Masterclass",
         description: "Complete guide to modern CSS layout techniques with practical examples.",
         contentType: "text",
@@ -768,10 +837,21 @@ async function seedDatabase() {
         tags: ["CSS", "Grid", "Flexbox", "Layout", "Web Design"],
         isPublic: true,
       },
-      // Dr. Sarah Smith content for Machine Learning course
+      {
+        teacherId: insertedUsers[1].id, // Demo Teacher
+        courseId: insertedCourses[0].id, // Introduction to Web Development (VALIDATED)
+        title: "Final Project Guidelines - CONFIDENTIAL",
+        description: "Detailed instructions and rubric for the final project. For enrolled students only.",
+        contentType: "pdf",
+        fileUrl: "https://storage.uninexus.app/content/final-project-guidelines.pdf",
+        metadata: JSON.stringify({ pages: 12, dueDate: "2024-12-20", maxPoints: 100 }),
+        tags: ["Project", "Guidelines", "Assessment"],
+        isPublic: false,
+      },
+      // Dr. Sarah Smith content for Machine Learning course (VALIDATED)
       {
         teacherId: insertedUsers[8].id, // Dr. Sarah Smith
-        courseId: insertedCourses[1].id,
+        courseId: insertedCourses[4].id, // Introduction to Machine Learning (VALIDATED)
         title: "Introduction to Neural Networks",
         description: "Foundational concepts of neural networks including perceptrons, activation functions, and backpropagation.",
         contentType: "pdf",
@@ -782,7 +862,7 @@ async function seedDatabase() {
       },
       {
         teacherId: insertedUsers[8].id, // Dr. Sarah Smith
-        courseId: insertedCourses[1].id,
+        courseId: insertedCourses[4].id, // Introduction to Machine Learning (VALIDATED)
         title: "Python for Data Science - Lecture Notes",
         description: "Comprehensive lecture notes covering NumPy, Pandas, and Matplotlib for data analysis.",
         contentType: "doc",
@@ -793,7 +873,7 @@ async function seedDatabase() {
       },
       {
         teacherId: insertedUsers[8].id, // Dr. Sarah Smith
-        courseId: insertedCourses[1].id,
+        courseId: insertedCourses[4].id, // Introduction to Machine Learning (VALIDATED)
         title: "Model Evaluation Techniques",
         description: "Video lecture on cross-validation, ROC curves, precision-recall, and model selection strategies.",
         contentType: "video",
@@ -802,10 +882,33 @@ async function seedDatabase() {
         tags: ["Machine Learning", "Model Evaluation", "Cross-Validation", "Metrics"],
         isPublic: true,
       },
-      // Prof. Michael Johnson content for Data Science course
+      // Dr. Sarah Smith content for Advanced Web Development course (VALIDATED)
       {
-        teacherId: insertedUsers[9].id, // Prof. Michael Johnson
-        courseId: insertedCourses[2].id,
+        teacherId: insertedUsers[8].id, // Dr. Sarah Smith
+        courseId: insertedCourses[5].id, // Advanced Web Development (VALIDATED)
+        title: "React Hooks Deep Dive",
+        description: "Advanced tutorial on React hooks including useState, useEffect, useContext, and custom hooks.",
+        contentType: "video",
+        fileUrl: "https://storage.uninexus.app/videos/react-hooks-tutorial.mp4",
+        metadata: JSON.stringify({ duration: "1:23:45", resolution: "1080p", transcript: true }),
+        tags: ["React", "Hooks", "Frontend", "JavaScript"],
+        isPublic: true,
+      },
+      {
+        teacherId: insertedUsers[8].id, // Dr. Sarah Smith
+        courseId: insertedCourses[5].id, // Advanced Web Development (VALIDATED)
+        title: "Node.js Express API Design",
+        description: "Best practices for building RESTful APIs with Express.js.",
+        contentType: "pdf",
+        fileUrl: "https://storage.uninexus.app/content/nodejs-api-design.pdf",
+        metadata: JSON.stringify({ pages: 55, fileSize: "2.8MB" }),
+        tags: ["Node.js", "Express", "API", "Backend"],
+        isPublic: true,
+      },
+      // Prof. David Lee content for Data Visualization course (VALIDATED)
+      {
+        teacherId: insertedUsers[9].id, // Prof. David Lee
+        courseId: insertedCourses[6].id, // Data Visualization (VALIDATED)
         title: "SQL Fundamentals for Data Analysis",
         description: "Complete SQL tutorial covering SELECT, JOIN, GROUP BY, and window functions.",
         contentType: "pdf",
@@ -815,27 +918,15 @@ async function seedDatabase() {
         isPublic: true,
       },
       {
-        teacherId: insertedUsers[9].id, // Prof. Michael Johnson
-        courseId: insertedCourses[2].id,
-        title: "Big Data Processing with Apache Spark",
-        description: "Introduction to distributed computing and big data processing using Apache Spark.",
+        teacherId: insertedUsers[9].id, // Prof. David Lee
+        courseId: insertedCourses[6].id, // Data Visualization (VALIDATED)
+        title: "D3.js Visualization Techniques",
+        description: "Creating interactive data visualizations with D3.js library.",
         contentType: "link",
-        fileUrl: "https://spark.apache.org/docs/latest/quick-start.html",
+        fileUrl: "https://d3js.org/getting-started",
         metadata: JSON.stringify({ externalLink: true, lastVerified: "2024-11-01" }),
-        tags: ["Big Data", "Apache Spark", "Distributed Computing", "Data Engineering"],
+        tags: ["D3.js", "Visualization", "JavaScript", "Interactive Charts"],
         isPublic: true,
-      },
-      // Private content example (only for enrolled students)
-      {
-        teacherId: insertedUsers[1].id, // Demo Teacher
-        courseId: insertedCourses[0].id,
-        title: "Final Project Guidelines - CONFIDENTIAL",
-        description: "Detailed instructions and rubric for the final project. For enrolled students only.",
-        contentType: "pdf",
-        fileUrl: "https://storage.uninexus.app/content/final-project-guidelines.pdf",
-        metadata: JSON.stringify({ pages: 12, dueDate: "2024-12-20", maxPoints: 100 }),
-        tags: ["Project", "Guidelines", "Assessment"],
-        isPublic: false,
       },
     ];
 
