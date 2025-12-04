@@ -103,15 +103,30 @@ Preferred communication style: Simple, everyday language.
 - `GET /api/teacher/pending-validations` - Get pending validations (same institution only)
 
 ### Teacher Dashboard
-- **Materials Tab**: Unified interface for course creation, material uploads, and validation management
-  - Courses sub-tab: Create and manage courses
-  - Upload sub-tab: Upload course-scoped materials
+- **Courses & Materials Tab**: Unified interface for course and material management
+  - Courses sub-tab: Create courses, request university validation, manage materials for validated courses
   - Validations sub-tab: Review and approve pending student validations
+- **Material Management**: Upload/Edit/Delete materials only available for university-validated courses
+- **University Validation Workflow**: Teacher creates course → Requests university validation → University admin approves → Teacher can upload materials
 
 ### Student Courses Page
 - Shows only validated and enrolled courses
 - Displays "Ask Teacher's AI" button for courses with materials
 - Indicates material count and AI access availability
 
+### Relationship Pages
+- **My Teachers** (`/my-teachers`): Students view teachers from their institution
+- **My Students** (`/my-students`): Teachers view students enrolled in their courses or validated by them
+- **University Teachers** (`/university-teachers`): University admins view teachers from their institution
+
+### API Endpoints for Relationships
+- `GET /api/university/teachers` - Get teachers from same university (university/university_admin only)
+- `GET /api/teacher/my-students` - Get students enrolled/validated by teacher
+- `PATCH /api/teacher-content/:id` - Update teacher content (ownership validated)
+
 ## Recent Changes
+- **2024-12-04**: Refactored Teacher Dashboard - consolidated to only "Courses" and "Validations" tabs, removed standalone Upload tab, integrated material management into validated courses with modal dialog
+- **2024-12-04**: Added relationship pages (MyTeachers, MyStudents, UniversityTeachers) with role-based access control
+- **2024-12-04**: Enhanced security - material uploads gated to validated courses only, removed insecure endpoint, enforced institution filtering
+- **2024-12-04**: Updated seed data with courses in different validation statuses (validated, pending, rejected) and materials only for validated courses
 - **2024-11-30**: Restructured course validation to enforce institution matching, auto-enrollment, and integrated course/materials management into unified Teacher Dashboard tab.
