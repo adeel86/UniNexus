@@ -294,6 +294,10 @@ export default function IndustryDashboard() {
 
       <Tabs defaultValue="analytics" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4 max-w-xl">
+          <TabsTrigger value="feed" data-testid="tab-feed">
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Feed
+          </TabsTrigger>
           <TabsTrigger value="analytics" data-testid="tab-analytics">
             <TrendingUp className="h-4 w-4 mr-2" />
             Talent
@@ -305,10 +309,6 @@ export default function IndustryDashboard() {
           <TabsTrigger value="feedback" data-testid="tab-feedback">
             <ClipboardList className="h-4 w-4 mr-2" />
             Feedback
-          </TabsTrigger>
-          <TabsTrigger value="feed" data-testid="tab-feed">
-            <MessageSquare className="h-4 w-4 mr-2" />
-            Feed
           </TabsTrigger>
         </TabsList>
 
@@ -440,7 +440,7 @@ export default function IndustryDashboard() {
         </TabsContent>
 
         <TabsContent value="analytics">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
             <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -471,7 +471,7 @@ export default function IndustryDashboard() {
               </div>
             </Card>
 
-            <Card className="p-6 bg-gradient-to-br from-purple-600 to-pink-600 text-white">
+            {/* <Card className="p-6 bg-gradient-to-br from-purple-600 to-pink-600 text-white">
               <Button
                 className="w-full bg-white/20 text-white"
                 size="lg"
@@ -481,7 +481,7 @@ export default function IndustryDashboard() {
                 <Plus className="mr-2 h-5 w-5" />
                 Create Challenge
               </Button>
-            </Card>
+            </Card> */}
           </div>
 
           <Card className="p-6">

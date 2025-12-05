@@ -225,6 +225,10 @@ export default function UniversityDashboard() {
 
       <Tabs defaultValue="analytics" className="space-y-6">
         <TabsList className="grid w-full grid-cols-3 max-w-lg">
+          <TabsTrigger value="feed" data-testid="tab-feed">
+            <MessageSquare className="h-4 w-4 mr-2" />
+            Feed
+          </TabsTrigger>
           <TabsTrigger value="analytics" data-testid="tab-analytics">
             <TrendingUp className="h-4 w-4 mr-2" />
             Analytics
@@ -237,10 +241,6 @@ export default function UniversityDashboard() {
                 {pendingCourses.length}
               </Badge>
             )}
-          </TabsTrigger>
-          <TabsTrigger value="feed" data-testid="tab-feed">
-            <MessageSquare className="h-4 w-4 mr-2" />
-            Feed
           </TabsTrigger>
         </TabsList>
 
