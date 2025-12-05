@@ -1,19 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-
-export interface AuthRequest extends Request {
-  user?: {
-    id: number;
-    email: string;
-    firstName: string;
-    lastName: string;
-    displayName: string;
-    role: string;
-    university?: string;
-    major?: string;
-    company?: string;
-    profileImageUrl?: string;
-  };
-}
+export type { AuthRequest } from "../firebaseAuth";
 
 export function blockRestrictedRoles(req: Request, res: Response, next: NextFunction) {
   if (!req.isAuthenticated()) {

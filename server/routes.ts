@@ -78,6 +78,15 @@ import jwt from "jsonwebtoken";
 import { applyPointDelta, recalculateUserRank } from "./pointsHelper";
 import { calculateChallengePoints } from "./rankTiers";
 
+import {
+  authRouter,
+  feedRouter,
+  usersRouter,
+  skillsRouter,
+  certificationsRouter,
+  notificationsRouter,
+} from "./routes/index";
+
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 }) : null;
@@ -109,7 +118,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
 
   // ========================================================================
-  // AUTH ENDPOINTS
+  // MOUNT DOMAIN ROUTERS
+  // ========================================================================
+  app.use("/api/auth", authRouter);
+  app.use("/api", feedRouter);
+  app.use("/api", usersRouter);
+  app.use("/api", skillsRouter);
+  app.use("/api", certificationsRouter);
+  app.use("/api", notificationsRouter);
+
+  // ========================================================================
+  // AUTH ENDPOINTS (DEPRECATED - Now handled by authRouter)
   // ========================================================================
 
   // Development login endpoint (only available when Firebase is not configured)
