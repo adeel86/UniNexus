@@ -42,6 +42,8 @@ import {
   groupMembers,
   groupPosts,
   teacherContent,
+  teacherContentChunks,
+  aiChatSessions,
   userProfiles,
   educationRecords,
   jobExperience,
@@ -84,17 +86,18 @@ const DEV_AUTH_ENABLED = process.env.DEV_AUTH_ENABLED === 'true';
 const DEV_JWT_SECRET = process.env.DEV_JWT_SECRET;
 const DEMO_PASSWORD = "demo123"; // Universal password for all dev/test accounts
 
-// Middleware to block admin roles from accessing social features
+// Middleware to block master admin from accessing social features
+// Note: university_admin now has access to Network, Discover, Messages, and Groups
 function blockRestrictedRoles(req: Request, res: Response, next: any) {
   if (!req.isAuthenticated()) {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  const restrictedRoles = ['master_admin', 'university_admin'];
+  const restrictedRoles = ['master_admin'];
   if (restrictedRoles.includes(req.user.role)) {
     return res.status(403).json({ 
       error: "Access Denied",
-      message: "Admin roles do not have access to this feature." 
+      message: "Master admin does not have access to social features." 
     });
   }
 
@@ -3246,16 +3249,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Delete a course (teacher who created it only, and only if not validated)
+  // Delete a course (teacher who created it only, including validated courses)
+  // This performs cascade deletion of all related materials and records within a transaction
   app.delete("/api/courses/:id", async (req: Request, res: Response) => {
     if (!req.user) {
       return res.status(401).send("Unauthorized");
     }
 
+    const courseId = req.params.id;
+    
     try {
-      const courseId = req.params.id;
-      
-      // Get the course and verify ownership
+      // Get the course and verify ownership BEFORE starting transaction
       const [existingCourse] = await db
         .select()
         .from(courses)
@@ -3266,21 +3270,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "Course not found" });
       }
 
+      // Only the teacher who created the course or master admin can delete it
       if (existingCourse.instructorId !== req.user.id && req.user.role !== 'master_admin') {
         return res.status(403).json({ error: "Not authorized to delete this course" });
       }
 
-      // Don't allow deletion of validated courses (would lose university approval)
-      if (existingCourse.isUniversityValidated) {
-        return res.status(400).json({ error: "Cannot delete a course that has been validated by the university" });
-      }
+      // Use a database transaction for atomic deletion
+      const result = await db.transaction(async (tx) => {
+        // 1. Delete AI chat sessions (and their messages via cascade)
+        const deletedSessions = await tx
+          .delete(aiChatSessions)
+          .where(eq(aiChatSessions.courseId, courseId))
+          .returning();
+        
+        // 2. Delete teacherContentChunks explicitly (some may be orphaned or linked directly to courseId)
+        await tx
+          .delete(teacherContentChunks)
+          .where(eq(teacherContentChunks.courseId, courseId));
+        
+        // 3. Delete teacher content (materials) - has SET NULL, so we need to delete explicitly
+        const deletedMaterials = await tx
+          .delete(teacherContent)
+          .where(eq(teacherContent.courseId, courseId))
+          .returning();
+        
+        // 4. Delete any notifications related to this course (by checking the link)
+        await tx
+          .delete(notifications)
+          .where(like(notifications.link, `%/courses/${courseId}%`));
+        
+        // 5. Update studentCourses to clear course reference and mark as deleted
+        await tx
+          .update(studentCourses)
+          .set({ 
+            courseId: null,
+            validationNote: `Course deleted on ${new Date().toISOString().split('T')[0]}`
+          })
+          .where(eq(studentCourses.courseId, courseId));
 
-      await db
-        .delete(courses)
-        .where(eq(courses.id, courseId));
+        // 6. Delete the course itself
+        // Schema cascade deletes handle: courseEnrollments, courseDiscussions (+ replies + upvotes), 
+        // courseMilestones
+        await tx
+          .delete(courses)
+          .where(eq(courses.id, courseId));
 
-      res.json({ success: true, message: "Course deleted successfully" });
+        return { 
+          deletedMaterialsCount: deletedMaterials.length,
+          deletedSessionsCount: deletedSessions.length
+        };
+      });
+
+      // Log the deletion for audit purposes
+      console.log(`Course ${courseId} (${existingCourse.name}) deleted by user ${req.user.id}. ` +
+        `Validated: ${existingCourse.isUniversityValidated}. Materials removed: ${result.deletedMaterialsCount}`);
+
+      res.json({ 
+        success: true, 
+        message: "Course and all related materials deleted successfully",
+        deletedMaterialsCount: result.deletedMaterialsCount
+      });
     } catch (error: any) {
+      console.error("Error deleting course:", error);
       res.status(500).json({ error: error.message });
     }
   });

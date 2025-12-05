@@ -90,27 +90,27 @@ function Router() {
         <Switch>
           <Route path="/" component={HomePage} />
           <Route path="/network">
-            <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional']}>
+            <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional', 'university_admin']}>
               <Network />
             </RoleGuard>
           </Route>
           <Route path="/discovery">
-            <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional']}>
+            <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional', 'university_admin']}>
               <Discovery />
             </RoleGuard>
           </Route>
           <Route path="/messages">
-            <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional']}>
+            <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional', 'university_admin']}>
               <Messages />
             </RoleGuard>
           </Route>
           <Route path="/groups">
-            <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional']}>
+            <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional', 'university_admin']}>
               <GroupsDiscovery />
             </RoleGuard>
           </Route>
           <Route path="/groups/:id">
-            <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional']}>
+            <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional', 'university_admin']}>
               <GroupPage />
             </RoleGuard>
           </Route>

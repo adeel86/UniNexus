@@ -1,4 +1,4 @@
-import { Home, Users, Trophy, MessageSquare, Bell, User, BarChart, Building2, Briefcase, Shield, Lightbulb, GraduationCap } from 'lucide-react';
+import { Home, Users, Trophy, MessageSquare, Bell, User, BarChart, Building2, Briefcase, Shield, Lightbulb, GraduationCap, UsersRound, Compass } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/lib/AuthContext';
 import { cn } from '@/lib/utils';
@@ -24,8 +24,11 @@ const navigationItems: NavItem[] = [
   { icon: Bell, label: 'Notifications', path: '/notifications', roles: ['teacher'] },
   { icon: User, label: 'Profile', path: '/profile', roles: ['teacher'] },
   
-  // University Admin Navigation - No access to Network, Discover, Messages, Groups, Posts, Profile, Settings
+  // University Admin Navigation - With access to Network, Discover, Messages, Groups
   { icon: Home, label: 'Dashboard', path: '/university-dashboard', roles: ['university_admin'] },
+  { icon: Users, label: 'Network', path: '/network', roles: ['university_admin'] },
+  { icon: MessageSquare, label: 'Messages', path: '/messages', roles: ['university_admin'] },
+  { icon: UsersRound, label: 'Groups', path: '/groups', roles: ['university_admin'] },
   { icon: Bell, label: 'Notifications', path: '/notifications', roles: ['university_admin'] },
   
   // Industry Professional Navigation - Distinct routes

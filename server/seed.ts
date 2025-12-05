@@ -1991,6 +1991,17 @@ async function seedDatabase() {
       isGroup: false,
       lastMessageAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
     },
+    // University Admin conversations
+    {
+      participantIds: [insertedUsers[2].id, insertedUsers[1].id],
+      isGroup: false,
+      lastMessageAt: new Date(Date.now() - 3 * 60 * 60 * 1000), // 3 hours ago
+    },
+    {
+      participantIds: [insertedUsers[2].id, insertedUsers[0].id],
+      isGroup: false,
+      lastMessageAt: new Date(Date.now() - 12 * 60 * 60 * 1000), // 12 hours ago
+    },
   ];
 
   console.log("Inserting conversations...");
@@ -2082,6 +2093,48 @@ async function seedDatabase() {
         isRead: true,
         readBy: [insertedUsers[6].id],
         createdAt: new Date(Date.now() - 24 * 60 * 60 * 1000),
+      },
+      // Conversation 5: University Admin & Demo Teacher
+      {
+        conversationId: insertedConversations[4].id,
+        senderId: insertedUsers[2].id,
+        content: "Hi Professor! Your course validation request for WEB101 has been approved.",
+        isRead: true,
+        readBy: [insertedUsers[1].id],
+        createdAt: new Date(Date.now() - 4 * 60 * 60 * 1000),
+      },
+      {
+        conversationId: insertedConversations[4].id,
+        senderId: insertedUsers[1].id,
+        content: "Thank you! I'll start uploading course materials right away.",
+        isRead: true,
+        readBy: [insertedUsers[2].id],
+        createdAt: new Date(Date.now() - 3.5 * 60 * 60 * 1000),
+      },
+      {
+        conversationId: insertedConversations[4].id,
+        senderId: insertedUsers[2].id,
+        content: "Great! Let me know if you need any support with the platform.",
+        isRead: true,
+        readBy: [insertedUsers[1].id],
+        createdAt: new Date(Date.now() - 3 * 60 * 60 * 1000),
+      },
+      // Conversation 6: University Admin & Demo Student
+      {
+        conversationId: insertedConversations[5].id,
+        senderId: insertedUsers[0].id,
+        content: "Hi! I have a question about the career resources available on campus.",
+        isRead: true,
+        readBy: [insertedUsers[2].id],
+        createdAt: new Date(Date.now() - 13 * 60 * 60 * 1000),
+      },
+      {
+        conversationId: insertedConversations[5].id,
+        senderId: insertedUsers[2].id,
+        content: "Of course! We have career counseling, resume workshops, and job fairs throughout the semester. Check out the Challenges tab for industry opportunities too!",
+        isRead: true,
+        readBy: [insertedUsers[0].id],
+        createdAt: new Date(Date.now() - 12 * 60 * 60 * 1000),
       },
     ];
 

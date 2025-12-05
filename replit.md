@@ -125,8 +125,23 @@ Preferred communication style: Simple, everyday language.
 - `PATCH /api/teacher-content/:id` - Update teacher content (ownership validated)
 
 ## Recent Changes
+- **2024-12-05**: Added course deletion for teachers - cascade delete removes all materials, enrollments, discussions, and AI sessions
+- **2024-12-05**: Enabled university_admin role access to Network, Discovery, Messages, and Groups tabs (only master_admin is now restricted)
+- **2024-12-05**: Enhanced seed data with university admin conversations, messages, and group memberships for testing social features
+- **2024-12-05**: Created ARCHITECTURE.md documenting system design and future refactoring plans
 - **2024-12-04**: Refactored Teacher Dashboard - consolidated to only "Courses" and "Validations" tabs, removed standalone Upload tab, integrated material management into validated courses with modal dialog
 - **2024-12-04**: Added relationship pages (MyTeachers, MyStudents, UniversityTeachers) with role-based access control
 - **2024-12-04**: Enhanced security - material uploads gated to validated courses only, removed insecure endpoint, enforced institution filtering
 - **2024-12-04**: Updated seed data with courses in different validation statuses (validated, pending, rejected) and materials only for validated courses
 - **2024-11-30**: Restructured course validation to enforce institution matching, auto-enrollment, and integrated course/materials management into unified Teacher Dashboard tab.
+
+## Teacher Course Deletion
+- **API Endpoint**: `DELETE /api/courses/:id` - Delete a validated course (teacher owner only)
+- **Cascade Behavior**: Automatically deletes all associated data:
+  - Course materials (teacherContent)
+  - Student enrollments (courseEnrollments)
+  - Course discussions and replies
+  - AI chat sessions and messages
+  - Notifications referencing the course
+- **UI**: Delete button with confirmation dialog in TeacherValidatedCoursesSection component
+- **Authorization**: Only the course instructor can delete their own courses
