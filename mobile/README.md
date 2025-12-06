@@ -415,21 +415,70 @@ The app uses a Gen-Z inspired neon gradient theme:
 - **Background**: Dark (#0F0F14)
 - **Surface**: Dark elevated (#1A1A24)
 
+## Push Notifications
+
+The app includes full push notification support via Expo Notifications:
+
+- **Permission Handling**: Prompts user for notification permissions on first launch
+- **Token Registration**: Automatically registers push tokens with the backend
+- **Android Channels**: Configures channels for default, messages, and social notifications
+- **Deep Linking**: Tapping notifications navigates to relevant screens
+
+### Setup for Push Notifications
+
+1. Configure EAS project ID in `app.json`
+2. For Android: Add `google-services.json` from Firebase
+3. For iOS: Configure APNs in Apple Developer Portal
+
+See `INSTALLATION.md` for detailed setup instructions.
+
+## Offline Mode
+
+The app handles poor/no network connectivity gracefully:
+
+- **Offline Detection**: Shows banner when network is unavailable
+- **Data Caching**: Caches API responses for offline access
+- **Draft Saving**: Saves unsent posts/comments/messages locally
+- **Pending Queue**: Queues actions for sync when back online
+- **Auto-Sync**: Automatically syncs pending actions on reconnection
+
+### Key Files
+
+- `src/services/offline.ts` - Caching and queue management
+- `src/contexts/NetworkContext.tsx` - Network state provider
+- `src/components/OfflineBanner.tsx` - Visual offline indicator
+
+## EAS Build Configuration
+
+Build configurations are defined in `eas.json`:
+
+- **development**: Development builds with dev client
+- **preview**: Internal distribution APK/IPA for testing
+- **production**: Store-ready AAB/IPA builds
+
+```bash
+# Build preview APK
+npm run build:android
+
+# Build preview IPA
+npm run build:ios
+
+# Build both platforms
+npm run build:all
+```
+
+See `INSTALLATION.md` for complete build instructions.
+
 ## Known Limitations
 
-- Push notifications not yet implemented (task pending)
-- Offline mode not yet implemented (task pending)
+- Push notifications require physical device (not simulators)
 - Video playback in posts not fully supported
 - Real-time updates require manual refresh (pull-to-refresh)
 - Groups and Challenges accessible via navigation but not in bottom tabs
 - Some features require backend endpoints to be available
 
-## Future Enhancements (Pending Tasks)
+## Future Enhancements
 
-- Push notifications (iOS + Android) - Task #9
-- Offline mode with data caching - Task #10
-- UI polish with animations - Task #11
-- EAS build configuration - Task #12
 - Video/audio messages
 - Story-style posts
 - Biometric authentication

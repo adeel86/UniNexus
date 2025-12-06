@@ -1,10 +1,20 @@
+import { useEffect, useRef } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
+import { NetworkProvider } from './src/contexts/NetworkContext';
 import { colors } from './src/config/theme';
+import {
+  registerForPushNotificationsAsync,
+  addNotificationReceivedListener,
+  addNotificationResponseReceivedListener,
+  parseNotificationData,
+  getNavigationTarget,
+} from './src/services/notifications';
+import { setupOfflineQueryClient } from './src/services/offline';
 
 import LoginScreen from './src/screens/LoginScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
@@ -46,8 +56,36 @@ const queryClient = new QueryClient({
   },
 });
 
+setupOfflineQueryClient(queryClient);
+
 function Navigation() {
   const { currentUser, loading } = useAuth();
+  const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
+
+  useEffect(() => {
+    if (currentUser) {
+      registerForPushNotificationsAsync();
+
+      const notificationListener = addNotificationReceivedListener((notification) => {
+        console.log('Notification received:', notification);
+      });
+
+      const responseListener = addNotificationResponseReceivedListener((response) => {
+        const data = parseNotificationData(response.notification);
+        if (data) {
+          const target = getNavigationTarget(data);
+          if (target && navigationRef.current) {
+            navigationRef.current.navigate(target.screen as keyof RootStackParamList, target.params as any);
+          }
+        }
+      });
+
+      return () => {
+        notificationListener.remove();
+        responseListener.remove();
+      };
+    }
+  }, [currentUser]);
 
   if (loading) {
     return (
@@ -59,7 +97,7 @@ function Navigation() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
@@ -119,9 +157,11 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <SafeAreaProvider>
-        <AuthProvider>
-          <Navigation />
-        </AuthProvider>
+        <NetworkProvider>
+          <AuthProvider>
+            <Navigation />
+          </AuthProvider>
+        </NetworkProvider>
       </SafeAreaProvider>
     </QueryClientProvider>
   );
