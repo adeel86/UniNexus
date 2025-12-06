@@ -45,7 +45,10 @@ export default function MessagesScreen() {
     return (
       <TouchableOpacity
         style={styles.conversationCard}
-        onPress={() => navigation.navigate('Chat', { conversationId: conversation.id })}
+        onPress={() => navigation.navigate('Chat', { 
+          conversationId: conversation.id,
+          recipientName: otherUser.displayName || `${otherUser.firstName} ${otherUser.lastName}`,
+        })}
         activeOpacity={0.7}
       >
         <View style={styles.avatarContainer}>
