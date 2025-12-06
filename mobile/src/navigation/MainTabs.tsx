@@ -24,25 +24,47 @@ type TabConfig = {
   roles?: UserRole[];
 };
 
-const tabConfigs: TabConfig[] = [
-  { name: 'Home', component: FeedScreen, icon: 'home', label: 'Feed' },
-  { name: 'Network', component: NetworkScreen, icon: 'people', label: 'Network', roles: ['student', 'teacher', 'university', 'university_admin', 'industry'] },
-  { name: 'Messages', component: MessagesScreen, icon: 'chatbubbles', label: 'Messages', roles: ['student', 'teacher', 'university', 'university_admin', 'industry'] },
-  { name: 'Courses', component: CoursesScreen, icon: 'book', label: 'Courses', roles: ['student', 'teacher'] },
-  { name: 'Groups', component: GroupsScreen, icon: 'people-circle', label: 'Groups', roles: ['student', 'teacher', 'university', 'university_admin', 'industry'] },
-  { name: 'Challenges', component: ChallengesScreen, icon: 'trophy', label: 'Challenges', roles: ['student', 'teacher', 'university', 'university_admin', 'industry'] },
-  { name: 'Notifications', component: NotificationsScreen, icon: 'notifications', label: 'Alerts' },
-  { name: 'ProfileTab', component: ProfileScreen, icon: 'person', label: 'Profile' },
-];
+// Role-based tab configurations
+// Students/Teachers: Home, Courses, Messages, Notifications, Profile
+// Other roles: Home, Network, Messages, Notifications, Profile
+const getTabsForRole = (role: UserRole): TabConfig[] => {
+  const baseTabs: TabConfig[] = [
+    { name: 'Home', component: FeedScreen, icon: 'home', label: 'Feed' },
+  ];
+  
+  // Role-specific middle tabs
+  if (role === 'student' || role === 'teacher') {
+    baseTabs.push(
+      { name: 'Courses', component: CoursesScreen, icon: 'book', label: 'Courses' },
+      { name: 'Messages', component: MessagesScreen, icon: 'chatbubbles', label: 'Messages' },
+    );
+  } else if (role !== 'master_admin') {
+    // university, university_admin, industry
+    baseTabs.push(
+      { name: 'Network', component: NetworkScreen, icon: 'people', label: 'Network' },
+      { name: 'Messages', component: MessagesScreen, icon: 'chatbubbles', label: 'Messages' },
+    );
+  } else {
+    // master_admin - basic tabs only
+    baseTabs.push(
+      { name: 'Messages', component: MessagesScreen, icon: 'chatbubbles', label: 'Messages' },
+    );
+  }
+  
+  // Common ending tabs for all roles
+  baseTabs.push(
+    { name: 'Notifications', component: NotificationsScreen, icon: 'notifications', label: 'Alerts' },
+    { name: 'ProfileTab', component: ProfileScreen, icon: 'person', label: 'Profile' },
+  );
+  
+  return baseTabs;
+};
 
 export default function MainTabs() {
   const { currentUser } = useAuth();
   const userRole = (currentUser?.role || 'student') as UserRole;
 
-  const visibleTabs = tabConfigs.filter(tab => {
-    if (!tab.roles) return true;
-    return tab.roles.includes(userRole);
-  }).slice(0, 5);
+  const visibleTabs = getTabsForRole(userRole);
 
   return (
     <Tab.Navigator
@@ -52,8 +74,8 @@ export default function MainTabs() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
         tabBarLabelStyle: styles.tabLabel,
-        tabBarIcon: ({ focused, color, size }) => {
-          const config = tabConfigs.find(t => t.name === route.name);
+        tabBarIcon: ({ focused, color }) => {
+          const config = visibleTabs.find(t => t.name === route.name);
           const iconName = config?.icon || 'help';
           return (
             <View style={focused ? styles.activeTab : undefined}>
