@@ -1310,7 +1310,7 @@ export function TeacherContentUpload({ teacherId }: TeacherContentUploadProps) {
                   ))}
                   {courseMaterials.length > 3 && (
                     <Button
-                      variant="link"
+                      variant="ghost"
                       size="sm"
                       className="w-full"
                       onClick={() => openMaterialsModal(course)}
