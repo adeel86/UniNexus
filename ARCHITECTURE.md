@@ -21,6 +21,13 @@ UniNexus is a university social networking platform that connects students, teac
 │   ├── src/
 │   │   ├── components/        # Reusable UI components
 │   │   │   ├── ui/           # Shadcn base components
+│   │   │   ├── groups/       # Groups discovery components
+│   │   │   ├── industry/     # Industry dashboard components
+│   │   │   ├── post-card/    # Post card sub-components
+│   │   │   ├── profile/      # Profile page components
+│   │   │   ├── teacher/      # Teacher content upload components
+│   │   │   ├── teacher-dashboard/  # Teacher dashboard components
+│   │   │   ├── university/   # University dashboard components
 │   │   │   └── *.tsx         # Feature components
 │   │   ├── pages/            # Page components (routed)
 │   │   ├── hooks/            # Custom React hooks
@@ -45,10 +52,16 @@ UniNexus is a university social networking platform that connects students, teac
 │   │   ├── skills.ts         # Skills management (217 lines)
 │   │   ├── certifications.ts # Certifications (418 lines)
 │   │   └── recruiter.ts      # Recruiter tools (193 lines)
+│   ├── seed/                 # Modular seed data
+│   │   ├── data/             # Domain-specific seed modules
+│   │   └── index.ts          # Seed orchestration
+│   ├── services/             # Business logic services
+│   │   ├── courseService.ts  # Course-related operations
+│   │   └── enrollmentService.ts  # Enrollment operations
 │   ├── routes.ts             # Main router setup (~77 lines)
 │   ├── storage.ts            # Data access layer
 │   ├── db.ts                 # Database connection
-│   ├── seed.ts               # Test data seeding
+│   ├── seed.ts               # Test data seeding (entry point)
 │   └── firebaseAuth.ts       # Authentication middleware
 ├── shared/                    # Shared code
 │   └── schema.ts             # Drizzle schema and types
@@ -150,12 +163,26 @@ The backend routes have been successfully refactored from a single 8000+ line fi
 - Main router (`routes.ts`): Reduced to ~77 lines
 - All routes follow RESTful patterns with consistent authentication
 
-### Component Optimization (Future)
-Large components that could benefit from further splitting:
-- `TeacherContentUpload.tsx` (1330 lines) - multiple modals and forms
-- `PostCard.tsx` (693 lines) - complex interactions
-- `GroupsDiscovery.tsx` (1041 lines) - page component
-- `IndustryDashboard.tsx` (976 lines) - dashboard component
+### Component Refactoring (Completed December 2024)
+
+Large components have been refactored into modular sub-components:
+
+| Component | Before | After | Reduction |
+|-----------|--------|-------|-----------|
+| `GroupsDiscovery.tsx` | 1041 lines | 179 lines | 83% |
+| `PostCard.tsx` | 693 lines | 96 lines | 86% |
+| `IndustryDashboard.tsx` | 976 lines | 235 lines | 76% |
+| `TeacherDashboard.tsx` | 719 lines | 196 lines | 73% |
+| `Profile.tsx` | 827 lines | 236 lines | 71% |
+| `UniversityDashboard.tsx` | 845 lines | 530 lines | 37% |
+| `TeacherContentUpload.tsx` | 1330 lines | ~500 lines | 62% |
+
+**Refactoring Patterns Used:**
+1. **Custom Hooks** - Extract mutations and state management into reusable hooks
+2. **Modal Components** - Separate dialog/form components into their own files
+3. **Card/Item Components** - Extract repeated UI elements
+4. **Index Files** - Clean exports from component directories
+5. **Helper Functions** - Export utility functions alongside hooks
 
 ## Additional Documentation
 
