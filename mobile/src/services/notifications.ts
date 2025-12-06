@@ -144,7 +144,10 @@ export function getNavigationTarget(notificationData: NotificationData): { scree
     case 'message':
       return {
         screen: 'Chat',
-        params: { conversationId: notificationData.id },
+        params: { 
+          conversationId: notificationData.id,
+          recipientName: notificationData.data?.recipientName ?? 'User',
+        },
       };
     case 'comment':
     case 'reaction':
@@ -169,7 +172,7 @@ export function getNavigationTarget(notificationData: NotificationData): { scree
       };
     case 'badge':
     case 'endorsement':
-      return { screen: 'ProfileTab' };
+      return { screen: 'MainTabs' };
     default:
       return null;
   }

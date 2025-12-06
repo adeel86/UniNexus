@@ -78,18 +78,61 @@ Use the Expo Go app on your phone to scan the QR code and test the app.
 
 ## Push Notifications Setup
 
+Push notifications require an EAS project ID. During development without a project ID, notifications will still work but with limited functionality.
+
+### Setting Up EAS Project
+
+1. **Create EAS Project**
+   ```bash
+   eas init
+   ```
+   This creates a project on Expo's servers and adds the project ID to `app.json`.
+
+2. **Verify Project ID**
+   Check that `app.json` contains:
+   ```json
+   {
+     "expo": {
+       "extra": {
+         "eas": {
+           "projectId": "your-project-id"
+         }
+       }
+     }
+   }
+   ```
+
 ### Android (Firebase Cloud Messaging)
 
 1. Create a Firebase project at https://console.firebase.google.com
 2. Add an Android app with package name `com.uninexus.mobile`
 3. Download `google-services.json` and place in `mobile/` folder
-4. FCM is automatically configured through Expo
+4. Upload FCM server key to Expo:
+   ```bash
+   eas credentials
+   ```
+   Select Android, then "Push Notifications" to configure FCM credentials.
+
+**Note:** The `google-services.json` file is NOT included in the repository for security reasons. You must generate your own from Firebase Console.
 
 ### iOS (APNs)
 
 1. Configure push notifications in Apple Developer Portal
-2. Create APNs Key and upload to Expo
+2. Create APNs Key and upload to Expo via:
+   ```bash
+   eas credentials
+   ```
+   Select iOS, then follow prompts to configure push notifications.
 3. Enable Push Notifications capability in your app
+
+### Backend Integration
+
+The backend should send push notifications using Expo's Push API. Install the server SDK:
+```bash
+npm install expo-server-sdk
+```
+
+The mobile app registers push tokens via `POST /api/push-tokens`. Ensure this endpoint saves tokens to send notifications later.
 
 ## Installing the App
 

@@ -121,6 +121,8 @@ export async function removeFromPendingQueue(id: string): Promise<void> {
   await AsyncStorage.setItem(PENDING_QUEUE_KEY, JSON.stringify(filtered));
 }
 
+const FAILED_QUEUE_KEY = '@uninexus_failed_queue';
+
 export async function processPendingQueue(
   apiRequest: (endpoint: string, options: RequestInit) => Promise<any>
 ): Promise<{ success: number; failed: number }> {
@@ -140,6 +142,7 @@ export async function processPendingQueue(
       action.retries++;
       if (action.retries >= MAX_RETRIES) {
         await removeFromPendingQueue(action.id);
+        await addToFailedQueue(action);
         failed++;
       } else {
         const updatedQueue = await getPendingQueue();
@@ -153,6 +156,30 @@ export async function processPendingQueue(
   }
 
   return { success, failed };
+}
+
+async function addToFailedQueue(action: PendingAction): Promise<void> {
+  try {
+    const failedRaw = await AsyncStorage.getItem(FAILED_QUEUE_KEY);
+    const failedQueue: PendingAction[] = failedRaw ? JSON.parse(failedRaw) : [];
+    failedQueue.push(action);
+    await AsyncStorage.setItem(FAILED_QUEUE_KEY, JSON.stringify(failedQueue));
+  } catch (error) {
+    console.error('Failed to save to failed queue:', error);
+  }
+}
+
+export async function getFailedQueue(): Promise<PendingAction[]> {
+  try {
+    const queue = await AsyncStorage.getItem(FAILED_QUEUE_KEY);
+    return queue ? JSON.parse(queue) : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function clearFailedQueue(): Promise<void> {
+  await AsyncStorage.removeItem(FAILED_QUEUE_KEY);
 }
 
 export function getCacheDuration(queryKey: string): number {
@@ -178,14 +205,26 @@ export function subscribeToNetworkChanges(
   });
 }
 
+function serializeQueryKey(queryKey: readonly unknown[]): string {
+  try {
+    return JSON.stringify(queryKey);
+  } catch {
+    return queryKey.map((k) => (typeof k === 'object' ? JSON.stringify(k) : String(k))).join('_');
+  }
+}
+
 export function setupOfflineQueryClient(queryClient: QueryClient): void {
   queryClient.getQueryCache().subscribe(async (event) => {
     if (event.type === 'updated' && event.query.state.status === 'success') {
       const queryKey = event.query.queryKey;
       if (typeof queryKey[0] === 'string') {
-        const key = queryKey.join('_');
+        const key = serializeQueryKey(queryKey);
         const duration = getCacheDuration(queryKey[0]);
-        await cacheData(key, event.query.state.data, duration);
+        try {
+          await cacheData(key, event.query.state.data, duration);
+        } catch (error) {
+          console.warn('Failed to cache query data:', error);
+        }
       }
     }
   });
