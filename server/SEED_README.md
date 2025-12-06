@@ -1,81 +1,97 @@
-# UniNexus Comprehensive Mock Data Generator
+# UniNexus Database Seeding
 
 ## Overview
 
-The comprehensive seed script (`comprehensive-seed.ts`) populates the entire UniNexus platform with realistic, diverse, and internally consistent mock data across 30+ database tables.
+The database seeding system populates the UniNexus platform with realistic, diverse, and internally consistent mock data across 30+ database tables.
 
-## Data Volume
+## Architecture
 
-The seed generates approximately **9,500+ rows** across all tables with deterministic, reproducible data:
+### Modular Structure (Refactored)
 
-- **142 users** across all roles (100 students, 20 teachers, 8 industry professionals, 3 university admins, 1 master admin)
-- **392 posts** with realistic content and metadata
-- **4,866 reactions** across different types (like, celebrate, insightful, support)
-- **925 comments** on posts
-- **20 courses** across 5 universities (MIT, Stanford, UC Berkeley, Carnegie Mellon, Georgia Tech)
-- **288 course enrollments** with 100 discussions and 584 replies
-- **5 challenges** with 100 participants
-- **135 certifications** with NFT-style verification hashes
-- **452 endorsements** between users
-- **958 follower relationships**
-- **6 groups** with 120 group memberships
-- **600 user skills** with proficiency levels
-- **344 user badge awards**
-- **97 notifications**, **17 recruiter feedback entries**, **46 AI interaction events**, **19 announcements**, and more
+The seed system is organized into modular files for maintainability:
+
+```
+server/
+├── seed.ts                    # Main entry point (re-exports from seed/index.ts)
+├── seed/
+│   ├── index.ts               # Orchestrator - coordinates all seed functions
+│   └── data/
+│       ├── users.ts           # User accounts (students, teachers, admins, etc.)
+│       ├── badges.ts          # Badges and user badge assignments
+│       ├── skills.ts          # Skills and user skill assignments
+│       ├── education.ts       # Education records and user profiles
+│       ├── posts.ts           # Posts, comments, and reactions
+│       ├── courses.ts         # Courses, enrollments, discussions, teacher content
+│       ├── social.ts          # Connections, followers, endorsements, messages
+│       ├── gamification.ts    # Challenges, groups, notifications, certifications
+│       └── admin.ts           # AI events, moderation, recruiter feedback, job experience
+└── comprehensive-seed.ts      # Alternative comprehensive seeder with larger dataset
+```
+
+### Execution Order
+
+The seeding follows a dependency-aware order:
+
+1. **Users** - Foundation for all other data
+2. **Badges & Skills** - Lookup tables and user assignments
+3. **Education & Profiles** - User educational background
+4. **Posts & Engagement** - Social feed content
+5. **Courses & Enrollments** - Academic data
+6. **Social Connections** - User relationships
+7. **Gamification** - Challenges, groups, achievements
+8. **Admin Data** - AI events, moderation, feedback
 
 ## Usage
 
 ### Running the Seed
 
-**For a fresh, complete seed (recommended):**
+**For development seed:**
+```bash
+npm run db:seed
+```
+
+**For comprehensive seed (larger dataset):**
+```bash
+npm run db:seed:full
+```
+
+**For a fresh start (recommended):**
 ```bash
 # Reset database schema first (wipes existing data)
 npm run db:push -- --force
 
-# Run comprehensive seed
-npm run db:seed:full
+# Run seed
+npm run db:seed
 ```
 
-**For adding to existing data:**
-```bash
-# Safe to run - uses onConflictDoNothing() to avoid duplicates
-npm run db:seed:full
-```
+## Data Volume (Standard Seed)
 
-This will populate your database with comprehensive mock data following a multi-phase pipeline:
+- **12 users** across all roles (students, teachers, admins, industry professionals)
+- **7 badges** with user assignments
+- **10 skills** with proficiency levels
+- **Posts** with realistic content
+- **Courses** with enrollments and discussions
+- **Social connections, messages, and groups**
+- **Challenges and certifications**
 
-1. **Phase 1**: Canonical lookup data (skills, badges)
-2. **Phase 2**: Primary actors (users across all roles)
-3. **Phase 3**: Academic artifacts (courses, enrollments, discussions)
-4. **Phase 4**: Engagement surfaces (posts, reactions, comments, groups)
-5. **Phase 5**: Ancillary systems (certifications, recruiter feedback, AI events)
-6. **Additional**: User skills, badges, endorsements, notifications
+## Data Volume (Comprehensive Seed)
 
-### Configuration
+Approximately **9,500+ rows** across all tables:
 
-You can modify data volume by editing the `CONFIG` object in `comprehensive-seed.ts`:
-
-```typescript
-const CONFIG = {
-  STUDENTS_PER_UNIVERSITY: 10,  // Students per university
-  TEACHERS_PER_UNIVERSITY: 2,    // Teachers per university
-  UNIVERSITIES: ["MIT", "Stanford", "UC Berkeley", "Carnegie Mellon", "Georgia Tech"],
-  INDUSTRY_PROFESSIONALS: 8,      // Total industry professionals
-  UNIVERSITY_ADMINS: 3,           // Total university admins
-  COURSES_PER_UNIVERSITY: 4,      // Courses per university
-  POSTS_PER_STUDENT: 5,           // Posts per student
-  CHALLENGES: 5,                  // Total challenges
-  GROUPS: 6,                      // Total groups
-};
-```
+- **142 users** across all roles
+- **392 posts** with realistic content
+- **4,866 reactions** across different types
+- **925 comments** on posts
+- **20 courses** across 5 universities
+- And much more...
 
 ## Features
 
 ### Realistic Data Generation
 
 - Uses `@faker-js/faker` for generating realistic names, emails, content
-- Deterministic seeding (seed=42) ensures reproducible data
-- Diverse demographics and backgrounds across all user roles
+- Deterministic seeding ensures reproducible data
+- Diverse demographics and backgrounds
 
 ### Internal Consistency
 
@@ -84,7 +100,6 @@ const CONFIG = {
 - Discussion replies belong to enrolled students
 - Challenge participants are verified students
 - Recruiter feedback ties to actual industry professionals
-- NFT-style certifications include verification hashes
 
 ### Multi-Role Support
 
@@ -94,80 +109,23 @@ const CONFIG = {
 - **University Admins**: With universities
 - **Master Admin**: Platform administrator
 
-### Gamification Data
-
-- Badges with multiple tiers (bronze, silver, gold, platinum)
-- User skills with proficiency levels (beginner, intermediate, advanced, expert)
-- Endorsements between users
-- Challenge participation and rankings
-- Points calculation and rank tiers
-
-### Advanced Features
-
-- **NFT-Style Certifications**: SHA-256 verification hashes for authenticity
-- **Recruiter Feedback**: Industry professionals providing student feedback
-- **AI Interaction Events**: Logs of AI chatbot interactions
-- **Moderation Actions**: Content moderation tracking
-- **Social Network**: Followers, connections, groups, messages
-- **Academic**: Courses, discussions, replies, upvotes, milestones
-
-## Factory Helpers
-
-The seed script includes factory functions for generating consistent data:
-
-- `makeUser(options)`: Create users with different roles
-- `makePost(authorId, interests)`: Generate posts with relevant tags
-- `makeCourse(university, instructorId)`: Create course data
-
-## Data Safety
+### Data Safety
 
 - Uses `onConflictDoNothing()` for rerun safety
 - All inserts are batched for performance
 - Returns inserted IDs for downstream references
 - No destructive operations on existing data
 
-## Starting Fresh
+## Adding New Seed Data
 
-To completely clear the database and generate fresh mock data:
-
-```bash
-# Reset database schema (wipes all data)
-npm run db:push -- --force
-
-# Run comprehensive seed
-npm run db:seed:full
-```
-
-This ensures you get the exact deterministic counts shown in the "Data Volume" section above.
-
-## Technical Notes
-
-- **Total execution time**: ~30-60 seconds (depending on hardware)
-- **Memory usage**: Moderate (batched inserts, no memory spikes)
-- **Database size**: ~50-100MB with indexes
-- **Deterministic seeding**: Uses faker.seed(42) and faker helpers throughout (no Math.random() or Date.now())
-- **True idempotent reruns**: Produces identical counts on every run - uses onConflictDoNothing() and fallback fetches for all tables
-- **Proper Drizzle syntax**: Uses eq() from drizzle-orm for WHERE clauses
-
-### Important Notes
-
-- **Reproducible counts**: Reruns produce identical summary counts whether on fresh or existing database
-- **Safe to rerun**: Won't create duplicate data - uses onConflictDoNothing() throughout
-- **Verification hashes**: Certifications use SHA-256 hashes generated from student ID, cert type, issuer ID, and index for reproducibility
-- **No random variance**: All randomness controlled by faker.seed(42) for consistent data across runs
-
-## Customization
-
-To add more data types:
-
-1. Add new factory helpers
-2. Create a new phase function
-3. Call it in `comprehensiveSeed()` main function
-4. Update CONFIG constants as needed
+1. Create or modify the appropriate file in `server/seed/data/`
+2. Export your seed function
+3. Import and call it in `server/seed/index.ts` at the correct position
+4. Ensure proper dependency ordering
 
 ## Support
 
-For issues or questions about the seed script:
-- Check LSP errors with `npx tsc --noEmit server/comprehensive-seed.ts`
+For issues:
+- Check LSP errors: `npx tsc --noEmit`
 - Verify database connection
-- Check logs for specific error messages
+- Check console logs for specific error messages
