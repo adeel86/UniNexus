@@ -7,4 +7,8 @@ export { default as notificationsRouter } from "./notifications";
 export { default as coursesRouter } from "./courses";
 export { default as challengesRouter } from "./challenges";
 export { default as groupsRouter } from "./groups";
+export { default as connectionsRouter } from "./connections";
+export { default as messagingRouter } from "./messaging";
+export { default as adminRouter } from "./admin";
+export { default as recruiterRouter } from "./recruiter";
 export * from "./shared";
