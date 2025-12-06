@@ -11,4 +11,5 @@ export { default as connectionsRouter } from "./connections";
 export { default as messagingRouter } from "./messaging";
 export { default as adminRouter } from "./admin";
 export { default as recruiterRouter } from "./recruiter";
+export { default as teacherContentRouter } from "./teacher-content";
 export * from "./shared";

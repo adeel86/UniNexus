@@ -92,6 +92,7 @@ import {
   messagingRouter,
   adminRouter,
   recruiterRouter,
+  teacherContentRouter,
 } from "./routes/index";
 
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({
@@ -140,6 +141,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api", messagingRouter);
   app.use("/api", adminRouter);
   app.use("/api", recruiterRouter);
+  app.use("/api/teacher-content", teacherContentRouter);
 
   // ========================================================================
   // AUTH ENDPOINTS (DEPRECATED - Now handled by authRouter)
@@ -3044,26 +3046,6 @@ Make it personalized, constructive, and actionable. Use a professional but encou
     }
   });
 
-  // Index teacher content (teacher only endpoint)
-  app.post("/api/teacher-content/:contentId/index", async (req: Request, res: Response) => {
-    if (!req.user) {
-      return res.status(401).send("Unauthorized");
-    }
-
-    // Only teachers and admins can index content
-    if (req.user.role !== 'teacher' && req.user.role !== 'master_admin') {
-      return res.status(403).json({ error: "Only teachers can index content" });
-    }
-
-    try {
-      const { contentId } = req.params;
-      const chunksIndexed = await aiChatbot.indexTeacherContent(contentId);
-      res.json({ success: true, chunksIndexed });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
   // ========================================================================
   // POST BOOSTS API
   // ========================================================================
@@ -3751,294 +3733,12 @@ Make it personalized, constructive, and actionable. Use a professional but encou
     }
   });
 
-  // ========================================================================
-  // TEACHER CONTENT MANAGEMENT API
-  // ========================================================================
-
-  // Multer configuration for document uploads (using memory storage for cloud)
+  // Serve uploaded documents (local fallback)
   const documentsDir = path.join(uploadsDir, 'documents');
   if (!fs.existsSync(documentsDir)) {
     fs.mkdirSync(documentsDir, { recursive: true });
   }
-
-  const documentUpload = multer({
-    storage: memoryStorage,
-    limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
-    fileFilter: (req, file, cb) => {
-      const allowedTypes = [
-        'application/pdf',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'text/plain',
-        'application/vnd.ms-powerpoint',
-        'application/vnd.openxmlformats-officedocument.presentationml.presentation'
-      ];
-      if (allowedTypes.includes(file.mimetype)) {
-        cb(null, true);
-      } else {
-        cb(new Error('Invalid file type. Only PDF, DOC, DOCX, TXT, PPT, and PPTX are allowed.'));
-      }
-    }
-  });
-
-  // Serve uploaded documents (local fallback)
   app.use('/uploads/documents', express.static(documentsDir));
-
-  // Upload teacher content document - Cloud storage with local fallback
-  app.post("/api/teacher-content/upload", documentUpload.single('document'), async (req: Request, res: Response) => {
-    if (!req.user) {
-      return res.status(401).send("Unauthorized");
-    }
-
-    // Check if user is a teacher
-    if (req.user.role !== 'teacher' && req.user.role !== 'master_admin') {
-      return res.status(403).json({ error: "Only teachers can upload content" });
-    }
-
-    try {
-      if (!req.file) {
-        return res.status(400).json({ error: "No document file provided" });
-      }
-
-      const { courseId } = req.body;
-
-      // Validate that courseId is provided - uploads must be linked to a validated course
-      if (!courseId || typeof courseId !== 'string' || courseId.trim() === '') {
-        return res.status(400).json({ 
-          error: "Course ID is required. Materials must be uploaded to a validated course." 
-        });
-      }
-
-      // Validate that the course exists and is university-validated
-      const [targetCourse] = await db
-        .select()
-        .from(courses)
-        .where(eq(courses.id, courseId.trim()))
-        .limit(1);
-
-      if (!targetCourse) {
-        return res.status(404).json({ error: "Course not found" });
-      }
-
-      if (targetCourse.instructorId !== req.user.id && req.user.role !== 'master_admin') {
-        return res.status(403).json({ error: "You can only upload to your own courses" });
-      }
-
-      if (!targetCourse.isUniversityValidated) {
-        return res.status(400).json({ 
-          error: "Course must be validated by the university before uploading materials" 
-        });
-      }
-
-      let fileUrl: string;
-
-      // Try cloud storage first
-      if (isCloudStorageAvailable()) {
-        const result = await uploadToCloud(req.file.buffer, {
-          folder: 'documents',
-          contentType: req.file.mimetype,
-          originalFilename: req.file.originalname,
-        });
-        
-        if (result) {
-          fileUrl = result.url;
-        } else {
-          // Fall back to local storage
-          fileUrl = await saveFileLocally(req.file.buffer, 'documents', req.file.originalname);
-        }
-      } else {
-        // Use local storage
-        fileUrl = await saveFileLocally(req.file.buffer, 'documents', req.file.originalname);
-      }
-      
-      // Parse additional fields from request body
-      const { title, description, tags, isPublic } = req.body;
-
-      // Determine content type from file mimetype
-      let contentType = 'doc';
-      if (req.file.mimetype === 'application/pdf') contentType = 'pdf';
-      else if (req.file.mimetype === 'text/plain') contentType = 'text';
-
-      const metadata = {
-        originalName: req.file.originalname,
-        size: req.file.size,
-        mimetype: req.file.mimetype,
-      };
-
-      const [content] = await db
-        .insert(teacherContent)
-        .values({
-          teacherId: req.user.id,
-          title: (title && typeof title === 'string' ? title.trim() : null) || req.file.originalname,
-          description: description && typeof description === 'string' ? description.trim() : null,
-          courseId: courseId.trim(),
-          contentType,
-          fileUrl,
-          metadata,
-          tags: tags && typeof tags === 'string' ? tags.split(',').map((t: string) => t.trim()).filter(Boolean) : [],
-          isPublic: isPublic === 'true' || isPublic === true,
-        })
-        .returning();
-
-      res.json({ url: fileUrl, content });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // Create text-based teacher content (notes, guidelines)
-  app.post("/api/teacher-content", async (req: Request, res: Response) => {
-    if (!req.user) {
-      return res.status(401).send("Unauthorized");
-    }
-
-    // Check if user is a teacher
-    if (req.user.role !== 'teacher' && req.user.role !== 'master_admin') {
-      return res.status(403).json({ error: "Only teachers can create content" });
-    }
-
-    try {
-      const validatedData = insertTeacherContentSchema.parse({
-        ...req.body,
-        teacherId: req.user.id,
-      });
-
-      const [content] = await db
-        .insert(teacherContent)
-        .values(validatedData)
-        .returning();
-
-      res.json(content);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // Get all teacher content for a specific teacher
-  app.get("/api/teacher-content/teacher/:teacherId", async (req: Request, res: Response) => {
-    if (!req.user) {
-      return res.status(401).send("Unauthorized");
-    }
-
-    try {
-      const { teacherId } = req.params;
-
-      const content = await db
-        .select()
-        .from(teacherContent)
-        .where(eq(teacherContent.teacherId, teacherId))
-        .orderBy(desc(teacherContent.uploadedAt));
-
-      res.json(content);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // Get teacher content for a specific course
-  app.get("/api/teacher-content/course/:courseId", async (req: Request, res: Response) => {
-    if (!req.user) {
-      return res.status(401).send("Unauthorized");
-    }
-
-    try {
-      const { courseId } = req.params;
-
-      const content = await db
-        .select()
-        .from(teacherContent)
-        .where(eq(teacherContent.courseId, courseId))
-        .orderBy(desc(teacherContent.uploadedAt));
-
-      res.json(content);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // Update teacher content
-  app.patch("/api/teacher-content/:id", async (req: Request, res: Response) => {
-    if (!req.user) {
-      return res.status(401).send("Unauthorized");
-    }
-
-    try {
-      const { id } = req.params;
-      const { title, description, tags, isPublic } = req.body;
-
-      // Get the content first to check ownership
-      const [existingContent] = await db
-        .select()
-        .from(teacherContent)
-        .where(eq(teacherContent.id, id));
-
-      if (!existingContent) {
-        return res.status(404).json({ error: "Content not found" });
-      }
-
-      // Check if user is the owner or admin
-      if (existingContent.teacherId !== req.user.id && req.user.role !== 'master_admin') {
-        return res.status(403).json({ error: "Not authorized to update this content" });
-      }
-
-      // Update the content
-      const [updatedContent] = await db
-        .update(teacherContent)
-        .set({
-          title: title || existingContent.title,
-          description: description !== undefined ? description : existingContent.description,
-          tags: tags !== undefined ? tags : existingContent.tags,
-          isPublic: isPublic !== undefined ? isPublic : existingContent.isPublic,
-          updatedAt: new Date(),
-        })
-        .where(eq(teacherContent.id, id))
-        .returning();
-
-      res.json(updatedContent);
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // Delete teacher content
-  app.delete("/api/teacher-content/:id", async (req: Request, res: Response) => {
-    if (!req.user) {
-      return res.status(401).send("Unauthorized");
-    }
-
-    try {
-      const { id } = req.params;
-
-      // Get the content first to check ownership
-      const [content] = await db
-        .select()
-        .from(teacherContent)
-        .where(eq(teacherContent.id, id));
-
-      if (!content) {
-        return res.status(404).json({ error: "Content not found" });
-      }
-
-      // Check if user is the owner or admin
-      if (content.teacherId !== req.user.id && req.user.role !== 'master_admin') {
-        return res.status(403).json({ error: "Not authorized to delete this content" });
-      }
-
-      // Delete the file if it exists
-      if (content.fileUrl) {
-        const filePath = path.join(uploadsDir, content.fileUrl.replace('/uploads/', ''));
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
-      }
-
-      await db.delete(teacherContent).where(eq(teacherContent.id, id));
-
-      res.json({ message: "Content deleted successfully" });
-    } catch (error: any) {
-      res.status(500).json({ error: error.message });
-    }
-  });
 
   // ========================================================================
   // HYPER-LOCALIZED AI CHAT WITH TEACHER MATERIALS
