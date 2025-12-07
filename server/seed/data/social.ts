@@ -85,12 +85,45 @@ export async function seedConversations(insertedUsers: User[]): Promise<Conversa
 export async function seedMessages(insertedConversations: Conversation[], insertedUsers: User[]): Promise<void> {
   if (insertedConversations.length === 0) return;
 
+  // Messages with readBy arrays to simulate unread messages
+  // If a user is NOT in readBy, the message is unread for them
   const mockMessages = [
-    { conversationId: insertedConversations[0].id, senderId: insertedUsers[0].id, content: "Hey! How's the project going?" },
-    { conversationId: insertedConversations[0].id, senderId: insertedUsers[1].id, content: "Great! Almost done with the frontend." },
-    { conversationId: insertedConversations[0].id, senderId: insertedUsers[0].id, content: "Awesome! Let me know if you need help with the API." },
-    { conversationId: insertedConversations[1].id, senderId: insertedUsers[0].id, content: "Did you see the new course announcements?" },
-    { conversationId: insertedConversations[1].id, senderId: insertedUsers[2].id, content: "Yes! The ML course looks interesting." },
+    { 
+      conversationId: insertedConversations[0].id, 
+      senderId: insertedUsers[0].id, 
+      content: "Hey! How's the project going?",
+      readBy: [insertedUsers[0].id, insertedUsers[1].id] // Both have read
+    },
+    { 
+      conversationId: insertedConversations[0].id, 
+      senderId: insertedUsers[1].id, 
+      content: "Great! Almost done with the frontend.",
+      readBy: [insertedUsers[1].id] // Only sender has read - unread for user[0]
+    },
+    { 
+      conversationId: insertedConversations[0].id, 
+      senderId: insertedUsers[1].id, 
+      content: "Awesome! Let me know if you need help with the API.",
+      readBy: [insertedUsers[1].id] // Only sender has read - unread for user[0]
+    },
+    { 
+      conversationId: insertedConversations[1].id, 
+      senderId: insertedUsers[2].id, 
+      content: "Did you see the new course announcements?",
+      readBy: [insertedUsers[2].id] // Only sender has read - unread for user[0]
+    },
+    { 
+      conversationId: insertedConversations[1].id, 
+      senderId: insertedUsers[2].id, 
+      content: "Yes! The ML course looks interesting.",
+      readBy: [insertedUsers[2].id] // Only sender has read - unread for user[0]
+    },
+    { 
+      conversationId: insertedConversations[2].id, 
+      senderId: insertedUsers[2].id, 
+      content: "Hi! Want to collaborate on the group project?",
+      readBy: [insertedUsers[2].id] // Only sender has read - unread for user[1]
+    },
   ];
 
   console.log("Inserting messages...");

@@ -115,12 +115,48 @@ export async function seedGroupPosts(insertedGroups: Group[], insertedUsers: Use
   console.log(`Inserted ${insertedGroupPosts.length} group posts`);
 }
 
-export async function seedNotifications(insertedUsers: User[]): Promise<void> {
+export async function seedNotifications(insertedUsers: User[], insertedPosts?: any[]): Promise<void> {
   const mockNotifications = [
-    { userId: insertedUsers[0].id, type: "badge_earned", title: "Badge Earned!", message: "Congratulations! You earned the First Post badge.", isRead: false },
-    { userId: insertedUsers[0].id, type: "comment", title: "New Comment", message: "Jordan Chen commented on your post.", isRead: true },
-    { userId: insertedUsers[1].id, type: "like", title: "Post Liked", message: "Alex Rivera liked your design post.", isRead: false },
-    { userId: insertedUsers[5].id, type: "endorsement", title: "New Endorsement!", message: "Dr. Smith endorsed your JavaScript skills.", isRead: false },
+    { 
+      userId: insertedUsers[0].id, 
+      type: "badge", 
+      title: "Badge Earned!", 
+      message: "Congratulations! You earned the First Post badge.", 
+      link: "/profile",
+      isRead: false 
+    },
+    { 
+      userId: insertedUsers[0].id, 
+      type: "comment", 
+      title: "New Comment", 
+      message: "Jordan Chen commented on your post.", 
+      link: "/feed",
+      isRead: true 
+    },
+    { 
+      userId: insertedUsers[1].id, 
+      type: "reaction", 
+      title: "Post Liked", 
+      message: "Alex Rivera liked your design post.", 
+      link: "/feed",
+      isRead: false 
+    },
+    { 
+      userId: insertedUsers[5].id, 
+      type: "badge", 
+      title: "New Endorsement!", 
+      message: "Dr. Smith endorsed your JavaScript skills.", 
+      link: "/profile",
+      isRead: false 
+    },
+    { 
+      userId: insertedUsers[0].id, 
+      type: "challenge", 
+      title: "Challenge Started!", 
+      message: "The 30-Day Coding Challenge has begun. Good luck!", 
+      link: "/challenges",
+      isRead: false 
+    },
   ];
 
   console.log("Inserting notifications...");
