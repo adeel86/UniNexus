@@ -105,13 +105,13 @@ export default function GroupsDiscovery() {
         />
       </div>
 
-      <Tabs value={selectedType} onValueChange={setSelectedType} className="mb-6">
-        <TabsList className="flex flex-wrap h-auto gap-1">
+      <Tabs value={selectedType} onValueChange={setSelectedType} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-5">
           {groupTypes.map((type) => (
             <TabsTrigger
               key={type.value}
               value={type.value}
-              className="flex items-center gap-1.5"
+              className="gap-2"
               data-testid={`tab-${type.value}`}
             >
               <type.icon className="h-4 w-4" />

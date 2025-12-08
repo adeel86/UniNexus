@@ -145,7 +145,9 @@ Demo accounts available:
 ```bash
 npm install
 npm run db:push    # Sync database schema
-npm run seed       # Populate test data
+# npm run seed       # Populate test data
+npx tsx -e "import { seedDatabase } from './server/seed/index'; seedDatabase().then(() => { console.log('Seed completed!'); process.exit(0); }).catch(e => { console.error('Seed failed:', e); process.exit(1); })"
+
 npm run dev        # Start development server
 ```
 

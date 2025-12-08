@@ -68,7 +68,7 @@ export default function TeacherDashboard() {
         </p>
       </div>
 
-      <Tabs defaultValue="materials" className="space-y-6">
+      <Tabs defaultValue="feed" className="space-y-6">
         <TabsList className="grid w-full grid-cols-3 max-w-2xl">
           <TabsTrigger value="feed" data-testid="tab-feed">
             <MessageSquare className="h-4 w-4 mr-2" />
