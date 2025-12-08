@@ -9,7 +9,7 @@
  * Data Volume: ~5000 rows total across 30+ tables
  */
 
-import { db } from "./db";
+import { db } from "../db";
 import {
   users,
   posts,
@@ -43,10 +43,10 @@ import {
   groupPosts,
   aiInteractionEvents,
   moderationActions,
-} from "../shared/schema";
+} from "@shared/schema";
 import { faker } from "@faker-js/faker";
 import crypto from "crypto";
-import { calculateTotalPoints, getRankTier } from "./rankTiers";
+import { calculateTotalPoints, getRankTier } from "../rankTiers";
 import { eq } from "drizzle-orm";
 
 // ============================================================================

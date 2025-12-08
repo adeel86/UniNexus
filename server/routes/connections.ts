@@ -403,4 +403,25 @@ router.get("/follow/status/:userId", isAuthenticated, async (req: AuthRequest, r
   }
 });
 
+// Remove a follower (someone who follows you)
+router.delete("/followers/remove/:userId", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  try {
+    const { userId } = req.params;
+
+    // Delete the follow relationship where userId follows the current user
+    const result = await db
+      .delete(followers)
+      .where(
+        and(
+          eq(followers.followerId, userId),
+          eq(followers.followingId, req.user!.id)
+        )
+      );
+
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

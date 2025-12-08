@@ -91,6 +91,9 @@ export default function Profile() {
           type="followers"
           data={followersData}
           onClose={() => setShowFollowers(false)}
+          currentUserId={currentUser?.id}
+          isOwnProfile={isViewingOwnProfile}
+          targetUserId={targetUserId}
         />
       )}
 
@@ -99,6 +102,9 @@ export default function Profile() {
           type="following"
           data={followingData}
           onClose={() => setShowFollowing(false)}
+          currentUserId={currentUser?.id}
+          isOwnProfile={isViewingOwnProfile}
+          targetUserId={targetUserId}
         />
       )}
 

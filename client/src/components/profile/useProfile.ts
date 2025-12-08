@@ -73,10 +73,12 @@ export function useProfile({ currentUser, viewingUserId }: UseProfileOptions) {
     enabled: !!targetUserId,
   });
 
-  const { data: followStatus } = useQuery<{ following: boolean }>({
+  const { data: rawFollowStatus } = useQuery<{ isFollowing: boolean }>({
     queryKey: [`/api/follow/status/${targetUserId}`],
     enabled: !!currentUser && !isViewingOwnProfile,
   });
+
+  const followStatus = rawFollowStatus ? { following: rawFollowStatus.isFollowing } : undefined;
 
   const { data: extendedProfile } = useQuery<UserProfile>({
     queryKey: [`/api/user-profiles/${targetUserId}`],
