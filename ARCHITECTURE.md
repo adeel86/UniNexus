@@ -146,7 +146,10 @@ Demo accounts available:
 npm install
 npm run db:push    # Sync database schema
 # npm run seed       # Populate test data
-npx tsx -e "import { seedDatabase } from './server/seed/index'; seedDatabase().then(() => { console.log('Seed completed!'); process.exit(0); }).catch(e => { console.error('Seed failed:', e); process.exit(1); })"
+npx tsx -e "import { seedDatabase } from './server/seed/index'; seedDatabase().then(() => { console.log('Seed completed!'); process.exit(0); }).catch(e => { console.error('Seed failed:', e); process.exit(1); })" # Populate test data
+
+npx tsx server/seed/comprehansive-seed.ts 2>&1
+npx tsx server/seed/supplemental-seed.ts 2>&1
 
 npm run dev        # Start development server
 ```
