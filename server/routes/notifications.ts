@@ -75,6 +75,20 @@ router.patch("/notifications/mark-all-read", async (req: Request, res: Response)
   }
 });
 
+router.delete("/notifications/clear-all", async (req: Request, res: Response) => {
+  if (!req.user) {
+    return res.status(401).send("Unauthorized");
+  }
+
+  try {
+    await db.delete(notifications).where(eq(notifications.userId, req.user.id));
+
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.delete("/notifications/:notificationId", async (req: Request, res: Response) => {
   if (!req.user) {
     return res.status(401).send("Unauthorized");
@@ -98,20 +112,6 @@ router.delete("/notifications/:notificationId", async (req: Request, res: Respon
     }
 
     await db.delete(notifications).where(eq(notifications.id, notificationId));
-
-    res.json({ success: true });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.delete("/notifications/clear-all", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
-  try {
-    await db.delete(notifications).where(eq(notifications.userId, req.user.id));
 
     res.json({ success: true });
   } catch (error: any) {

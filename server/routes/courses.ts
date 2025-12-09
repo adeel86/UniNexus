@@ -101,7 +101,7 @@ router.post("/student-courses/:id/validate", isAuthenticated, async (req: Reques
     const validated = await validateStudentCourse(
       req.params.id,
       req.user.id,
-      req.user.university,
+      req.user.university ?? null,
       req.body.validationNote
     );
     res.json(validated);
