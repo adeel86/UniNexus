@@ -1,6 +1,9 @@
 import { db } from "../../db";
 import { users } from "@shared/schema";
 import type { User } from "@shared/schema";
+import { faker } from "@faker-js/faker";
+import type { SeedConfig } from "../config";
+import crypto from "crypto";
 
 export const mockUsers = [
   {
@@ -237,9 +240,18 @@ export const mockUsers = [
   },
 ];
 
-export async function seedUsers(): Promise<User[]> {
+export async function seedUsers(config?: SeedConfig): Promise<User[]> {
   console.log("Inserting users...");
-  let insertedUsers = await db.insert(users).values(mockUsers).onConflictDoNothing().returning();
+  const usersToInsert = [...mockUsers];
+  
+  // Generate bulk users if config allows
+  if (config && !config.users.demoAccountsOnly && config.users.bulkUserCount > 0) {
+    console.log(`Generating ${config.users.bulkUserCount} bulk users...`);
+    const bulkUsers = generateBulkUsers(config.users.bulkUserCount);
+    usersToInsert.push(...bulkUsers);
+  }
+  
+  let insertedUsers = await db.insert(users).values(usersToInsert).onConflictDoNothing().returning();
   
   if (insertedUsers.length === 0) {
     console.log("Users already exist, fetching existing users...");
@@ -247,4 +259,113 @@ export async function seedUsers(): Promise<User[]> {
   }
   console.log(`Using ${insertedUsers.length} users`);
   return insertedUsers;
+}
+
+/**
+ * Generate bulk users with realistic faker data
+ */
+function generateBulkUsers(count: number): any[] {
+  const universities = [
+    "Tech University",
+    "State University",
+    "Demo University",
+    "Innovation Institute",
+    "Digital Academy",
+  ];
+  
+  const majors = [
+    "Computer Science",
+    "Data Science",
+    "Software Engineering",
+    "Information Technology",
+    "Cybersecurity",
+    "Business Analytics",
+    "Game Development",
+  ];
+  
+  const interests = [
+    "Web Development",
+    "AI",
+    "Machine Learning",
+    "React",
+    "Python",
+    "JavaScript",
+    "UI/UX Design",
+    "Data Analysis",
+    "Cloud Computing",
+    "DevOps",
+    "Blockchain",
+    "Mobile Development",
+    "Teaching",
+    "Research",
+  ];
+  
+  const companies = [
+    "TechCorp Solutions",
+    "Innovation Labs",
+    "Digital Ventures",
+    "Future Systems",
+    "Cloud Dynamics",
+  ];
+  
+  const bulkUsers: any[] = [];
+  
+  for (let i = 0; i < count; i++) {
+    const role = faker.helpers.arrayElement(['student', 'teacher', 'university_admin', 'industry_professional'] as const);
+    const firstName = faker.person.firstName();
+    const lastName = faker.person.lastName();
+    const email = faker.internet.email({ firstName, lastName }).toLowerCase();
+    
+    // Deterministic Firebase UID based on email for consistency
+    const firebaseUid = crypto.createHash('sha256').update(email).digest('hex').slice(0, 28);
+    
+    const baseUser = {
+      firebaseUid,
+      email,
+      firstName,
+      lastName,
+      displayName: `${firstName} ${lastName}`,
+      profileImageUrl: `https://i.pravatar.cc/150?img=${(i % 70) + 1}`,
+      role,
+      bio: faker.lorem.sentences(2),
+      engagementScore: faker.number.int({ min: 0, max: 2000 }),
+      problemSolverScore: faker.number.int({ min: 0, max: 1500 }),
+      endorsementScore: faker.number.int({ min: 0, max: 100 }),
+      challengePoints: faker.number.int({ min: 0, max: 1000 }),
+      totalPoints: faker.number.int({ min: 0, max: 5000 }),
+      rankTier: faker.helpers.arrayElement(['bronze', 'silver', 'gold', 'platinum'] as const),
+      streak: faker.number.int({ min: 0, max: 30 }),
+      interests: faker.helpers.arrayElements(interests, faker.number.int({ min: 2, max: 5 })),
+    };
+    
+    if (role === 'student') {
+      bulkUsers.push({
+        ...baseUser,
+        university: faker.helpers.arrayElement(universities),
+        major: faker.helpers.arrayElement(majors),
+        graduationYear: faker.number.int({ min: 2024, max: 2028 }),
+      });
+    } else if (role === 'teacher') {
+      bulkUsers.push({
+        ...baseUser,
+        university: faker.helpers.arrayElement(universities),
+        position: faker.helpers.arrayElement(['Professor', 'Associate Professor', 'Assistant Professor', 'Instructor', 'Lecturer']),
+      });
+    } else if (role === 'university_admin') {
+      bulkUsers.push({
+        ...baseUser,
+        university: faker.helpers.arrayElement(universities),
+        position: faker.helpers.arrayElement(['Administrator', 'Director', 'Dean', 'Vice Chancellor']),
+      });
+    } else {
+      // industry_professional
+      bulkUsers.push({
+        ...baseUser,
+        company: faker.helpers.arrayElement(companies),
+        position: faker.helpers.arrayElement(['Recruiter', 'Senior Recruiter', 'HR Manager', 'Talent Acquisition Lead', 'Career Coach']),
+      });
+    }
+  }
+  
+  return bulkUsers;
 }
