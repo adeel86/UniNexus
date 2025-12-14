@@ -3,27 +3,83 @@ import { challenges, challengeParticipants, groups, groupMembers, groupPosts, no
 import type { User, Challenge, Group } from "@shared/schema";
 import crypto from "crypto";
 
-export async function seedChallenges(insertedUsers: User[]): Promise<Challenge[]> {
+export async function seedChallenges(insertedUsers: User[], config?: any): Promise<Challenge[]> {
+  // Use current date to calculate relative challenge dates
+  const now = new Date();
+  const oneDay = 24 * 60 * 60 * 1000;
+  
   const mockChallenges = [
     {
       title: "30-Day Coding Challenge",
-      description: "Code every day for 30 days and share your progress!",
-      creatorId: insertedUsers[3].id,
-      startDate: new Date("2024-11-01"),
-      endDate: new Date("2024-11-30"),
-      type: "skill",
-      points: 500,
-      maxParticipants: 100,
+      description: "Code every day for 30 days and share your progress! Build projects, solve algorithms, and level up your skills.",
+      organizerId: insertedUsers[3]?.id || insertedUsers[0].id,
+      category: "Programming",
+      difficulty: "beginner",
+      prizes: "1st Place: $500 Amazon Gift Card, 2nd Place: $250, 3rd Place: $100 + Premium Course Access for all participants",
+      startDate: new Date(now.getTime() - 15 * oneDay),
+      endDate: new Date(now.getTime() + 15 * oneDay),
+      status: "active",
+      participantCount: 47,
     },
     {
       title: "AI Innovation Hackathon",
-      description: "Build an innovative AI project in 48 hours. Top prizes await!",
-      creatorId: insertedUsers[7].id,
-      startDate: new Date("2024-12-15"),
-      endDate: new Date("2024-12-17"),
-      type: "hackathon",
-      points: 1000,
-      maxParticipants: 50,
+      description: "Build an innovative AI project in 48 hours. Use cutting-edge ML/AI tools to solve real-world problems. Team size: 2-4 members.",
+      organizerId: insertedUsers[7]?.id || insertedUsers[1]?.id || insertedUsers[0].id,
+      category: "Hackathon",
+      difficulty: "advanced",
+      prizes: "Grand Prize: $5,000 + Internship opportunity at TechCorp, Runner Up: $2,500, Best Design: $1,000",
+      startDate: new Date(now.getTime() + 7 * oneDay),
+      endDate: new Date(now.getTime() + 9 * oneDay),
+      status: "upcoming",
+      participantCount: 23,
+    },
+    {
+      title: "Mobile App Design Sprint",
+      description: "Design and prototype a mobile app that addresses sustainability challenges. Collaborate with designers and developers.",
+      organizerId: insertedUsers[5]?.id || insertedUsers[0].id,
+      category: "Design",
+      difficulty: "intermediate",
+      prizes: "1st Place: $1,500 + Design Tool Subscriptions, 2nd Place: $750, 3rd Place: $300",
+      startDate: new Date(now.getTime() - 5 * oneDay),
+      endDate: new Date(now.getTime() + 10 * oneDay),
+      status: "active",
+      participantCount: 34,
+    },
+    {
+      title: "Data Science Competition",
+      description: "Analyze real-world datasets and build predictive models. Categories include healthcare, finance, and climate.",
+      organizerId: insertedUsers[2]?.id || insertedUsers[0].id,
+      category: "Data Science",
+      difficulty: "advanced",
+      prizes: "1st Place: $3,000 + Job Interview at DataCo, 2nd Place: $1,500, 3rd Place: $500",
+      startDate: new Date(now.getTime() - 20 * oneDay),
+      endDate: new Date(now.getTime() + 5 * oneDay),
+      status: "active",
+      participantCount: 89,
+    },
+    {
+      title: "Web Development Bootcamp Challenge",
+      description: "Complete weekly web dev challenges and build your portfolio. Perfect for beginners looking to break into tech.",
+      organizerId: insertedUsers[1]?.id || insertedUsers[0].id,
+      category: "Web Development",
+      difficulty: "beginner",
+      prizes: "All completers receive: Certificate of Completion, Top 10: Premium Course Bundle, 1st Place: Mentorship Session + $200",
+      startDate: new Date(now.getTime() + 14 * oneDay),
+      endDate: new Date(now.getTime() + 44 * oneDay),
+      status: "upcoming",
+      participantCount: 12,
+    },
+    {
+      title: "Cybersecurity CTF Challenge",
+      description: "Capture The Flag competition testing your security skills. Find vulnerabilities, decrypt codes, and hack (ethically)!",
+      organizerId: insertedUsers[4]?.id || insertedUsers[0].id,
+      category: "Security",
+      difficulty: "advanced",
+      prizes: "1st Place: $2,000 + Security Certification Voucher, 2nd Place: $1,000, 3rd Place: $500",
+      startDate: new Date(now.getTime() - 30 * oneDay),
+      endDate: new Date(now.getTime() - 2 * oneDay),
+      status: "completed",
+      participantCount: 156,
     },
   ];
 

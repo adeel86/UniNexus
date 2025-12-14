@@ -100,8 +100,11 @@ export async function seedDatabase(profileName?: string) {
   console.log(`📈 Summary: ${insertedUsers.length} users, ${insertedPosts.length} posts, ${insertedCourses.length} courses\n`);
 }
 
-// Support CLI usage
-if (require.main === module) {
+// Support CLI usage (ESM-compatible)
+const isMainModule = import.meta.url === `file://${process.argv[1]}` || 
+  process.argv[1]?.endsWith('seed/index.ts');
+
+if (isMainModule) {
   const profile = parseSeedProfile(process.argv);
   seedDatabase(profile).catch(console.error);
 }

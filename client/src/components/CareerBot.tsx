@@ -74,19 +74,21 @@ export function CareerBot() {
 
   if (!isOpen) {
     return (
-      <Button
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 p-0 z-50"
-        data-testid="button-open-careerbot"
-      >
-        <MessageCircle className="h-6 w-6" />
-        <div className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full animate-pulse" />
-      </Button>
+      <div className="fixed bottom-6 right-6 z-[9999]" style={{ position: 'fixed' }}>
+        <Button
+          onClick={() => setIsOpen(true)}
+          className="h-14 w-14 rounded-full shadow-lg bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 p-0"
+          data-testid="button-open-careerbot"
+        >
+          <MessageCircle className="h-6 w-6" />
+          <div className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full animate-pulse" />
+        </Button>
+      </div>
     );
   }
 
   return (
-    <Card className="fixed bottom-6 right-6 w-96 h-[600px] shadow-2xl z-50 flex flex-col">
+    <Card className="fixed bottom-6 right-6 w-96 h-[600px] shadow-2xl z-[9999] flex flex-col" style={{ position: 'fixed' }}>
       {/* Header */}
       <div className="p-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-t-lg flex items-center justify-between">
         <div className="flex items-center gap-2">

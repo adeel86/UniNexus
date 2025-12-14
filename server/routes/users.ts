@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { eq, desc, and, or, sql } from "drizzle-orm";
+import { eq, desc, and, or, sql, notInArray } from "drizzle-orm";
 import { db } from "../db";
 import {
   users,
@@ -10,6 +10,7 @@ import {
   jobExperience,
   studentCourses,
   notifications,
+  userConnections,
   insertEducationRecordSchema,
   insertJobExperienceSchema,
   insertStudentCourseSchema,
@@ -155,7 +156,7 @@ router.get("/users/search", async (req: Request, res: Response) => {
   }
 
   try {
-    const { q } = req.query;
+    const { q, excludeConnected } = req.query;
     const searchTerm = q as string;
 
     if (!searchTerm || searchTerm.length < 3) {
@@ -163,24 +164,61 @@ router.get("/users/search", async (req: Request, res: Response) => {
     }
 
     const searchPattern = `%${searchTerm}%`;
+    const currentUserId = req.user.id;
     
-    const results = await db
-      .select()
-      .from(users)
-      .where(
-        and(
-          sql`${users.id} != ${req.user.id}`,
-          or(
-            sql`${users.firstName} ILIKE ${searchPattern}`,
-            sql`${users.lastName} ILIKE ${searchPattern}`,
-            sql`${users.email} ILIKE ${searchPattern}`,
-            sql`${users.major} ILIKE ${searchPattern}`,
-            sql`${users.company} ILIKE ${searchPattern}`,
-            sql`${users.university} ILIKE ${searchPattern}`
+    // Get connected user IDs to exclude from search results
+    let connectedUserIds: string[] = [];
+    if (excludeConnected === 'true') {
+      const connections = await db
+        .select()
+        .from(userConnections)
+        .where(
+          and(
+            or(
+              eq(userConnections.requesterId, currentUserId),
+              eq(userConnections.receiverId, currentUserId)
+            ),
+            eq(userConnections.status, 'accepted')
+          )
+        );
+      
+      connectedUserIds = connections.map(c => 
+        c.requesterId === currentUserId ? c.receiverId : c.requesterId
+      );
+    }
+    
+    // Build query conditions
+    const baseConditions = and(
+      sql`${users.id} != ${currentUserId}`,
+      or(
+        sql`${users.firstName} ILIKE ${searchPattern}`,
+        sql`${users.lastName} ILIKE ${searchPattern}`,
+        sql`${users.email} ILIKE ${searchPattern}`,
+        sql`${users.major} ILIKE ${searchPattern}`,
+        sql`${users.company} ILIKE ${searchPattern}`,
+        sql`${users.university} ILIKE ${searchPattern}`
+      )
+    );
+
+    let results;
+    if (connectedUserIds.length > 0) {
+      results = await db
+        .select()
+        .from(users)
+        .where(
+          and(
+            baseConditions,
+            notInArray(users.id, connectedUserIds)
           )
         )
-      )
-      .limit(20);
+        .limit(20);
+    } else {
+      results = await db
+        .select()
+        .from(users)
+        .where(baseConditions)
+        .limit(20);
+    }
 
     res.json(results);
   } catch (error: any) {

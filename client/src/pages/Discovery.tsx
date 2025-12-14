@@ -51,7 +51,7 @@ export default function Discovery() {
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
 
   const { data: searchResults = [], isLoading } = useQuery<User[]>({
-    queryKey: ["/api/users/search", { q: searchTerm, role: roleFilter }],
+    queryKey: ["/api/users/search", { q: searchTerm, role: roleFilter, excludeConnected: 'true' }],
     enabled: searchTerm.length > 2,
   });
 
