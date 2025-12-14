@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/UserAvatar";
 import { RankTierBadge } from "@/components/RankTierBadge";
 import { CVExportButton } from "@/components/CVExportButton";
-import { CheckCircle, UserPlus, UserMinus, TrendingUp, Trophy, Award, Zap } from "lucide-react";
+import { CheckCircle, UserPlus, UserMinus, TrendingUp, Trophy, Award, Zap, Pencil } from "lucide-react";
 import type { User } from "@shared/schema";
 
 interface ProfileHeaderProps {
@@ -17,6 +17,7 @@ interface ProfileHeaderProps {
   followMutation: { isPending: boolean; mutate: (action: 'follow' | 'unfollow') => void };
   onShowFollowers: () => void;
   onShowFollowing: () => void;
+  onEditProfile?: () => void;
   currentUser: User | null | undefined;
 }
 
@@ -31,6 +32,7 @@ export function ProfileHeader({
   followMutation,
   onShowFollowers,
   onShowFollowing,
+  onEditProfile,
   currentUser,
 }: ProfileHeaderProps) {
   return (
@@ -94,9 +96,20 @@ export function ProfileHeader({
           </div>
         </div>
         
-        {isViewingOwnProfile && user.role === "student" && (
+        {isViewingOwnProfile && (
           <div className="flex items-center gap-2 flex-wrap">
-            <CVExportButton userId={targetUserId} />
+            {onEditProfile && (
+              <Button
+                onClick={onEditProfile}
+                variant="outline"
+                className="bg-white/20 backdrop-blur border-white/30 text-white"
+                data-testid="button-edit-profile"
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit Profile
+              </Button>
+            )}
+            {user.role === "student" && <CVExportButton userId={targetUserId} />}
           </div>
         )}
         

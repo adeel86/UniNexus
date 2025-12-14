@@ -13,4 +13,5 @@ export { default as adminRouter } from "./admin";
 export { default as recruiterRouter } from "./recruiter";
 export { default as teacherContentRouter } from "./teacher-content";
 export { default as aiRouter } from "./ai";
+export { default as qaRouter } from "./qa";
 export * from "./shared";

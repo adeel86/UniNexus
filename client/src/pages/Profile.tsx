@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
 import { Shield } from "lucide-react";
@@ -15,6 +16,7 @@ import {
   ProfileHeader,
   FollowersFollowingList,
   AchievementsSection,
+  EditProfileModal,
   StudentAcademicInfo,
   TeachingProfile,
   ProfessionalExperience,
@@ -24,6 +26,7 @@ import {
 
 export default function Profile() {
   const { userData: currentUser } = useAuth();
+  const [showEditProfileModal, setShowEditProfileModal] = useState(false);
   
   const params = new URLSearchParams(window.location.search);
   const viewingUserId = params.get('userId');
@@ -83,6 +86,7 @@ export default function Profile() {
         followMutation={followMutation}
         onShowFollowers={() => setShowFollowers(!showFollowers)}
         onShowFollowing={() => setShowFollowing(!showFollowing)}
+        onEditProfile={() => setShowEditProfileModal(true)}
         currentUser={currentUser}
       />
 
@@ -237,6 +241,14 @@ export default function Profile() {
         experience={selectedJobExperience}
         userId={targetUserId!}
       />
+
+      {isViewingOwnProfile && user && (
+        <EditProfileModal
+          user={user}
+          open={showEditProfileModal}
+          onOpenChange={setShowEditProfileModal}
+        />
+      )}
     </div>
   );
 }

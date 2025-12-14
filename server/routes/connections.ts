@@ -424,4 +424,170 @@ router.delete("/followers/remove/:userId", isAuthenticated, async (req: AuthRequ
   }
 });
 
+// ========================================================================
+// DISCOVERY & RECOMMENDATIONS API
+// ========================================================================
+
+// Get friend recommendations based on mutual connections and shared attributes
+router.get("/recommendations/friends", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  try {
+    const currentUserId = req.user!.id;
+    const currentUser = req.user!;
+
+    // Get current user's connections
+    const myConnections = await db
+      .select()
+      .from(userConnections)
+      .where(
+        and(
+          or(
+            eq(userConnections.requesterId, currentUserId),
+            eq(userConnections.receiverId, currentUserId)
+          ),
+          eq(userConnections.status, 'accepted')
+        )
+      );
+
+    const myConnectionIds = new Set(
+      myConnections.flatMap(c => 
+        c.requesterId === currentUserId ? [c.receiverId] : [c.requesterId]
+      )
+    );
+
+    // Get all users except current user and existing connections
+    const allUsers = await db
+      .select()
+      .from(users)
+      .where(sql`${users.id} != ${currentUserId}`)
+      .limit(100);
+
+    // Get all connections to find mutual connections
+    const allConnections = await db
+      .select()
+      .from(userConnections)
+      .where(eq(userConnections.status, 'accepted'));
+
+    // Build connection map for each user
+    const userConnectionsMap = new Map<string, Set<string>>();
+    for (const conn of allConnections) {
+      if (!userConnectionsMap.has(conn.requesterId)) {
+        userConnectionsMap.set(conn.requesterId, new Set());
+      }
+      if (!userConnectionsMap.has(conn.receiverId)) {
+        userConnectionsMap.set(conn.receiverId, new Set());
+      }
+      userConnectionsMap.get(conn.requesterId)!.add(conn.receiverId);
+      userConnectionsMap.get(conn.receiverId)!.add(conn.requesterId);
+    }
+
+    // Filter out existing connections and calculate scores
+    const recommendations = allUsers
+      .filter(user => !myConnectionIds.has(user.id))
+      .map(user => {
+        let score = 0;
+        let mutualConnections = 0;
+        const sharedSkills: string[] = [];
+
+        // Same university bonus
+        if (currentUser.university && user.university === currentUser.university) {
+          score += 30;
+        }
+
+        // Same role type bonus
+        if (user.role === currentUser.role) {
+          score += 10;
+        }
+
+        // Skill matching (if skills exist)
+        const currentSkills = (currentUser as any).skills || [];
+        const userSkills = (user as any).skills || [];
+        for (const skill of currentSkills) {
+          if (userSkills.includes(skill)) {
+            score += 5;
+            sharedSkills.push(skill);
+          }
+        }
+
+        // Calculate mutual connections - people connected to both current user and recommended user
+        const recommendedUserConnections = userConnectionsMap.get(user.id) || new Set();
+        const myFriendIds = Array.from(myConnectionIds);
+        for (const myFriendId of myFriendIds) {
+          if (recommendedUserConnections.has(myFriendId)) {
+            mutualConnections++;
+            score += 15;
+          }
+        }
+
+        // Active users get a boost
+        if (user.engagementScore && user.engagementScore > 50) {
+          score += 10;
+        }
+
+        return {
+          ...user,
+          mutualConnections,
+          sharedSkills: sharedSkills.slice(0, 3),
+          recommendationScore: score,
+        };
+      })
+      .filter(user => user.recommendationScore > 0)
+      .sort((a, b) => b.recommendationScore - a.recommendationScore)
+      .slice(0, 10);
+
+    res.json(recommendations);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get universities to explore with stats
+router.get("/discovery/universities", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  try {
+    // Get university stats from users
+    const universityStats = await db
+      .select({
+        university: users.university,
+        studentCount: sql<number>`count(*)::int`,
+        avgEngagement: sql<number>`coalesce(avg(${users.engagementScore}), 0)::int`,
+      })
+      .from(users)
+      .where(sql`${users.university} IS NOT NULL AND ${users.university} != ''`)
+      .groupBy(users.university)
+      .orderBy(sql`count(*) DESC`)
+      .limit(10);
+
+    // Get top majors for each university
+    const results = await Promise.all(
+      universityStats.map(async (stat) => {
+        const majors = await db
+          .select({
+            major: users.major,
+            count: sql<number>`count(*)::int`,
+          })
+          .from(users)
+          .where(
+            and(
+              eq(users.university, stat.university!),
+              sql`${users.major} IS NOT NULL AND ${users.major} != ''`
+            )
+          )
+          .groupBy(users.major)
+          .orderBy(sql`count(*) DESC`)
+          .limit(3);
+
+        return {
+          university: stat.university,
+          studentCount: stat.studentCount,
+          topMajors: majors.map(m => m.major).filter(Boolean) as string[],
+          avgEngagementScore: stat.avgEngagement,
+        };
+      })
+    );
+
+    res.json(results);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

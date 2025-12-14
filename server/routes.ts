@@ -22,6 +22,7 @@ import {
   recruiterRouter,
   teacherContentRouter,
   aiRouter,
+  qaRouter,
 } from "./routes/index";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -69,6 +70,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api", adminRouter);
   app.use("/api", recruiterRouter);
   app.use("/api/teacher-content", teacherContentRouter);
+  app.use("/api", qaRouter);
   app.use(aiRouter);
 
   const httpServer = createServer(app);

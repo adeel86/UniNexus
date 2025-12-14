@@ -20,7 +20,7 @@ export default function Notifications() {
   
   const { data: notifications = [], isLoading } = useQuery<Notification[]>({
     queryKey: ['/api/notifications'],
-    refetchInterval: 5000, // Poll every 5 seconds for real-time updates
+    refetchInterval: 30000, // Poll every 30 seconds for updates
   });
 
   const markAsReadMutation = useMutation({
