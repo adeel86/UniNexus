@@ -1,18 +1,49 @@
 import { db } from "../../db";
 import { userConnections, followers, endorsements, conversations, messages } from "@shared/schema";
 import type { User, Skill, Conversation } from "@shared/schema";
+import { getDemoUsers } from "./users";
 
 export async function seedConnections(insertedUsers: User[]): Promise<void> {
-  if (insertedUsers.length < 7) return;
+  if (insertedUsers.length < 8) return;
 
+  const demoUsers = getDemoUsers(insertedUsers);
+  const teacherDrAdeel = demoUsers.teacherDrAdeel!;
+  const teacherSheldon = demoUsers.teacherSheldon!;
+  const studentAdeel = demoUsers.studentAdeel!;
+  const studentAneeqa = demoUsers.studentAneeqa!;
+  const uniAdminDISC = demoUsers.uniAdminDISC!;
+  const industryScreenGlitz = demoUsers.industryScreenGlitz!;
+  const industryCouchPotatos = demoUsers.industryCouchPotatos!;
+  
+  const additionalUsers = insertedUsers.filter(u => 
+    u.email !== teacherDrAdeel.email && u.email !== teacherSheldon.email &&
+    u.email !== studentAdeel.email && u.email !== studentAneeqa.email &&
+    u.email !== uniAdminDISC.email && u.email !== industryScreenGlitz.email &&
+    u.email !== industryCouchPotatos.email
+  ).slice(0, 2);
+  
   const mockConnections = [
-    { requesterId: insertedUsers[0].id, receiverId: insertedUsers[1].id, status: "accepted", respondedAt: new Date() },
-    { requesterId: insertedUsers[0].id, receiverId: insertedUsers[2].id, status: "accepted", respondedAt: new Date() },
-    { requesterId: insertedUsers[1].id, receiverId: insertedUsers[2].id, status: "accepted", respondedAt: new Date() },
-    { requesterId: insertedUsers[0].id, receiverId: insertedUsers[3].id, status: "pending" },
-    { requesterId: insertedUsers[5].id, receiverId: insertedUsers[0].id, status: "accepted", respondedAt: new Date() },
-    { requesterId: insertedUsers[5].id, receiverId: insertedUsers[1].id, status: "accepted", respondedAt: new Date() },
-    { requesterId: insertedUsers[6].id, receiverId: insertedUsers[0].id, status: "accepted", respondedAt: new Date() },
+    // Students connected to each other
+    { requesterId: studentAdeel.id, receiverId: studentAneeqa.id, status: "accepted", respondedAt: new Date() },
+    
+    // Students connected to teachers
+    { requesterId: studentAdeel.id, receiverId: teacherDrAdeel.id, status: "accepted", respondedAt: new Date() },
+    { requesterId: studentAdeel.id, receiverId: teacherSheldon.id, status: "accepted", respondedAt: new Date() },
+    { requesterId: studentAneeqa.id, receiverId: teacherDrAdeel.id, status: "accepted", respondedAt: new Date() },
+    { requesterId: studentAneeqa.id, receiverId: teacherSheldon.id, status: "accepted", respondedAt: new Date() },
+    
+    // Industry connected to students
+    { requesterId: industryScreenGlitz.id, receiverId: studentAdeel.id, status: "accepted", respondedAt: new Date() },
+    { requesterId: industryScreenGlitz.id, receiverId: studentAneeqa.id, status: "pending" },
+    { requesterId: industryCouchPotatos.id, receiverId: studentAdeel.id, status: "accepted", respondedAt: new Date() },
+    
+    // Teachers connected to university admins
+    { requesterId: teacherDrAdeel.id, receiverId: uniAdminDISC.id, status: "accepted", respondedAt: new Date() },
+    { requesterId: teacherSheldon.id, receiverId: uniAdminDISC.id, status: "accepted", respondedAt: new Date() },
+    
+    // Additional connections with other users if they exist
+    ...(additionalUsers[0] ? [{ requesterId: studentAdeel.id, receiverId: additionalUsers[0].id, status: "accepted", respondedAt: new Date() }] : []),
+    ...(additionalUsers[1] ? [{ requesterId: studentAneeqa.id, receiverId: additionalUsers[1].id, status: "accepted", respondedAt: new Date() }] : []),
   ];
 
   console.log("Inserting user connections...");
@@ -23,15 +54,44 @@ export async function seedConnections(insertedUsers: User[]): Promise<void> {
 export async function seedFollowers(insertedUsers: User[]): Promise<void> {
   if (insertedUsers.length < 8) return;
 
+  const demoUsers = getDemoUsers(insertedUsers);
+  const teacherDrAdeel = demoUsers.teacherDrAdeel!;
+  const teacherSheldon = demoUsers.teacherSheldon!;
+  const studentAdeel = demoUsers.studentAdeel!;
+  const studentAneeqa = demoUsers.studentAneeqa!;
+  const industryScreenGlitz = demoUsers.industryScreenGlitz!;
+  const industryCouchPotatos = demoUsers.industryCouchPotatos!;
+  
+  const additionalUsers = insertedUsers.filter(u => 
+    u.email !== teacherDrAdeel.email && u.email !== teacherSheldon.email &&
+    u.email !== studentAdeel.email && u.email !== studentAneeqa.email &&
+    u.email !== industryScreenGlitz.email && u.email !== industryCouchPotatos.email
+  ).slice(0, 3);
+
   const mockFollowers = [
-    { followerId: insertedUsers[0].id, followingId: insertedUsers[8].id },
-    { followerId: insertedUsers[0].id, followingId: insertedUsers[9].id },
-    { followerId: insertedUsers[1].id, followingId: insertedUsers[8].id },
-    { followerId: insertedUsers[2].id, followingId: insertedUsers[8].id },
-    { followerId: insertedUsers[5].id, followingId: insertedUsers[0].id },
-    { followerId: insertedUsers[6].id, followingId: insertedUsers[0].id },
-    { followerId: insertedUsers[6].id, followingId: insertedUsers[1].id },
-    { followerId: insertedUsers[7].id, followingId: insertedUsers[5].id },
+    // Students follow teachers
+    { followerId: studentAdeel.id, followingId: teacherDrAdeel.id },
+    { followerId: studentAdeel.id, followingId: teacherSheldon.id },
+    { followerId: studentAneeqa.id, followingId: teacherDrAdeel.id },
+    { followerId: studentAneeqa.id, followingId: teacherSheldon.id },
+    
+    // Students follow each other
+    { followerId: studentAdeel.id, followingId: studentAneeqa.id },
+    { followerId: studentAneeqa.id, followingId: studentAdeel.id },
+    
+    // Industry follows students (talent scouting)
+    { followerId: industryScreenGlitz.id, followingId: studentAdeel.id },
+    { followerId: industryScreenGlitz.id, followingId: studentAneeqa.id },
+    { followerId: industryCouchPotatos.id, followingId: studentAdeel.id },
+    
+    // Teachers follow each other
+    { followerId: teacherDrAdeel.id, followingId: teacherSheldon.id },
+    { followerId: teacherSheldon.id, followingId: teacherDrAdeel.id },
+    
+    // Additional followers if more users exist
+    ...(additionalUsers[0] ? [{ followerId: additionalUsers[0].id, followingId: teacherDrAdeel.id }] : []),
+    ...(additionalUsers[1] ? [{ followerId: additionalUsers[1].id, followingId: teacherDrAdeel.id }] : []),
+    ...(additionalUsers[2] ? [{ followerId: additionalUsers[2].id, followingId: studentAdeel.id }] : []),
   ];
 
   console.log("Inserting followers...");
@@ -40,14 +100,45 @@ export async function seedFollowers(insertedUsers: User[]): Promise<void> {
 }
 
 export async function seedEndorsements(insertedUsers: User[], insertedSkills: Skill[]): Promise<void> {
-  if (insertedUsers.length < 9 || insertedSkills.length === 0) return;
+  if (insertedUsers.length < 8 || insertedSkills.length === 0) return;
+
+  const demoUsers = getDemoUsers(insertedUsers);
+  const teacherDrAdeel = demoUsers.teacherDrAdeel!;
+  const teacherSheldon = demoUsers.teacherSheldon!;
+  const studentAdeel = demoUsers.studentAdeel!;
+  const studentAneeqa = demoUsers.studentAneeqa!;
 
   const mockEndorsements = [
-    { endorserId: insertedUsers[8].id, endorsedUserId: insertedUsers[0].id, skillId: insertedSkills[0].id, comment: "Excellent JavaScript skills demonstrated in class projects!" },
-    { endorserId: insertedUsers[8].id, endorsedUserId: insertedUsers[0].id, skillId: insertedSkills[2].id, comment: "Great React work on the final project." },
-    { endorserId: insertedUsers[9].id, endorsedUserId: insertedUsers[1].id, skillId: insertedSkills[3].id, comment: "Outstanding UI/UX design sense!" },
-    { endorserId: insertedUsers[8].id, endorsedUserId: insertedUsers[5].id, skillId: insertedSkills[0].id, comment: "Strong coding fundamentals." },
-    { endorserId: insertedUsers[9].id, endorsedUserId: insertedUsers[5].id, skillId: insertedSkills[2].id, comment: "Impressive React applications." },
+    { 
+      endorserId: teacherDrAdeel.id, 
+      endorsedUserId: studentAdeel.id, 
+      skillId: insertedSkills[0].id, 
+      comment: "Exceptional work on the web development projects. Adeel demonstrates strong problem-solving skills and attention to detail." 
+    },
+    { 
+      endorserId: teacherDrAdeel.id, 
+      endorsedUserId: studentAdeel.id, 
+      skillId: insertedSkills[1]?.id || insertedSkills[0].id, 
+      comment: "Outstanding understanding of React patterns and best practices." 
+    },
+    { 
+      endorserId: teacherDrAdeel.id, 
+      endorsedUserId: studentAneeqa.id, 
+      skillId: insertedSkills[0].id, 
+      comment: "Aneeqa shows remarkable aptitude for data analysis and machine learning concepts." 
+    },
+    { 
+      endorserId: teacherSheldon.id, 
+      endorsedUserId: studentAdeel.id, 
+      skillId: insertedSkills[2]?.id || insertedSkills[0].id, 
+      comment: "Excellent grasp of algorithms and data structures. Top performer in class." 
+    },
+    { 
+      endorserId: teacherSheldon.id, 
+      endorsedUserId: studentAneeqa.id, 
+      skillId: insertedSkills[1]?.id || insertedSkills[0].id, 
+      comment: "Aneeqa's analytical thinking and problem-solving abilities are impressive." 
+    },
   ];
 
   console.log("Inserting endorsements...");
@@ -56,21 +147,43 @@ export async function seedEndorsements(insertedUsers: User[], insertedSkills: Sk
 }
 
 export async function seedConversations(insertedUsers: User[]): Promise<Conversation[]> {
-  if (insertedUsers.length < 3) return [];
+  if (insertedUsers.length < 4) return [];
+
+  const demoUsers = getDemoUsers(insertedUsers);
+  const teacherDrAdeel = demoUsers.teacherDrAdeel!;
+  const teacherSheldon = demoUsers.teacherSheldon!;
+  const studentAdeel = demoUsers.studentAdeel!;
+  const studentAneeqa = demoUsers.studentAneeqa!;
+  const industryScreenGlitz = demoUsers.industryScreenGlitz!;
 
   const mockConversations = [
+    // Student to student
     { 
-      participantIds: [insertedUsers[0].id, insertedUsers[1].id],
+      participantIds: [studentAdeel.id, studentAneeqa.id],
       isGroup: false,
       lastMessageAt: new Date(),
     },
+    // Student to teacher
     { 
-      participantIds: [insertedUsers[0].id, insertedUsers[2].id],
+      participantIds: [studentAdeel.id, teacherDrAdeel.id],
       isGroup: false,
       lastMessageAt: new Date(),
     },
+    // Student to industry
     { 
-      participantIds: [insertedUsers[1].id, insertedUsers[2].id],
+      participantIds: [studentAdeel.id, industryScreenGlitz.id],
+      isGroup: false,
+      lastMessageAt: new Date(),
+    },
+    // Another student to teacher
+    { 
+      participantIds: [studentAneeqa.id, teacherDrAdeel.id],
+      isGroup: false,
+      lastMessageAt: new Date(),
+    },
+    // Teachers discussing
+    { 
+      participantIds: [teacherDrAdeel.id, teacherSheldon.id],
       isGroup: false,
       lastMessageAt: new Date(),
     },
@@ -85,44 +198,67 @@ export async function seedConversations(insertedUsers: User[]): Promise<Conversa
 export async function seedMessages(insertedConversations: Conversation[], insertedUsers: User[]): Promise<void> {
   if (insertedConversations.length === 0) return;
 
-  // Messages with readBy arrays to simulate unread messages
-  // If a user is NOT in readBy, the message is unread for them
+  const demoUsers = getDemoUsers(insertedUsers);
+  const teacherDrAdeel = demoUsers.teacherDrAdeel!;
+  const studentAdeel = demoUsers.studentAdeel!;
+  const studentAneeqa = demoUsers.studentAneeqa!;
+  const industryScreenGlitz = demoUsers.industryScreenGlitz!;
+
   const mockMessages = [
+    // Conversation 0: Students chatting
     { 
       conversationId: insertedConversations[0].id, 
-      senderId: insertedUsers[0].id, 
-      content: "Hey! How's the project going?",
-      readBy: [insertedUsers[0].id, insertedUsers[1].id] // Both have read
-    },
-    { 
-      conversationId: insertedConversations[0].id, 
-      senderId: insertedUsers[1].id, 
-      content: "Great! Almost done with the frontend.",
-      readBy: [insertedUsers[1].id] // Only sender has read - unread for user[0]
+      senderId: studentAdeel.id, 
+      content: "Hey Aneeqa! Did you finish the machine learning assignment?",
+      readBy: [studentAdeel.id, studentAneeqa.id]
     },
     { 
       conversationId: insertedConversations[0].id, 
-      senderId: insertedUsers[1].id, 
-      content: "Awesome! Let me know if you need help with the API.",
-      readBy: [insertedUsers[1].id] // Only sender has read - unread for user[0]
+      senderId: studentAneeqa.id, 
+      content: "Hi Adeel! Almost done. The neural network part was tricky but I figured it out.",
+      readBy: [studentAneeqa.id]
     },
     { 
-      conversationId: insertedConversations[1].id, 
-      senderId: insertedUsers[2].id, 
-      content: "Did you see the new course announcements?",
-      readBy: [insertedUsers[2].id] // Only sender has read - unread for user[0]
+      conversationId: insertedConversations[0].id, 
+      senderId: studentAdeel.id, 
+      content: "Nice! Want to study together for the midterm next week?",
+      readBy: [studentAdeel.id]
+    },
+    
+    // Conversation 1: Student asking teacher
+    { 
+      conversationId: insertedConversations[1]?.id || insertedConversations[0].id, 
+      senderId: studentAdeel.id, 
+      content: "Dr. Rafiq, I have a question about the React hooks assignment.",
+      readBy: [studentAdeel.id, teacherDrAdeel.id]
     },
     { 
-      conversationId: insertedConversations[1].id, 
-      senderId: insertedUsers[2].id, 
-      content: "Yes! The ML course looks interesting.",
-      readBy: [insertedUsers[2].id] // Only sender has read - unread for user[0]
+      conversationId: insertedConversations[1]?.id || insertedConversations[0].id, 
+      senderId: teacherDrAdeel.id, 
+      content: "Sure Adeel, what's your question? Feel free to share your code.",
+      readBy: [teacherDrAdeel.id]
+    },
+    
+    // Conversation 2: Industry reaching out to student
+    { 
+      conversationId: insertedConversations[2]?.id || insertedConversations[0].id, 
+      senderId: industryScreenGlitz.id, 
+      content: "Hi Adeel! I noticed your impressive project portfolio. We have some exciting opportunities at Screen Glitz Sports Blitz that might interest you.",
+      readBy: [industryScreenGlitz.id]
+    },
+    
+    // Conversation 3: Another student with teacher
+    { 
+      conversationId: insertedConversations[3]?.id || insertedConversations[0].id, 
+      senderId: studentAneeqa.id, 
+      content: "Professor, could you recommend some resources for learning more about deep learning?",
+      readBy: [studentAneeqa.id, teacherDrAdeel.id]
     },
     { 
-      conversationId: insertedConversations[2].id, 
-      senderId: insertedUsers[2].id, 
-      content: "Hi! Want to collaborate on the group project?",
-      readBy: [insertedUsers[2].id] // Only sender has read - unread for user[1]
+      conversationId: insertedConversations[3]?.id || insertedConversations[0].id, 
+      senderId: teacherDrAdeel.id, 
+      content: "Absolutely! I'll share some excellent papers and online courses. Check the course materials I just uploaded.",
+      readBy: [teacherDrAdeel.id]
     },
   ];
 

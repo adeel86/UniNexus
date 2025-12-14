@@ -2,17 +2,23 @@ import { db } from "../../db";
 import { challenges, challengeParticipants, groups, groupMembers, groupPosts, notifications, announcements, certifications } from "@shared/schema";
 import type { User, Challenge, Group } from "@shared/schema";
 import crypto from "crypto";
+import { getDemoUsers } from "./users";
 
 export async function seedChallenges(insertedUsers: User[], config?: any): Promise<Challenge[]> {
-  // Use current date to calculate relative challenge dates
   const now = new Date();
   const oneDay = 24 * 60 * 60 * 1000;
+  
+  const demoUsers = getDemoUsers(insertedUsers);
+  const industryScreenGlitz = demoUsers.industryScreenGlitz!;
+  const industryCouchPotatos = demoUsers.industryCouchPotatos!;
+  const teacherDrAdeel = demoUsers.teacherDrAdeel!;
+  const teacherSheldon = demoUsers.teacherSheldon!;
   
   const mockChallenges = [
     {
       title: "30-Day Coding Challenge",
       description: "Code every day for 30 days and share your progress! Build projects, solve algorithms, and level up your skills.",
-      organizerId: insertedUsers[3]?.id || insertedUsers[0].id,
+      organizerId: industryScreenGlitz?.id || insertedUsers[0].id,
       category: "Programming",
       difficulty: "beginner",
       prizes: "1st Place: $500 Amazon Gift Card, 2nd Place: $250, 3rd Place: $100 + Premium Course Access for all participants",
@@ -24,22 +30,22 @@ export async function seedChallenges(insertedUsers: User[], config?: any): Promi
     {
       title: "AI Innovation Hackathon",
       description: "Build an innovative AI project in 48 hours. Use cutting-edge ML/AI tools to solve real-world problems. Team size: 2-4 members.",
-      organizerId: insertedUsers[7]?.id || insertedUsers[1]?.id || insertedUsers[0].id,
+      organizerId: industryCouchPotatos?.id || insertedUsers[0].id,
       category: "Hackathon",
       difficulty: "advanced",
-      prizes: "Grand Prize: $5,000 + Internship opportunity at TechCorp, Runner Up: $2,500, Best Design: $1,000",
+      prizes: "Grand Prize: $5,000 + Internship opportunity, Runner Up: $2,500, Best Design: $1,000",
       startDate: new Date(now.getTime() + 7 * oneDay),
       endDate: new Date(now.getTime() + 9 * oneDay),
       status: "upcoming",
       participantCount: 23,
     },
     {
-      title: "Mobile App Design Sprint",
-      description: "Design and prototype a mobile app that addresses sustainability challenges. Collaborate with designers and developers.",
-      organizerId: insertedUsers[5]?.id || insertedUsers[0].id,
-      category: "Design",
+      title: "Sports Tech Challenge",
+      description: "Design and build a technology solution for sports analytics or fan engagement. Sponsored by Screen Glitz Sports Blitz.",
+      organizerId: industryScreenGlitz?.id || insertedUsers[0].id,
+      category: "Hackathon",
       difficulty: "intermediate",
-      prizes: "1st Place: $1,500 + Design Tool Subscriptions, 2nd Place: $750, 3rd Place: $300",
+      prizes: "1st Place: $2,000 + Internship Interview, 2nd Place: $1,000, 3rd Place: $500",
       startDate: new Date(now.getTime() - 5 * oneDay),
       endDate: new Date(now.getTime() + 10 * oneDay),
       status: "active",
@@ -48,10 +54,10 @@ export async function seedChallenges(insertedUsers: User[], config?: any): Promi
     {
       title: "Data Science Competition",
       description: "Analyze real-world datasets and build predictive models. Categories include healthcare, finance, and climate.",
-      organizerId: insertedUsers[2]?.id || insertedUsers[0].id,
+      organizerId: teacherDrAdeel?.id || insertedUsers[0].id,
       category: "Data Science",
       difficulty: "advanced",
-      prizes: "1st Place: $3,000 + Job Interview at DataCo, 2nd Place: $1,500, 3rd Place: $500",
+      prizes: "1st Place: $3,000, 2nd Place: $1,500, 3rd Place: $500",
       startDate: new Date(now.getTime() - 20 * oneDay),
       endDate: new Date(now.getTime() + 5 * oneDay),
       status: "active",
@@ -60,7 +66,7 @@ export async function seedChallenges(insertedUsers: User[], config?: any): Promi
     {
       title: "Web Development Bootcamp Challenge",
       description: "Complete weekly web dev challenges and build your portfolio. Perfect for beginners looking to break into tech.",
-      organizerId: insertedUsers[1]?.id || insertedUsers[0].id,
+      organizerId: teacherSheldon?.id || insertedUsers[0].id,
       category: "Web Development",
       difficulty: "beginner",
       prizes: "All completers receive: Certificate of Completion, Top 10: Premium Course Bundle, 1st Place: Mentorship Session + $200",
@@ -70,12 +76,12 @@ export async function seedChallenges(insertedUsers: User[], config?: any): Promi
       participantCount: 12,
     },
     {
-      title: "Cybersecurity CTF Challenge",
-      description: "Capture The Flag competition testing your security skills. Find vulnerabilities, decrypt codes, and hack (ethically)!",
-      organizerId: insertedUsers[4]?.id || insertedUsers[0].id,
-      category: "Security",
-      difficulty: "advanced",
-      prizes: "1st Place: $2,000 + Security Certification Voucher, 2nd Place: $1,000, 3rd Place: $500",
+      title: "Gaming Tech Innovation",
+      description: "Create innovative gaming technology solutions. Sponsored by Couch Potatos Playbook. Focus on esports and gaming analytics.",
+      organizerId: industryCouchPotatos?.id || insertedUsers[0].id,
+      category: "Gaming",
+      difficulty: "intermediate",
+      prizes: "1st Place: $2,500 + Gaming Setup, 2nd Place: $1,000, 3rd Place: $500",
       startDate: new Date(now.getTime() - 30 * oneDay),
       endDate: new Date(now.getTime() - 2 * oneDay),
       status: "completed",
@@ -92,10 +98,21 @@ export async function seedChallenges(insertedUsers: User[], config?: any): Promi
 export async function seedChallengeParticipants(insertedChallenges: Challenge[], insertedUsers: User[]): Promise<void> {
   if (insertedChallenges.length === 0) return;
 
+  const demoUsers = getDemoUsers(insertedUsers);
+  const studentAdeel = demoUsers.studentAdeel!;
+  const studentAneeqa = demoUsers.studentAneeqa!;
+  
+  const additionalStudents = insertedUsers.filter(u => 
+    u?.role === 'student' && u.email !== studentAdeel.email && u.email !== studentAneeqa.email
+  ).slice(0, 2);
+
   const mockParticipants = [
-    { challengeId: insertedChallenges[0].id, userId: insertedUsers[0].id, status: "active" },
-    { challengeId: insertedChallenges[0].id, userId: insertedUsers[5].id, status: "active" },
-    { challengeId: insertedChallenges[0].id, userId: insertedUsers[6].id, status: "active" },
+    { challengeId: insertedChallenges[0].id, userId: studentAdeel.id, status: "active" },
+    { challengeId: insertedChallenges[0].id, userId: studentAneeqa.id, status: "active" },
+    { challengeId: insertedChallenges[2]?.id || insertedChallenges[0].id, userId: studentAdeel.id, status: "active" },
+    { challengeId: insertedChallenges[3]?.id || insertedChallenges[0].id, userId: studentAneeqa.id, status: "active" },
+    ...(additionalStudents[0] ? [{ challengeId: insertedChallenges[0].id, userId: additionalStudents[0].id, status: "active" }] : []),
+    ...(additionalStudents[1] ? [{ challengeId: insertedChallenges[0].id, userId: additionalStudents[1].id, status: "active" }] : []),
   ];
 
   console.log("Inserting challenge participants...");
@@ -104,13 +121,18 @@ export async function seedChallengeParticipants(insertedChallenges: Challenge[],
 }
 
 export async function seedGroups(insertedUsers: User[]): Promise<Group[]> {
+  const demoUsers = getDemoUsers(insertedUsers);
+  const studentAdeel = demoUsers.studentAdeel!;
+  const studentAneeqa = demoUsers.studentAneeqa!;
+  const teacherDrAdeel = demoUsers.teacherDrAdeel!;
+  
   const mockGroups = [
     {
       name: "React Developers Community",
-      description: "A community for React enthusiasts to share knowledge and collaborate.",
+      description: "A community for React enthusiasts to share knowledge and collaborate on projects.",
       groupType: "skill",
       category: "Tech",
-      creatorId: insertedUsers[0].id,
+      creatorId: studentAdeel.id,
       isPrivate: false,
     },
     {
@@ -118,7 +140,7 @@ export async function seedGroups(insertedUsers: User[]): Promise<Group[]> {
       description: "Learn and explore artificial intelligence and machine learning together.",
       groupType: "study_group",
       category: "Science",
-      creatorId: insertedUsers[5].id,
+      creatorId: studentAneeqa.id,
       isPrivate: false,
     },
     {
@@ -126,7 +148,15 @@ export async function seedGroups(insertedUsers: User[]): Promise<Group[]> {
       description: "Prepare for interviews, share job opportunities, and grow your career.",
       groupType: "hobby",
       category: "Career",
-      creatorId: insertedUsers[3].id,
+      creatorId: teacherDrAdeel.id,
+      isPrivate: false,
+    },
+    {
+      name: "Web Development Masters",
+      description: "Advanced web development discussions and project collaborations.",
+      groupType: "skill",
+      category: "Tech",
+      creatorId: studentAdeel.id,
       isPrivate: false,
     },
   ];
@@ -140,16 +170,23 @@ export async function seedGroups(insertedUsers: User[]): Promise<Group[]> {
 export async function seedGroupMembers(insertedGroups: Group[], insertedUsers: User[]): Promise<void> {
   if (insertedGroups.length === 0) return;
 
+  const demoUsers = getDemoUsers(insertedUsers);
+  const studentAdeel = demoUsers.studentAdeel!;
+  const studentAneeqa = demoUsers.studentAneeqa!;
+  const teacherDrAdeel = demoUsers.teacherDrAdeel!;
+  const industryScreenGlitz = demoUsers.industryScreenGlitz!;
+
   const mockGroupMembers = [
-    { groupId: insertedGroups[0].id, userId: insertedUsers[0].id, role: "admin" },
-    { groupId: insertedGroups[0].id, userId: insertedUsers[1].id, role: "member" },
-    { groupId: insertedGroups[0].id, userId: insertedUsers[5].id, role: "member" },
-    { groupId: insertedGroups[1].id, userId: insertedUsers[5].id, role: "admin" },
-    { groupId: insertedGroups[1].id, userId: insertedUsers[0].id, role: "member" },
-    { groupId: insertedGroups[1].id, userId: insertedUsers[6].id, role: "member" },
-    { groupId: insertedGroups[2].id, userId: insertedUsers[3].id, role: "admin" },
-    { groupId: insertedGroups[2].id, userId: insertedUsers[0].id, role: "member" },
-    { groupId: insertedGroups[2].id, userId: insertedUsers[1].id, role: "member" },
+    { groupId: insertedGroups[0].id, userId: studentAdeel.id, role: "admin" },
+    { groupId: insertedGroups[0].id, userId: studentAneeqa.id, role: "member" },
+    { groupId: insertedGroups[0].id, userId: teacherDrAdeel.id, role: "member" },
+    { groupId: insertedGroups[1]?.id || insertedGroups[0].id, userId: studentAneeqa.id, role: "admin" },
+    { groupId: insertedGroups[1]?.id || insertedGroups[0].id, userId: studentAdeel.id, role: "member" },
+    { groupId: insertedGroups[1]?.id || insertedGroups[0].id, userId: teacherDrAdeel.id, role: "member" },
+    { groupId: insertedGroups[2]?.id || insertedGroups[0].id, userId: teacherDrAdeel.id, role: "admin" },
+    { groupId: insertedGroups[2]?.id || insertedGroups[0].id, userId: studentAdeel.id, role: "member" },
+    { groupId: insertedGroups[2]?.id || insertedGroups[0].id, userId: studentAneeqa.id, role: "member" },
+    { groupId: insertedGroups[2]?.id || insertedGroups[0].id, userId: industryScreenGlitz.id, role: "member" },
   ];
 
   console.log("Inserting group members...");
@@ -160,10 +197,16 @@ export async function seedGroupMembers(insertedGroups: Group[], insertedUsers: U
 export async function seedGroupPosts(insertedGroups: Group[], insertedUsers: User[]): Promise<void> {
   if (insertedGroups.length === 0) return;
 
+  const demoUsers = getDemoUsers(insertedUsers);
+  const studentAdeel = demoUsers.studentAdeel!;
+  const studentAneeqa = demoUsers.studentAneeqa!;
+  const teacherDrAdeel = demoUsers.teacherDrAdeel!;
+
   const mockGroupPosts = [
-    { groupId: insertedGroups[0].id, authorId: insertedUsers[0].id, content: "Welcome to the React Developers group! Share your React tips and tricks here." },
-    { groupId: insertedGroups[0].id, authorId: insertedUsers[1].id, content: "Has anyone tried the new React Server Components? Would love to hear your experiences." },
-    { groupId: insertedGroups[1].id, authorId: insertedUsers[5].id, content: "Starting a weekly ML paper reading session. Who's interested?" },
+    { groupId: insertedGroups[0].id, authorId: studentAdeel.id, content: "Welcome to the React Developers group! Share your React tips and tricks here." },
+    { groupId: insertedGroups[0].id, authorId: studentAneeqa.id, content: "Has anyone tried the new React Server Components? Would love to hear your experiences." },
+    { groupId: insertedGroups[1]?.id || insertedGroups[0].id, authorId: studentAneeqa.id, content: "Starting a weekly ML paper reading session. Who's interested?" },
+    { groupId: insertedGroups[2]?.id || insertedGroups[0].id, authorId: teacherDrAdeel.id, content: "Great opportunities coming up! Check the career board for internships and job postings." },
   ];
 
   console.log("Inserting group posts...");
@@ -172,9 +215,14 @@ export async function seedGroupPosts(insertedGroups: Group[], insertedUsers: Use
 }
 
 export async function seedNotifications(insertedUsers: User[], insertedPosts?: any[]): Promise<void> {
+  const demoUsers = getDemoUsers(insertedUsers);
+  const studentAdeel = demoUsers.studentAdeel!;
+  const studentAneeqa = demoUsers.studentAneeqa!;
+  const teacherDrAdeel = demoUsers.teacherDrAdeel!;
+  
   const mockNotifications = [
     { 
-      userId: insertedUsers[0].id, 
+      userId: studentAdeel.id, 
       type: "badge", 
       title: "Badge Earned!", 
       message: "Congratulations! You earned the First Post badge.", 
@@ -182,36 +230,52 @@ export async function seedNotifications(insertedUsers: User[], insertedPosts?: a
       isRead: false 
     },
     { 
-      userId: insertedUsers[0].id, 
+      userId: studentAdeel.id, 
       type: "comment", 
       title: "New Comment", 
-      message: "Jordan Chen commented on your post.", 
+      message: "Aneeqa Ahmed commented on your post.", 
       link: "/feed",
       isRead: true 
     },
     { 
-      userId: insertedUsers[1].id, 
+      userId: studentAneeqa.id, 
       type: "reaction", 
       title: "Post Liked", 
-      message: "Alex Rivera liked your design post.", 
+      message: "Adeel Leo liked your data science post.", 
       link: "/feed",
       isRead: false 
     },
     { 
-      userId: insertedUsers[5].id, 
+      userId: studentAdeel.id, 
       type: "badge", 
       title: "New Endorsement!", 
-      message: "Dr. Smith endorsed your JavaScript skills.", 
+      message: "Dr. Adeel Rafiq endorsed your JavaScript skills.", 
       link: "/profile",
       isRead: false 
     },
     { 
-      userId: insertedUsers[0].id, 
+      userId: studentAdeel.id, 
       type: "challenge", 
       title: "Challenge Started!", 
       message: "The 30-Day Coding Challenge has begun. Good luck!", 
       link: "/challenges",
       isRead: false 
+    },
+    { 
+      userId: studentAneeqa.id, 
+      type: "challenge", 
+      title: "New Challenge Available", 
+      message: "AI Innovation Hackathon is now accepting registrations!", 
+      link: "/challenges",
+      isRead: false 
+    },
+    { 
+      userId: teacherDrAdeel.id, 
+      type: "course", 
+      title: "Course Validated", 
+      message: "Your course 'Introduction to Web Development' has been validated by the university.", 
+      link: "/courses",
+      isRead: true 
     },
   ];
 
@@ -221,9 +285,14 @@ export async function seedNotifications(insertedUsers: User[], insertedPosts?: a
 }
 
 export async function seedAnnouncements(insertedUsers: User[]): Promise<void> {
+  const demoUsers = getDemoUsers(insertedUsers);
+  const uniAdminDISC = demoUsers.uniAdminDISC!;
+  const industryScreenGlitz = demoUsers.industryScreenGlitz!;
+  
   const mockAnnouncements = [
-    { authorId: insertedUsers[2].id, title: "Welcome to UniNexus!", content: "Welcome to our learning platform. Get started by exploring courses and connecting with peers.", targetAudience: "all", isPinned: true },
-    { authorId: insertedUsers[3].id, title: "Hiring Event", content: "Demo Tech Inc is hosting a virtual hiring event next week. All students welcome!", targetAudience: "students", isPinned: false },
+    { authorId: uniAdminDISC.id, title: "Welcome to UniNexus!", content: "Welcome to our learning platform. Get started by exploring courses and connecting with peers.", targetAudience: "all", isPinned: true },
+    { authorId: industryScreenGlitz.id, title: "Hiring Event", content: "Screen Glitz Sports Blitz is hosting a virtual hiring event next week. All students welcome!", targetAudience: "students", isPinned: false },
+    { authorId: uniAdminDISC.id, title: "New Semester Registration", content: "Spring 2025 course registration is now open. Don't miss out on your favorite courses!", targetAudience: "students", isPinned: true },
   ];
 
   console.log("Inserting announcements...");
@@ -232,37 +301,43 @@ export async function seedAnnouncements(insertedUsers: User[]): Promise<void> {
 }
 
 export async function seedCertifications(insertedUsers: User[]): Promise<void> {
-  if (insertedUsers.length < 9) return;
+  if (insertedUsers.length < 8) return;
+
+  const demoUsers = getDemoUsers(insertedUsers);
+  const studentAdeel = demoUsers.studentAdeel!;
+  const studentAneeqa = demoUsers.studentAneeqa!;
+  const teacherDrAdeel = demoUsers.teacherDrAdeel!;
+  const teacherSheldon = demoUsers.teacherSheldon!;
 
   const mockCertifications = [
     {
-      userId: insertedUsers[0].id,
+      userId: studentAdeel.id,
       issuerName: "Tech University",
-      issuerId: insertedUsers[8].id,
+      issuerId: teacherDrAdeel.id,
       type: "completion",
       title: "Web Development Fundamentals",
-      description: "Successfully completed the Web Development Fundamentals course.",
-      verificationHash: crypto.createHash('sha256').update(`cert-web-${Date.now()}`).digest('hex'),
+      description: "Successfully completed the Web Development Fundamentals course with distinction.",
+      verificationHash: crypto.createHash('sha256').update(`cert-web-${Date.now()}-1`).digest('hex'),
       isPublic: true,
     },
     {
-      userId: insertedUsers[5].id,
+      userId: studentAneeqa.id,
       issuerName: "Tech University",
-      issuerId: insertedUsers[9].id,
+      issuerId: teacherDrAdeel.id,
       type: "skill",
-      title: "Advanced JavaScript Certification",
-      description: "Demonstrated advanced proficiency in JavaScript programming.",
-      verificationHash: crypto.createHash('sha256').update(`cert-js-${Date.now()}`).digest('hex'),
+      title: "Advanced Machine Learning Certification",
+      description: "Demonstrated advanced proficiency in machine learning algorithms and applications.",
+      verificationHash: crypto.createHash('sha256').update(`cert-ml-${Date.now()}-2`).digest('hex'),
       isPublic: true,
     },
     {
-      userId: insertedUsers[1].id,
-      issuerName: "Demo University",
-      issuerId: insertedUsers[2].id,
+      userId: studentAdeel.id,
+      issuerName: "Tech University",
+      issuerId: teacherSheldon.id,
       type: "completion",
-      title: "Excellence in Teaching Award",
-      description: "Recognized for outstanding teaching performance.",
-      verificationHash: crypto.createHash('sha256').update(`cert-teach-${Date.now()}`).digest('hex'),
+      title: "Data Structures & Algorithms",
+      description: "Completed the Data Structures and Algorithms course with excellent performance.",
+      verificationHash: crypto.createHash('sha256').update(`cert-dsa-${Date.now()}-3`).digest('hex'),
       isPublic: true,
     },
   ];
