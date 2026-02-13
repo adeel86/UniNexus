@@ -176,6 +176,8 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                     </a>
                   </Link>
                 </Button>
+                {/* Challenges tab hidden */}
+                {/* 
                 <Button
                   asChild
                   variant="ghost"
@@ -190,6 +192,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                     </a>
                   </Link>
                 </Button>
+                */}
                 <Button
                   asChild
                   variant="ghost"
