@@ -74,12 +74,6 @@ export default function Courses() {
           <p className="text-muted-foreground mb-6 max-w-md mx-auto">
             You haven't enrolled in any courses yet. Add courses to your profile and request teacher validation to gain access to AI tutoring.
           </p>
-          <Link href="/settings#profile">
-            <Button data-testid="button-add-courses">
-              <GraduationCap className="h-4 w-4 mr-2" />
-              Add Courses
-            </Button>
-          </Link>
         </Card>
       ) : (
         <div className="grid gap-4">
