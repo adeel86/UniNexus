@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import type { User, StudentCourse } from '@shared/schema';
+import type { User, StudentCourse, Course } from '@shared/schema';
 
 const studentCourseSchema = z.object({
   courseName: z.string().min(1, 'Course name is required'),
