@@ -2,7 +2,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, Plus, MessageSquare, GraduationCap } from "lucide-react";
+import { TrendingUp, Plus, MessageSquare, GraduationCap, FileCheck } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { CreatePostModal } from "@/components/CreatePostModal";
 import { SuggestedPosts } from "@/components/SuggestedPosts";
 import { UniversalFeed } from "@/components/UniversalFeed";
@@ -27,7 +28,7 @@ export default function TeacherDashboard() {
   const { userData } = useAuth();
   const [, navigate] = useLocation();
 
-  const { data: pendingValidations = [] } = useQuery({
+  const { data: pendingValidations = [] } = useQuery<any[]>({
     queryKey: ["/api/teacher/pending-validations"],
     enabled: !!userData,
   });
