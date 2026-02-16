@@ -51,6 +51,16 @@ export function CourseFormModal({
     ? isPending ? "Saving..." : "Save Changes"
     : isPending ? "Creating..." : "Create Course";
 
+  const { data: universities = [] } = useQuery<string[]>({
+    queryKey: ['/api/universities'],
+    queryFn: async () => {
+      const response = await fetch('/api/users?role=university_admin');
+      if (!response.ok) return [];
+      const admins: any[] = await response.json();
+      return Array.from(new Set(admins.map(a => a.university).filter(Boolean))) as string[];
+    },
+  });
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
@@ -101,13 +111,21 @@ export function CourseFormModal({
           </div>
           <div>
             <Label htmlFor={`${mode}-course-university`}>University</Label>
-            <Input
-              id={`${mode}-course-university`}
-              value={courseForm.university}
-              onChange={(e) => courseForm.setUniversity(e.target.value)}
-              placeholder={defaultUniversity || "e.g., MIT"}
-              data-testid={`input-${mode}-course-university`}
-            />
+            <Select
+              value={courseForm.university || defaultUniversity || ""}
+              onValueChange={courseForm.setUniversity}
+            >
+              <SelectTrigger id={`${mode}-course-university`} data-testid={`select-${mode}-course-university`}>
+                <SelectValue placeholder="Select university" />
+              </SelectTrigger>
+              <SelectContent>
+                {universities.map((uni) => (
+                  <SelectItem key={uni} value={uni}>
+                    {uni}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
         <DialogFooter>

@@ -83,6 +83,16 @@ export function TeacherCreatedCourses() {
     setCourseUniversity("");
   };
 
+  const { data: universities = [] } = useQuery<string[]>({
+    queryKey: ['/api/universities'],
+    queryFn: async () => {
+      const response = await fetch('/api/users?role=university_admin');
+      if (!response.ok) return [];
+      const admins: User[] = await response.json();
+      return Array.from(new Set(admins.map(a => a.university).filter(Boolean))) as string[];
+    },
+  });
+
   const handleCreateCourse = () => {
     if (!courseName.trim() || !courseCode.trim()) {
       toast({
@@ -248,13 +258,21 @@ export function TeacherCreatedCourses() {
 
               <div>
                 <Label htmlFor="course-university">University</Label>
-                <Input
-                  id="course-university"
-                  placeholder={userData?.university || "e.g., MIT"}
-                  value={courseUniversity}
-                  onChange={(e) => setCourseUniversity(e.target.value)}
-                  data-testid="input-course-university"
-                />
+                <Select
+                  value={courseUniversity || userData?.university || ""}
+                  onValueChange={setCourseUniversity}
+                >
+                  <SelectTrigger id="course-university" data-testid="select-course-university">
+                    <SelectValue placeholder="Select university" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {universities.map((uni) => (
+                      <SelectItem key={uni} value={uni}>
+                        {uni}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

@@ -46,7 +46,9 @@ export function StudentCourseModal({ open, onOpenChange, course, userId }: Stude
     queryFn: async () => {
       const response = await fetch('/api/users?role=teacher');
       if (!response.ok) throw new Error('Failed to fetch teachers');
-      return response.json();
+      const allTeachers: User[] = await response.json();
+      // Filter teachers who have the same university as the student (if student has one)
+      return allTeachers.filter(t => !userData?.university || t.university === userData.university);
     },
   });
 
@@ -210,6 +212,20 @@ export function StudentCourseModal({ open, onOpenChange, course, userId }: Stude
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
 
+  const { data: allCourses = [] } = useQuery<Course[]>({
+    queryKey: ['/api/courses'],
+    queryFn: async () => {
+      const response = await fetch('/api/courses');
+      if (!response.ok) return [];
+      return response.json();
+    },
+  });
+
+  const selectedTeacherId = form.watch('assignedTeacherId');
+  const filteredCourses = allCourses.filter(c => 
+    !selectedTeacherId || c.instructorId === selectedTeacherId
+  );
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -222,12 +238,31 @@ export function StudentCourseModal({ open, onOpenChange, course, userId }: Stude
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div>
             <Label htmlFor="courseName">Course Name *</Label>
-            <Input
-              id="courseName"
-              {...form.register('courseName')}
-              placeholder="e.g., Introduction to Computer Science"
-              data-testid="input-course-name"
-            />
+            <Select
+              value={form.watch('courseName')}
+              onValueChange={(val) => {
+                const selected = allCourses.find(c => c.name === val);
+                form.setValue('courseName', val);
+                if (selected) {
+                  form.setValue('courseCode', selected.code);
+                  form.setValue('institution', selected.university || '');
+                  if (selected.instructorId) {
+                    form.setValue('assignedTeacherId', selected.instructorId);
+                  }
+                }
+              }}
+            >
+              <SelectTrigger data-testid="select-course-name">
+                <SelectValue placeholder="Select course" />
+              </SelectTrigger>
+              <SelectContent>
+                {filteredCourses.map((c) => (
+                  <SelectItem key={c.id} value={c.name}>
+                    {c.name} ({c.code})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {form.formState.errors.courseName && (
               <p className="text-sm text-destructive mt-1">
                 {form.formState.errors.courseName.message}
