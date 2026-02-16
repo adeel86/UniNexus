@@ -8,6 +8,7 @@ import {
   discussionReplies,
   discussionUpvotes,
 } from "@shared/schema";
+import { createNotification } from "../services/notifications.service";
 
 const router = Router();
 
@@ -173,6 +174,14 @@ router.post("/qa/questions", isAuthenticated, async (req: Request, res: Response
       })
       .where(eq(users.id, req.user.id));
 
+    await createNotification({
+      userId: req.user.id,
+      type: 'achievement',
+      title: 'Question Posted!',
+      message: `You earned +10 points for asking a question in the Q&A forum.`,
+      link: `/qa/questions/${question.id}`
+    });
+
     res.json(question);
   } catch (error: any) {
     console.error("Error creating question:", error);
@@ -224,6 +233,17 @@ router.post("/qa/questions/:questionId/answers", isAuthenticated, async (req: Re
         totalPoints: sql`COALESCE(${users.totalPoints}, 0) + 15`,
       })
       .where(eq(users.id, req.user.id));
+
+    // Notify question author
+    if (question.authorId !== req.user.id) {
+      await createNotification({
+        userId: question.authorId,
+        type: 'comment',
+        title: 'New Answer Received',
+        message: `${req.user.displayName || 'Someone'} answered your question: "${question.title.substring(0, 30)}..."`,
+        link: `/qa/questions/${questionId}`
+      });
+    }
 
     res.json(answer);
   } catch (error: any) {
@@ -341,6 +361,14 @@ router.post("/qa/questions/:questionId/resolve", isAuthenticated, async (req: Re
             totalPoints: sql`COALESCE(${users.totalPoints}, 0) + 20`,
           })
           .where(eq(users.id, answer.authorId));
+
+        await createNotification({
+          userId: answer.authorId,
+          type: 'achievement',
+          title: 'Answer Accepted!',
+          message: `Your answer was marked as the solution! You earned +20 points.`,
+          link: `/qa/questions/${questionId}`
+        });
       }
     }
 

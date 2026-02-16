@@ -12,9 +12,11 @@ import {
   certifications,
   recruiterFeedback,
   teacherContent,
+  notifications,
 } from "@shared/schema";
 import OpenAI from "openai";
 import { requireAuth, requireRole } from "./shared";
+import { createNotification } from "../services/notifications.service";
 
 const router = Router();
 
@@ -131,6 +133,17 @@ Example responses:
         engagementScore: sql`${users.engagementScore} + 3`,
       })
       .where(eq(users.id, req.user!.id));
+
+    // Optional: Notify user about points earned via AI interaction
+    if (req.user!.engagementScore % 10 === 0) { // Subtle notification every 10 points
+       await createNotification({
+         userId: req.user!.id,
+         type: 'achievement',
+         title: 'Career Explorer!',
+         message: 'You are earning engagement points for using the AI CareerBot. Keep it up!',
+         link: '/career'
+       });
+    }
 
     res.json({ message: assistantMessage });
   } catch (error: any) {
