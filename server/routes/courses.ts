@@ -359,7 +359,7 @@ router.post("/courses/:id/request-validation", isAuthenticated, async (req: Requ
 
 router.get("/university/pending-course-validations", async (req: Request, res: Response) => {
   if (!req.user) return res.status(401).send("Unauthorized");
-  if (req.user.role !== "university_admin" && req.user.role !== "master_admin" && req.user.role !== "university") {
+  if (req.user.role !== "university_admin" && req.user.role !== "master_admin") {
     return res.status(403).json({ error: "Only university admins can view pending validations" });
   }
 
@@ -390,7 +390,7 @@ router.get("/university/pending-course-validations", async (req: Request, res: R
 
 router.post("/courses/:id/university-validation", isAuthenticated, async (req: Request, res: Response) => {
   if (!req.user) return res.status(401).send("Unauthorized");
-  if (req.user.role !== "university_admin" && req.user.role !== "master_admin" && req.user.role !== "university") {
+  if (req.user.role !== "university_admin" && req.user.role !== "master_admin") {
     return res.status(403).json({ error: "Only university admins can validate courses" });
   }
 
