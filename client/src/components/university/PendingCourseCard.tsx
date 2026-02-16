@@ -50,11 +50,11 @@ export function PendingCourseCard({
             {course.university && (
               <span>University: {course.university}</span>
             )}
-            {course.createdAt && (
+            {course.validationRequestedAt || course.createdAt ? (
               <span>
-                Requested: {new Date(course.createdAt).toLocaleDateString()}
+                Requested: {new Date(course.validationRequestedAt || course.createdAt).toLocaleDateString()}
               </span>
-            )}
+            ) : null}
           </div>
         </div>
 

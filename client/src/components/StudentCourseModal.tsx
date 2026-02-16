@@ -222,7 +222,9 @@ export function StudentCourseModal({ open, onOpenChange, course, userId }: Stude
     queryFn: async () => {
       const response = await fetch('/api/courses');
       if (!response.ok) return [];
-      return response.json();
+      const data = await response.json();
+      // Filter only university-validated courses for students to pick from
+      return data.filter((c: Course) => c.isUniversityValidated);
     },
   });
 

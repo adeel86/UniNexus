@@ -207,11 +207,14 @@ router.get("/teacher/pending-validations", isAuthenticated, async (req: Request,
       })
       .from(studentCourses)
       .innerJoin(users, eq(studentCourses.userId, users.id))
-      .where(and(eq(studentCourses.assignedTeacherId, req.user.id), eq(studentCourses.isValidated, false)))
+      .where(and(
+        eq(studentCourses.assignedTeacherId, req.user.id), 
+        eq(studentCourses.isValidated, false),
+        eq(studentCourses.validationStatus, 'pending')
+      ))
       .orderBy(desc(studentCourses.createdAt));
 
-    const filtered = pending.filter(({ student }) => teacherUniversity && student.university === teacherUniversity);
-    res.json(filtered.map(({ course, student }) => ({ ...course, student })));
+    res.json(pending.map(({ course, student }) => ({ ...course, student })));
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
