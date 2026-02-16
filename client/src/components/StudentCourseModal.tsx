@@ -50,7 +50,7 @@ export function StudentCourseModal({ open, onOpenChange, course, userId }: Stude
   });
 
   const { data: teachers = [] } = useQuery<User[]>({
-    queryKey: ['/api/student/my-teachers'],
+    queryKey: ['/api/teachers'],
     enabled: !!userData,
   });
 
@@ -222,7 +222,8 @@ export function StudentCourseModal({ open, onOpenChange, course, userId }: Stude
       if (!response.ok) return [];
       const data = await response.json();
       // Filter only university-validated courses for students to pick from
-      return data.filter((c: Course) => c.isUniversityValidated);
+      // or courses that are explicitly assigned to a teacher
+      return data.filter((c: Course) => c.isUniversityValidated || c.instructorId);
     },
   });
 

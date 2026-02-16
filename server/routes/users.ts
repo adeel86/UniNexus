@@ -18,6 +18,24 @@ import {
 
 const router = Router();
 
+router.get("/teachers", async (req: Request, res: Response) => {
+  if (!req.user) {
+    return res.status(401).send("Unauthorized");
+  }
+
+  try {
+    const teachers = await db
+      .select()
+      .from(users)
+      .where(eq(users.role, "teacher"))
+      .orderBy(users.lastName, users.firstName);
+
+    res.json(teachers);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.get("/students", async (req: Request, res: Response) => {
   try {
     const students = await db

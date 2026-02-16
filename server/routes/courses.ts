@@ -186,14 +186,8 @@ router.get("/teacher/courses", isAuthenticated, async (req: Request, res: Respon
     const formatted = teacherCourses.map(({ course, student }) => ({
       ...course,
       student,
-      canValidate: !course.isValidated && teacherUniversity && student.university === teacherUniversity,
-      validationBlockedReason: !teacherUniversity
-        ? "Teacher has no institution set"
-        : !student.university
-          ? "Student has no institution set"
-          : student.university !== teacherUniversity
-            ? "Different institutions"
-            : null,
+      canValidate: !course.isValidated,
+      validationBlockedReason: null,
     }));
     res.json(formatted);
   } catch (error: any) {
@@ -365,7 +359,7 @@ router.post("/courses/:id/request-validation", isAuthenticated, async (req: Requ
 
 router.get("/university/pending-course-validations", async (req: Request, res: Response) => {
   if (!req.user) return res.status(401).send("Unauthorized");
-  if (req.user.role !== "university_admin" && req.user.role !== "master_admin") {
+  if (req.user.role !== "university_admin" && req.user.role !== "master_admin" && req.user.role !== "university") {
     return res.status(403).json({ error: "Only university admins can view pending validations" });
   }
 
@@ -396,7 +390,7 @@ router.get("/university/pending-course-validations", async (req: Request, res: R
 
 router.post("/courses/:id/university-validation", isAuthenticated, async (req: Request, res: Response) => {
   if (!req.user) return res.status(401).send("Unauthorized");
-  if (req.user.role !== "university_admin" && req.user.role !== "master_admin") {
+  if (req.user.role !== "university_admin" && req.user.role !== "master_admin" && req.user.role !== "university") {
     return res.status(403).json({ error: "Only university admins can validate courses" });
   }
 
@@ -407,6 +401,8 @@ router.post("/courses/:id/university-validation", isAuthenticated, async (req: R
 
     const [existingCourse] = await db.select().from(courses).where(eq(courses.id, courseId)).limit(1);
     if (!existingCourse) return res.status(404).json({ error: "Course not found" });
+    
+    // Check if admin belongs to the same university
     if (req.user.role !== "master_admin" && existingCourse.university !== req.user.university) {
       return res.status(403).json({ error: "Can only validate courses from your university" });
     }
@@ -424,6 +420,18 @@ router.post("/courses/:id/university-validation", isAuthenticated, async (req: R
       })
       .where(eq(courses.id, courseId))
       .returning();
+
+    // Notify the teacher
+    if (existingCourse.instructorId) {
+      await db.insert(notifications).values({
+        userId: existingCourse.instructorId,
+        type: "validation",
+        title: isApproved ? "Course Approved!" : "Course Rejected",
+        message: `Your course "${existingCourse.name}" was ${isApproved ? 'approved' : 'rejected'} by the university.`,
+        link: "/dashboard",
+      });
+    }
+
     res.json(updatedCourse);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
