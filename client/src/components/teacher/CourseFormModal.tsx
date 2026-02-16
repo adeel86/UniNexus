@@ -65,7 +65,7 @@ export function CourseFormModal({
       const response = await fetch('/api/users?role=university_admin');
       if (!response.ok) return [];
       const admins: any[] = await response.json();
-      return Array.from(new Set(admins.map(a => a.university).filter(Boolean))) as string[];
+      return Array.from(new Set(admins.map((a: any) => a.university).filter(Boolean))) as string[];
     },
   });
 

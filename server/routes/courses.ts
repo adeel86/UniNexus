@@ -72,6 +72,17 @@ router.patch("/student-courses/:id", isAuthenticated, async (req: Request, res: 
     }
 
     const [updated] = await db.update(studentCourses).set({ ...req.body, updatedAt: new Date() }).where(eq(studentCourses.id, id)).returning();
+    
+    // Notify the user if someone else updated their course (e.g. a teacher validation)
+    if (existing.userId !== req.user.id) {
+       await db.insert(notifications).values({
+        userId: existing.userId,
+        type: "validation",
+        title: "Course Updated",
+        message: `Your course "${existing.courseName}" has been updated by ${req.user.firstName} ${req.user.lastName}`,
+        link: "/profile",
+      });
+    }
     res.json(updated);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
