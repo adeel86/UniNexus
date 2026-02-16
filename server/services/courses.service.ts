@@ -118,15 +118,19 @@ export async function validateStudentCourse(
     throw new Error("Only the assigned teacher can validate this course");
   }
 
+  // Teacher and student must belong to the same institution to validate courses
   const studentUniversity = student.university;
   if (
     !teacherUniversity ||
     !studentUniversity ||
     teacherUniversity !== studentUniversity
   ) {
-    throw new Error(
-      "Teacher and student must belong to the same institution to validate courses"
-    );
+    const errorMsg = !teacherUniversity 
+      ? "Teacher has no institution set" 
+      : !studentUniversity 
+        ? "Student has no institution set" 
+        : `Institutions do not match: Teacher (${teacherUniversity}) vs Student (${studentUniversity})`;
+    throw new Error(errorMsg);
   }
 
   const [validated] = await db
@@ -143,6 +147,15 @@ export async function validateStudentCourse(
     })
     .where(eq(studentCourses.id, courseId))
     .returning();
+
+  // Create notification for student
+  await db.insert(notifications).values({
+    userId: course.userId,
+    type: "validation",
+    title: "Course Validated",
+    message: `Your course "${course.courseName}" has been validated by your teacher.`,
+    link: "/courses",
+  });
 
   if (course.courseId) {
     const [existingEnrollment] = await db

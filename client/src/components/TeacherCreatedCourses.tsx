@@ -25,7 +25,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Link } from "wouter";
-import type { Course } from "@shared/schema";
+import type { Course, University } from "@shared/schema";
 
 type CourseWithStats = Course & {
   discussionCount: number;
@@ -83,14 +83,8 @@ export function TeacherCreatedCourses() {
     setCourseUniversity("");
   };
 
-  const { data: universities = [] } = useQuery<string[]>({
+  const { data: universitiesData = [] } = useQuery<University[]>({
     queryKey: ['/api/universities'],
-    queryFn: async () => {
-      const response = await fetch('/api/users?role=university_admin');
-      if (!response.ok) return [];
-      const admins: User[] = await response.json();
-      return Array.from(new Set(admins.map(a => a.university).filter(Boolean))) as string[];
-    },
   });
 
   const handleCreateCourse = () => {
@@ -266,9 +260,9 @@ export function TeacherCreatedCourses() {
                     <SelectValue placeholder="Select university" />
                   </SelectTrigger>
                   <SelectContent>
-                    {universities.map((uni) => (
-                      <SelectItem key={uni} value={uni}>
-                        {uni}
+                    {universitiesData.map((uni) => (
+                      <SelectItem key={uni.id} value={uni.name}>
+                        {uni.name}
                       </SelectItem>
                     ))}
                   </SelectContent>

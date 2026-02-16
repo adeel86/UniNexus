@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
-import type { User, StudentCourse, Course } from '@shared/schema';
+import type { User, StudentCourse, Course, University } from '@shared/schema';
 
 const studentCourseSchema = z.object({
   courseName: z.string().min(1, 'Course name is required'),
@@ -45,14 +45,12 @@ export function StudentCourseModal({ open, onOpenChange, course, userId }: Stude
     queryKey: [`/api/users/${userId}`],
   });
 
+  const { data: universitiesData = [] } = useQuery<University[]>({
+    queryKey: ['/api/universities'],
+  });
+
   const { data: teachers = [] } = useQuery<User[]>({
-    queryKey: ['/api/users', 'role', 'teacher'],
-    queryFn: async () => {
-      const response = await fetch('/api/users?role=teacher');
-      if (!response.ok) throw new Error('Failed to fetch teachers');
-      const allTeachers: User[] = await response.json();
-      return allTeachers.filter(t => !userData?.university || t.university === userData.university);
-    },
+    queryKey: ['/api/student/my-teachers'],
     enabled: !!userData,
   });
 
@@ -289,13 +287,27 @@ export function StudentCourseModal({ open, onOpenChange, course, userId }: Stude
             </div>
 
             <div>
-              <Label htmlFor="institution">Institution</Label>
-              <Input
-                id="institution"
-                {...form.register('institution')}
-                placeholder="e.g., MIT"
-                data-testid="input-institution"
-              />
+              <Label htmlFor="institution">Institution *</Label>
+              <Select
+                value={form.watch('institution') || ''}
+                onValueChange={(val) => form.setValue('institution', val)}
+              >
+                <SelectTrigger data-testid="select-institution">
+                  <SelectValue placeholder="Select institution" />
+                </SelectTrigger>
+                <SelectContent>
+                  {universitiesData.map((uni) => (
+                    <SelectItem key={uni.id} value={uni.name}>
+                      {uni.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {form.formState.errors.institution && (
+                <p className="text-sm text-destructive mt-1">
+                  {form.formState.errors.institution.message}
+                </p>
+              )}
             </div>
           </div>
 

@@ -5,6 +5,7 @@ import { storage } from "../storage";
 import { isAuthenticated } from "../firebaseAuth";
 import {
   users,
+  universities,
   courses,
   courseEnrollments,
   courseDiscussions,
