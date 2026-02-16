@@ -240,7 +240,7 @@ router.post("/qa/questions/:questionId/answers", isAuthenticated, async (req: Re
         userId: question.authorId,
         type: 'comment',
         title: 'New Answer Received',
-        message: `${req.user.displayName || 'Someone'} answered your question: "${question.title.substring(0, 30)}..."`,
+        message: `${req.user.firstName} ${req.user.lastName} answered your question: "${question.title.substring(0, 30)}..."`,
         link: `/qa/questions/${questionId}`
       });
     }
