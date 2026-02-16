@@ -41,15 +41,19 @@ export function StudentCourseModal({ open, onOpenChange, course, userId }: Stude
   const [yearInput, setYearInput] = useState('');
   const [creditsInput, setCreditsInput] = useState('');
   
+  const { data: userData } = useQuery<User>({
+    queryKey: [`/api/users/${userId}`],
+  });
+
   const { data: teachers = [] } = useQuery<User[]>({
     queryKey: ['/api/users', 'role', 'teacher'],
     queryFn: async () => {
       const response = await fetch('/api/users?role=teacher');
       if (!response.ok) throw new Error('Failed to fetch teachers');
       const allTeachers: User[] = await response.json();
-      // Filter teachers who have the same university as the student (if student has one)
       return allTeachers.filter(t => !userData?.university || t.university === userData.university);
     },
+    enabled: !!userData,
   });
 
   const form = useForm<StudentCourseFormData>({
@@ -198,6 +202,7 @@ export function StudentCourseModal({ open, onOpenChange, course, userId }: Stude
       ...data,
       year: yearInput ? parseInt(yearInput) : null,
       credits: creditsInput ? parseInt(creditsInput) : null,
+      university: data.institution || userData?.university || '',
     };
     
     if (course) {

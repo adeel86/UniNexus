@@ -147,6 +147,7 @@ export const studentCourses = pgTable("student_courses", {
   courseName: varchar("course_name", { length: 200 }).notNull(),
   courseCode: varchar("course_code", { length: 50 }),
   institution: varchar("institution", { length: 200 }),
+  university: varchar("university", { length: 200 }),
   instructor: varchar("instructor", { length: 200 }),
   semester: varchar("semester", { length: 50 }),
   year: integer("year"),

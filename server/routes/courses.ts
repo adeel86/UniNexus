@@ -67,10 +67,11 @@ router.patch("/student-courses/:id", isAuthenticated, async (req: Request, res: 
     const { id } = req.params;
     const [existing] = await db.select().from(studentCourses).where(eq(studentCourses.id, id)).limit(1);
     if (!existing) return res.status(404).json({ error: "Course not found" });
-    if (existing.userId !== req.user.id) return res.status(403).json({ error: "Not authorized to update this course" });
+    if (existing.userId !== req.user.id && req.user.role !== "teacher" && req.user.role !== "university_admin") {
+      return res.status(403).json({ error: "Not authorized to update this course" });
+    }
 
-    const { isValidated, validatedBy, validatedAt, validationNote, ...updateData } = req.body;
-    const [updated] = await db.update(studentCourses).set({ ...updateData, updatedAt: new Date() }).where(eq(studentCourses.id, id)).returning();
+    const [updated] = await db.update(studentCourses).set({ ...req.body, updatedAt: new Date() }).where(eq(studentCourses.id, id)).returning();
     res.json(updated);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
