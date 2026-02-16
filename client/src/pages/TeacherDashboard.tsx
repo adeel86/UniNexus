@@ -21,17 +21,9 @@ import {
   TopPerformers,
 } from "@/components/teacher-dashboard";
 
-import { TeacherValidatedCoursesSection } from "@/components/TeacherValidatedCoursesSection";
-import { useQuery } from "@tanstack/react-query";
-
 export default function TeacherDashboard() {
   const { userData } = useAuth();
   const [, navigate] = useLocation();
-
-  const { data: pendingValidations = [] } = useQuery<any[]>({
-    queryKey: ["/api/teacher/pending-validations"],
-    enabled: !!userData,
-  });
 
   const {
     searchTerm,
@@ -102,44 +94,6 @@ export default function TeacherDashboard() {
         </TabsContent>
 
         <TabsContent value="analytics">
-          <div className="grid grid-cols-1 gap-6 mb-6">
-            <Card className="p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <FileCheck className="h-5 w-5 text-orange-500" />
-                <h2 className="font-heading text-xl font-semibold">Pending Course Validations</h2>
-                {pendingValidations.length > 0 && (
-                  <Badge variant="destructive" className="ml-2">
-                    {pendingValidations.length}
-                  </Badge>
-                )}
-              </div>
-
-              {pendingValidations.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
-                  No pending validation requests
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {pendingValidations.map((item: any) => (
-                    <Card key={item.id} className="p-4 flex items-center justify-between">
-                      <div>
-                        <h3 className="font-bold">{item.courseName}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Student: {item.student?.firstName} {item.student?.lastName}
-                        </p>
-                      </div>
-                      <Button 
-                        size="sm"
-                        onClick={() => navigate(`/profile?userId=${item.student?.id}`)}
-                      >
-                        Review & Validate
-                      </Button>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </Card>
-          </div>
 
           <StatsGrid students={students} />
 
