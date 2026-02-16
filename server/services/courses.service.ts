@@ -338,15 +338,20 @@ export async function getTeacherStudents(teacherId: string) {
 }
 
 export async function getStudentTeachers(studentId: string) {
+  const [student] = await db.select().from(users).where(eq(users.id, studentId)).limit(1);
+  const studentUniversity = student?.university;
+
   const teacherData = await db
     .select({
       teacher: users,
       course: courses,
     })
-    .from(courseEnrollments)
-    .innerJoin(courses, eq(courseEnrollments.courseId, courses.id))
+    .from(courses)
     .innerJoin(users, eq(courses.instructorId, users.id))
-    .where(eq(courseEnrollments.studentId, studentId))
+    .where(and(
+      eq(courses.isUniversityValidated, true),
+      studentUniversity ? eq(users.university, studentUniversity) : sql`true`
+    ))
     .orderBy(users.firstName, users.lastName);
 
   const teacherMap = new Map<string, any>();

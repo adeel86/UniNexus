@@ -5,12 +5,27 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { users } from "./users";
 
+export const universities = pgTable("universities", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: varchar("name", { length: 200 }).notNull().unique(),
+  location: varchar("location", { length: 200 }),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertUniversitySchema = createInsertSchema(universities).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type University = typeof universities.$inferSelect;
+export type InsertUniversity = z.infer<typeof insertUniversitySchema>;
+
 export const courses = pgTable("courses", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: varchar("name", { length: 200 }).notNull(),
   code: varchar("code", { length: 50 }).notNull(),
   description: text("description"),
-  university: varchar("university"),
+  university: varchar("university"), // Keep for compatibility but should be linked to universities table name
   instructorId: varchar("instructor_id").references(() => users.id, { onDelete: 'set null' }),
   semester: varchar("semester"),
   universityValidationStatus: varchar("university_validation_status", { length: 20 }).notNull().default('pending'),

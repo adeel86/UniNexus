@@ -33,6 +33,19 @@ import {
 const router = Router();
 
 // ========================================================================
+// UNIVERSITY ENDPOINTS
+// ========================================================================
+
+router.get("/universities", async (_req: Request, res: Response) => {
+  try {
+    const allUniversities = await db.select().from(universities).orderBy(universities.name);
+    res.json(allUniversities);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================================================================
 // STUDENT COURSES ENDPOINTS (Profile courses with teacher validation)
 // ========================================================================
 

@@ -106,6 +106,7 @@ export type {
 
 // Courses
 export {
+  universities,
   courses,
   courseEnrollments,
   courseEnrollmentsRelations,
@@ -114,6 +115,7 @@ export {
   discussionUpvotes,
   courseMilestones,
   studentCourses,
+  insertUniversitySchema,
   insertCourseSchema,
   insertCourseDiscussionSchema,
   insertDiscussionReplySchema,
@@ -122,6 +124,8 @@ export {
   insertStudentCourseSchema,
 } from "./courses";
 export type {
+  University,
+  InsertUniversity,
   Course,
   InsertCourse,
   CourseEnrollment,
