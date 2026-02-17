@@ -68,6 +68,18 @@ router.post("/student-courses", isAuthenticated, async (req: Request, res: Respo
       userId: req.user.id,
     });
     const [course] = await db.insert(studentCourses).values(validated).returning();
+
+    // Notify teacher if assigned
+    if (validated.assignedTeacherId) {
+      await db.insert(notifications).values({
+        userId: validated.assignedTeacherId,
+        type: "validation",
+        title: "New Course Validation Request",
+        message: `${req.user.firstName} ${req.user.lastName} requested validation for "${validated.courseName}"`,
+        link: "/teacher-dashboard", // Assuming teacher dashboard handles validations
+      });
+    }
+
     res.json(course);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
@@ -124,6 +136,30 @@ router.post("/student-courses/:id/validate", isAuthenticated, async (req: Reques
   if (req.user.role !== "teacher") return res.status(403).json({ error: "Only teachers can validate courses" });
 
   try {
+    const { action } = req.body; // 'approve' or 'reject'
+    
+    if (action === 'reject') {
+      const [updated] = await db.update(studentCourses)
+        .set({ 
+          validationStatus: 'rejected',
+          isValidated: false,
+          validationNote: req.body.validationNote || null,
+          updatedAt: new Date() 
+        })
+        .where(eq(studentCourses.id, req.params.id))
+        .returning();
+        
+      await db.insert(notifications).values({
+        userId: updated.userId,
+        type: "validation",
+        title: "Course Validation Rejected",
+        message: `Your course "${updated.courseName}" validation was rejected by the teacher.`,
+        link: "/profile",
+      });
+      
+      return res.json(updated);
+    }
+
     const validated = await validateStudentCourse(
       req.params.id,
       req.user.id,

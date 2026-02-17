@@ -179,9 +179,10 @@ export const insertStudentCourseSchema = createInsertSchema(studentCourses).omit
   validatedBy: true,
   validatedAt: true,
   validationNote: true,
-  assignedTeacherId: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  assignedTeacherId: z.string().nullable().optional(),
 });
 
 export type StudentCourse = typeof studentCourses.$inferSelect;

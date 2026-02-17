@@ -162,10 +162,16 @@ export function StudentCourseModal({ open, onOpenChange, course, userId }: Stude
   });
 
   const onSubmit = (data: StudentCourseFormData) => {
+    // Ensure assignedTeacherId is sent as null if 'none' is selected or it's empty
+    const submissionData = {
+      ...data,
+      assignedTeacherId: data.assignedTeacherId === 'none' || !data.assignedTeacherId ? null : data.assignedTeacherId,
+    };
+
     if (course) {
-      updateMutation.mutate(data);
+      updateMutation.mutate(submissionData);
     } else {
-      createMutation.mutate(data);
+      createMutation.mutate(submissionData);
     }
   };
 

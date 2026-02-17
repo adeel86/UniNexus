@@ -77,51 +77,21 @@ export function StudentCoursesSection({ isOwnProfile, userId }: StudentCoursesSe
   });
 
   const validateMutation = useMutation({
-    mutationFn: async ({ id, validationNote }: { id: string; validationNote?: string }) => {
-      return apiRequest("POST", `/api/student-courses/${id}/validate`, { validationNote });
+    mutationFn: async ({ id, action, validationNote }: { id: string; action: 'approve' | 'reject'; validationNote?: string }) => {
+      return apiRequest("POST", `/api/student-courses/${id}/validate`, { action, validationNote });
     },
-    onMutate: async ({ id }) => {
-      await queryClient.cancelQueries({ queryKey: [`/api/users/${userId}/student-courses`] });
-      const previousCourses = queryClient.getQueryData<StudentCourseWithValidator[]>([`/api/users/${userId}/student-courses`]);
-      queryClient.setQueryData<StudentCourseWithValidator[]>(
-        [`/api/users/${userId}/student-courses`],
-        (old = []) => old.map(course => 
-          course.id === id 
-            ? { ...course, isValidated: true, validatedBy: currentUser?.id || null, validatedAt: new Date() }
-            : course
-        )
-      );
-      return { previousCourses };
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/student-courses`] });
+      queryClient.invalidateQueries({ queryKey: ['/api/teacher/pending-validations'] });
+      toast({ title: variables.action === 'approve' ? "Course validated successfully" : "Course validation rejected" });
+      setValidatingCourse(null);
     },
-    onError: (err: any, variables, context) => {
-      queryClient.setQueryData(
-        [`/api/users/${userId}/student-courses`],
-        context?.previousCourses
-      );
+    onError: (err: any) => {
       toast({ 
-        title: "Failed to validate course", 
+        title: "Action failed", 
         description: err.message || "An error occurred",
         variant: "destructive" 
       });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/student-courses`] });
-      queryClient.invalidateQueries({ queryKey: ['/api/teacher/pending-validations'] });
-      toast({ title: "Course validated successfully" });
-      setValidatingCourse(null);
-    },
-  });
-
-  const removeValidationMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return apiRequest("DELETE", `/api/student-courses/${id}/validation`, {});
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/student-courses`] });
-      toast({ title: "Validation removed" });
-    },
-    onError: () => {
-      toast({ title: "Failed to remove validation", variant: "destructive" });
     },
   });
 
@@ -141,7 +111,14 @@ export function StudentCoursesSection({ isOwnProfile, userId }: StudentCoursesSe
   };
 
   const handleValidate = (id: string) => {
-    validateMutation.mutate({ id });
+    validateMutation.mutate({ id, action: 'approve' });
+  };
+
+  const handleReject = (id: string) => {
+    const note = window.prompt("Enter rejection reason (optional):");
+    if (note !== null) {
+      validateMutation.mutate({ id, action: 'reject', validationNote: note || undefined });
+    }
   };
 
   const handleRemoveValidation = (id: string) => {
@@ -281,17 +258,29 @@ export function StudentCoursesSection({ isOwnProfile, userId }: StudentCoursesSe
                   </div>
                   <div className="flex gap-1 flex-shrink-0 flex-wrap">
                     {canValidate(course) && (
-                      <Button
-                        size="sm"
-                        variant="default"
-                        className="bg-green-600 hover:bg-green-700"
-                        onClick={() => handleValidate(course.id)}
-                        disabled={validateMutation.isPending}
-                        data-testid={`button-validate-course-${course.id}`}
-                      >
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        Validate
-                      </Button>
+                      <div className="flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="bg-green-600 hover:bg-green-700"
+                          onClick={() => handleValidate(course.id)}
+                          disabled={validateMutation.isPending}
+                          data-testid={`button-validate-course-${course.id}`}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleReject(course.id)}
+                          disabled={validateMutation.isPending}
+                          data-testid={`button-reject-course-${course.id}`}
+                        >
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Reject
+                        </Button>
+                      </div>
                     )}
                     {canRemoveValidation(course) && (
                       <Button
