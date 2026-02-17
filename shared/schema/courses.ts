@@ -34,6 +34,7 @@ export const courses = pgTable("courses", {
   universityValidatedAt: timestamp("university_validated_at"),
   universityValidationNote: text("university_validation_note"),
   validationRequestedAt: timestamp("validation_requested_at"),
+  enrollmentCount: integer("enrollment_count").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

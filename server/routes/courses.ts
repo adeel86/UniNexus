@@ -247,6 +247,8 @@ router.get("/teacher/pending-validations", isAuthenticated, async (req: Request,
           lastName: users.lastName,
           profileImageUrl: users.profileImageUrl,
           university: users.university,
+          major: users.major,
+          graduationYear: users.graduationYear,
         },
       })
       .from(studentCourses)

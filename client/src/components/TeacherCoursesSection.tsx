@@ -26,6 +26,8 @@ interface StudentInfo {
   lastName: string | null;
   profileImageUrl: string | null;
   university: string | null;
+  major: string | null;
+  graduationYear: string | null;
 }
 
 interface TeacherCourse {
@@ -241,9 +243,15 @@ export function TeacherCoursesSection() {
             </Avatar>
             <div className="text-sm">
               <p className="font-medium">{getStudentName(course.student)}</p>
-              {course.student.university && (
-                <p className="text-xs text-muted-foreground">{course.student.university}</p>
-              )}
+              <div className="flex flex-col text-xs text-muted-foreground">
+                {course.student.university && <span>{course.student.university}</span>}
+                {(course.student.major || course.student.graduationYear) && (
+                  <span>
+                    {course.student.major && `${course.student.major}`}
+                    {course.student.graduationYear && ` (Class of ${course.student.graduationYear})`}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -356,7 +364,19 @@ export function TeacherCoursesSection() {
 
           <div className="space-y-4">
             {selectedCourse && (
-              <div className="bg-muted p-3 rounded-md text-sm">
+              <div className="bg-muted p-3 rounded-md text-sm space-y-2">
+                <div className="flex items-center gap-2 pb-2 border-b border-muted-foreground/20">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={selectedCourse.student.profileImageUrl || undefined} />
+                    <AvatarFallback>{getStudentInitials(selectedCourse.student)}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-semibold">{getStudentName(selectedCourse.student)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {selectedCourse.student.major} | {selectedCourse.student.university}
+                    </p>
+                  </div>
+                </div>
                 <p><span className="font-medium">Course:</span> {selectedCourse.courseName}</p>
                 {selectedCourse.courseCode && (
                   <p><span className="font-medium">Code:</span> {selectedCourse.courseCode}</p>

@@ -150,6 +150,17 @@ export async function validateStudentCourse(
     .where(eq(studentCourses.id, courseId))
     .returning();
 
+  // Increment enrollment count in courses table
+  if (validated.courseId) {
+    await db
+      .update(courses)
+      .set({
+        enrollmentCount: sql`${courses.enrollmentCount} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(courses.id, validated.courseId));
+  }
+
   // Create enrollment record
   if (validated.courseId) {
     const [existingEnrollment] = await db
