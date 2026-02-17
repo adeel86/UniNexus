@@ -352,14 +352,21 @@ async function seedSupplementalData() {
   const studentCoursesToCreate = students.slice(0, 40).map(student => {
     const course = randomItem(allCourses);
     const teacher = teachers.find(t => t.university === student.university) || randomItem(teachers);
+    const status = randomItem(["pending", "approved", "approved", "rejected"]);
+    const isApproved = status === "approved";
     
     return {
       userId: student.id,
       courseId: course.id,
       courseName: course.name,
-      status: randomItem(["pending", "approved", "approved", "rejected"]),
+      validationStatus: status,
+      isValidated: isApproved,
+      validatedBy: isApproved ? teacher.id : null,
+      validatedAt: isApproved ? randomDate(new Date(2024, 8, 1), new Date()) : null,
+      isEnrolled: isApproved,
+      enrolledAt: isApproved ? randomDate(new Date(2024, 8, 1), new Date()) : null,
       assignedTeacherId: teacher.id,
-      requestedAt: randomDate(new Date(2024, 8, 1), new Date()),
+      createdAt: randomDate(new Date(2024, 8, 1), new Date()),
     };
   });
 
