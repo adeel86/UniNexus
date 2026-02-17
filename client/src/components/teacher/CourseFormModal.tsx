@@ -119,21 +119,13 @@ export function CourseFormModal({
           </div>
           <div>
             <Label htmlFor={`${mode}-course-university`}>University</Label>
-            <Select
+            <Input
+              id={`${mode}-course-university`}
               value={courseForm.university || defaultUniversity || ""}
-              onValueChange={courseForm.setUniversity}
-            >
-              <SelectTrigger id={`${mode}-course-university`} data-testid={`select-${mode}-course-university`}>
-                <SelectValue placeholder="Select university" />
-              </SelectTrigger>
-              <SelectContent>
-                {universities.map((uni) => (
-                  <SelectItem key={uni} value={uni}>
-                    {uni}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              readOnly
+              className="bg-muted"
+              data-testid={`input-${mode}-course-university`}
+            />
           </div>
         </div>
         <DialogFooter>

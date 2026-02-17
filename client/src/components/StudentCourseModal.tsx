@@ -18,12 +18,6 @@ const studentCourseSchema = z.object({
   courseName: z.string().min(1, 'Course name is required'),
   courseCode: z.string().optional(),
   institution: z.string().optional(),
-  instructor: z.string().optional(),
-  semester: z.string().optional(),
-  year: z.number().optional().nullable(),
-  grade: z.string().optional(),
-  credits: z.number().optional().nullable(),
-  description: z.string().optional(),
   assignedTeacherId: z.string().optional().nullable(),
 });
 
@@ -38,15 +32,9 @@ interface StudentCourseModalProps {
 
 export function StudentCourseModal({ open, onOpenChange, course, userId }: StudentCourseModalProps) {
   const { toast } = useToast();
-  const [yearInput, setYearInput] = useState('');
-  const [creditsInput, setCreditsInput] = useState('');
   
   const { data: userData } = useQuery<User>({
     queryKey: [`/api/users/${userId}`],
-  });
-
-  const { data: universitiesData = [] } = useQuery<University[]>({
-    queryKey: ['/api/universities'],
   });
 
   const { data: teachers = [] } = useQuery<User[]>({
@@ -60,12 +48,6 @@ export function StudentCourseModal({ open, onOpenChange, course, userId }: Stude
       courseName: '',
       courseCode: '',
       institution: '',
-      instructor: '',
-      semester: '',
-      year: null,
-      grade: '',
-      credits: null,
-      description: '',
       assignedTeacherId: null,
     },
   });
@@ -77,34 +59,18 @@ export function StudentCourseModal({ open, onOpenChange, course, userId }: Stude
           courseName: course.courseName || '',
           courseCode: course.courseCode || '',
           institution: course.institution || '',
-          instructor: course.instructor || '',
-          semester: course.semester || '',
-          year: course.year || null,
-          grade: course.grade || '',
-          credits: course.credits || null,
-          description: course.description || '',
           assignedTeacherId: course.assignedTeacherId || null,
         });
-        setYearInput(course.year?.toString() || '');
-        setCreditsInput(course.credits?.toString() || '');
       } else {
         form.reset({
           courseName: '',
           courseCode: '',
-          institution: '',
-          instructor: '',
-          semester: '',
-          year: null,
-          grade: '',
-          credits: null,
-          description: '',
+          institution: userData?.university || '',
           assignedTeacherId: null,
         });
-        setYearInput('');
-        setCreditsInput('');
       }
     }
-  }, [open, course, form]);
+  }, [open, course, form, userData]);
 
   const createMutation = useMutation({
     mutationFn: async (data: StudentCourseFormData) => {
@@ -196,24 +162,14 @@ export function StudentCourseModal({ open, onOpenChange, course, userId }: Stude
   });
 
   const onSubmit = (data: StudentCourseFormData) => {
-    const submitData = {
-      ...data,
-      year: yearInput ? parseInt(yearInput) : null,
-      credits: creditsInput ? parseInt(creditsInput) : null,
-      university: data.institution || userData?.university || '',
-    };
-    
     if (course) {
-      updateMutation.mutate(submitData);
+      updateMutation.mutate(data);
     } else {
-      createMutation.mutate(submitData);
+      createMutation.mutate(data);
     }
   };
 
   const isPending = createMutation.isPending || updateMutation.isPending;
-
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 10 }, (_, i) => currentYear - i);
 
   const { data: allCourses = [] } = useQuery<Course[]>({
     queryKey: ['/api/courses'],
@@ -221,15 +177,14 @@ export function StudentCourseModal({ open, onOpenChange, course, userId }: Stude
       const response = await fetch('/api/courses');
       if (!response.ok) return [];
       const data = await response.json();
-      // Filter only university-validated courses for students to pick from
-      // or courses that are explicitly assigned to a teacher
-      return data.filter((c: Course) => c.isUniversityValidated || c.instructorId);
+      return data;
     },
   });
 
   const selectedTeacherId = form.watch('assignedTeacherId');
   const filteredCourses = allCourses.filter(c => 
-    !selectedTeacherId || c.instructorId === selectedTeacherId
+    (!selectedTeacherId || c.instructorId === selectedTeacherId) &&
+    (!userData?.university || c.university === userData.university)
   );
 
   return (
@@ -243,6 +198,32 @@ export function StudentCourseModal({ open, onOpenChange, course, userId }: Stude
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <div>
+            <Label htmlFor="assignedTeacherId">Select Teacher *</Label>
+            <Select
+              value={form.watch('assignedTeacherId') || 'none'}
+              onValueChange={(value) => {
+                const teacherId = value === 'none' ? null : value;
+                form.setValue('assignedTeacherId', teacherId);
+                // Clear course name when teacher changes to force re-selection from filtered list
+                form.setValue('courseName', '');
+              }}
+            >
+              <SelectTrigger data-testid="select-assigned-teacher">
+                <SelectValue placeholder="Select teacher" />
+              </SelectTrigger>
+              <SelectContent>
+                {teachers
+                  .filter(t => !userData?.university || t.university === userData.university)
+                  .map((teacher) => (
+                    <SelectItem key={teacher.id} value={teacher.id}>
+                      {teacher.displayName || `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim() || teacher.email}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
             <Label htmlFor="courseName">Course Name *</Label>
             <Select
               value={form.watch('courseName')}
@@ -252,14 +233,12 @@ export function StudentCourseModal({ open, onOpenChange, course, userId }: Stude
                 if (selected) {
                   form.setValue('courseCode', selected.code);
                   form.setValue('institution', selected.university || '');
-                  if (selected.instructorId) {
-                    form.setValue('assignedTeacherId', selected.instructorId);
-                  }
                 }
               }}
+              disabled={!selectedTeacherId}
             >
               <SelectTrigger data-testid="select-course-name">
-                <SelectValue placeholder="Select course" />
+                <SelectValue placeholder={selectedTeacherId ? "Select course" : "Select a teacher first"} />
               </SelectTrigger>
               <SelectContent>
                 {filteredCourses.map((c) => (
@@ -282,140 +261,22 @@ export function StudentCourseModal({ open, onOpenChange, course, userId }: Stude
               <Input
                 id="courseCode"
                 {...form.register('courseCode')}
-                placeholder="e.g., CS101"
+                readOnly
+                placeholder="Course code will be auto-filled"
                 data-testid="input-course-code"
               />
             </div>
 
             <div>
-              <Label htmlFor="institution">Institution *</Label>
-              <Select
-                value={form.watch('institution') || ''}
-                onValueChange={(val) => form.setValue('institution', val)}
-              >
-                <SelectTrigger data-testid="select-institution">
-                  <SelectValue placeholder="Select institution" />
-                </SelectTrigger>
-                <SelectContent>
-                  {universitiesData.map((uni) => (
-                    <SelectItem key={uni.id} value={uni.name}>
-                      {uni.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {form.formState.errors.institution && (
-                <p className="text-sm text-destructive mt-1">
-                  {form.formState.errors.institution.message}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="instructor">Instructor</Label>
+              <Label htmlFor="institution">Institution</Label>
               <Input
-                id="instructor"
-                {...form.register('instructor')}
-                placeholder="e.g., Prof. John Smith"
-                data-testid="input-instructor"
+                id="institution"
+                {...form.register('institution')}
+                readOnly
+                placeholder="Institution will be auto-filled"
+                data-testid="input-institution"
               />
             </div>
-
-            <div>
-              <Label htmlFor="assignedTeacherId">Assign Teacher for Validation</Label>
-              <Select
-                value={form.watch('assignedTeacherId') || 'none'}
-                onValueChange={(value) => form.setValue('assignedTeacherId', value === 'none' ? null : value)}
-              >
-                <SelectTrigger data-testid="select-assigned-teacher">
-                  <SelectValue placeholder="Select teacher" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">No specific teacher</SelectItem>
-                  {teachers.map((teacher) => (
-                    <SelectItem key={teacher.id} value={teacher.id}>
-                      {teacher.displayName || `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim() || teacher.email}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="semester">Semester</Label>
-              <Select
-                value={form.watch('semester') || 'none'}
-                onValueChange={(value) => form.setValue('semester', value === 'none' ? '' : value)}
-              >
-                <SelectTrigger data-testid="select-semester">
-                  <SelectValue placeholder="Select semester" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Not specified</SelectItem>
-                  <SelectItem value="Spring">Spring</SelectItem>
-                  <SelectItem value="Summer">Summer</SelectItem>
-                  <SelectItem value="Fall">Fall</SelectItem>
-                  <SelectItem value="Winter">Winter</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="year">Year</Label>
-              <Select
-                value={yearInput || 'none'}
-                onValueChange={(value) => setYearInput(value === 'none' ? '' : value)}
-              >
-                <SelectTrigger data-testid="select-year">
-                  <SelectValue placeholder="Select year" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Not specified</SelectItem>
-                  {years.map((year) => (
-                    <SelectItem key={year} value={year.toString()}>
-                      {year}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="credits">Credits</Label>
-              <Input
-                id="credits"
-                type="number"
-                value={creditsInput}
-                onChange={(e) => setCreditsInput(e.target.value)}
-                placeholder="e.g., 3"
-                data-testid="input-credits"
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="grade">Grade</Label>
-            <Input
-              id="grade"
-              {...form.register('grade')}
-              placeholder="e.g., A, B+, or 85%"
-              data-testid="input-grade"
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              {...form.register('description')}
-              placeholder="What did you learn in this course?"
-              rows={3}
-              data-testid="textarea-description"
-            />
           </div>
 
           <div className="flex gap-2 justify-end pt-4">

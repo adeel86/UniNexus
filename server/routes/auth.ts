@@ -5,6 +5,7 @@ import { db } from "../db";
 import { users } from "@shared/schema";
 import { verifyToken, isAuthenticated, type AuthRequest } from "../firebaseAuth";
 import { storage } from "../storage";
+import { getUniversityByEmail } from "@shared/universities";
 
 const router = Router();
 
@@ -84,13 +85,16 @@ router.post("/register", verifyToken, async (req: AuthRequest, res: Response) =>
     const [firstName, ...lastNameParts] = displayName.split(' ');
     const lastName = lastNameParts.join(' ');
 
+    const autoUniversity = getUniversityByEmail(email);
+
     const user = await storage.createUserFromFirebase(req.user.id, {
       email,
       displayName,
       firstName,
       lastName,
       role: role || 'student',
-      university: university || null,
+      university: autoUniversity || university || null,
+      institution: autoUniversity || university || null,
       major: major || null,
       company: company || null,
       position: position || null,

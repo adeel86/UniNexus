@@ -17,6 +17,7 @@ export const users = pgTable("users", {
   university: varchar("university"),
   major: varchar("major"),
   graduationYear: integer("graduation_year"),
+  institution: varchar("institution"),
   company: varchar("company"),
   position: varchar("position"),
   interests: text("interests").array().default(sql`ARRAY[]::text[]`),
