@@ -19,6 +19,7 @@ const studentCourseSchema = z.object({
   courseCode: z.string().optional(),
   institution: z.string().optional(),
   assignedTeacherId: z.string().optional().nullable(),
+  courseId: z.string().optional().nullable(),
 });
 
 type StudentCourseFormData = z.infer<typeof studentCourseSchema>;
@@ -49,6 +50,7 @@ export function StudentCourseModal({ open, onOpenChange, course, userId }: Stude
       courseCode: '',
       institution: '',
       assignedTeacherId: null,
+      courseId: null,
     },
   });
 
@@ -60,6 +62,7 @@ export function StudentCourseModal({ open, onOpenChange, course, userId }: Stude
           courseCode: course.courseCode || '',
           institution: course.institution || '',
           assignedTeacherId: course.assignedTeacherId || null,
+          courseId: course.courseId || null,
         });
       } else {
         form.reset({
@@ -67,6 +70,7 @@ export function StudentCourseModal({ open, onOpenChange, course, userId }: Stude
           courseCode: '',
           institution: userData?.university || '',
           assignedTeacherId: null,
+          courseId: null,
         });
       }
     }
@@ -239,6 +243,7 @@ export function StudentCourseModal({ open, onOpenChange, course, userId }: Stude
                 if (selected) {
                   form.setValue('courseCode', selected.code);
                   form.setValue('institution', selected.university || '');
+                  form.setValue('courseId', selected.id);
                 }
               }}
               disabled={!selectedTeacherId}

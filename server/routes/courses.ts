@@ -76,7 +76,7 @@ router.post("/student-courses", isAuthenticated, async (req: Request, res: Respo
         type: "validation",
         title: "New Course Validation Request",
         message: `${req.user.firstName} ${req.user.lastName} requested validation for "${validated.courseName}"`,
-        link: "/teacher-dashboard", // Assuming teacher dashboard handles validations
+        link: "/teacher-dashboard",
       });
     }
 

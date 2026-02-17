@@ -183,6 +183,8 @@ export const studentCourses = pgTable("student_courses", {
 export const insertStudentCourseSchema = createInsertSchema(studentCourses).omit({
   id: true,
   validationStatus: true,
+  isEnrolled: true,
+  enrolledAt: true,
   isValidated: true,
   validatedBy: true,
   validatedAt: true,
@@ -191,6 +193,7 @@ export const insertStudentCourseSchema = createInsertSchema(studentCourses).omit
   updatedAt: true,
 }).extend({
   assignedTeacherId: z.string().nullable().optional(),
+  courseId: z.string().nullable().optional(),
 });
 
 export type StudentCourse = typeof studentCourses.$inferSelect;
