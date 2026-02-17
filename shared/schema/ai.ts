@@ -164,4 +164,75 @@ export const insertModerationActionSchema = createInsertSchema(moderationActions
 });
 
 export type ModerationAction = typeof moderationActions.$inferSelect;
-export type InsertModerationAction = z.infer<typeof insertModerationActionSchema>;
+export const studentPersonalTutorMaterials = pgTable("student_personal_tutor_materials", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  studentId: varchar("student_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  fileType: varchar("file_type", { length: 50 }).notNull(),
+  fileUrl: varchar("file_url").notNull(),
+  textContent: text("text_content"),
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const studentPersonalTutorSessions = pgTable("student_personal_tutor_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  studentId: varchar("student_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: varchar("title", { length: 200 }),
+  mode: varchar("mode", { length: 50 }).default('Explain'), // Explain, Practice, Quiz, Revision
+  lastMessageAt: timestamp("last_message_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const studentPersonalTutorMessages = pgTable("student_personal_tutor_messages", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").notNull().references(() => studentPersonalTutorSessions.id, { onDelete: 'cascade' }),
+  role: varchar("role", { length: 20 }).notNull(), // user, assistant
+  content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const studentPersonalTutorMaterialsRelations = relations(studentPersonalTutorMaterials, ({ one }) => ({
+  student: one(users, {
+    fields: [studentPersonalTutorMaterials.studentId],
+    references: [users.id],
+  }),
+}));
+
+export const studentPersonalTutorSessionsRelations = relations(studentPersonalTutorSessions, ({ one, many }) => ({
+  student: one(users, {
+    fields: [studentPersonalTutorSessions.studentId],
+    references: [users.id],
+  }),
+  messages: many(studentPersonalTutorMessages),
+}));
+
+export const studentPersonalTutorMessagesRelations = relations(studentPersonalTutorMessages, ({ one }) => ({
+  session: one(studentPersonalTutorSessions, {
+    fields: [studentPersonalTutorMessages.sessionId],
+    references: [studentPersonalTutorSessions.id],
+  }),
+}));
+
+export const insertStudentPersonalTutorMaterialSchema = createInsertSchema(studentPersonalTutorMaterials).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertStudentPersonalTutorSessionSchema = createInsertSchema(studentPersonalTutorSessions).omit({
+  id: true,
+  createdAt: true,
+  lastMessageAt: true,
+});
+
+export const insertStudentPersonalTutorMessageSchema = createInsertSchema(studentPersonalTutorMessages).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type StudentPersonalTutorMaterial = typeof studentPersonalTutorMaterials.$inferSelect;
+export type InsertStudentPersonalTutorMaterial = z.infer<typeof insertStudentPersonalTutorMaterialSchema>;
+export type StudentPersonalTutorSession = typeof studentPersonalTutorSessions.$inferSelect;
+export type InsertStudentPersonalTutorSession = z.infer<typeof insertStudentPersonalTutorSessionSchema>;
+export type StudentPersonalTutorMessage = typeof studentPersonalTutorMessages.$inferSelect;
+export type InsertStudentPersonalTutorMessage = z.infer<typeof insertStudentPersonalTutorMessageSchema>;

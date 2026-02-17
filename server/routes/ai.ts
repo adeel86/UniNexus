@@ -13,12 +13,138 @@ import {
   recruiterFeedback,
   teacherContent,
   notifications,
+  studentPersonalTutorMaterials,
+  studentPersonalTutorSessions,
+  studentPersonalTutorMessages,
+  insertStudentPersonalTutorMaterialSchema,
+  insertStudentPersonalTutorSessionSchema,
+  insertStudentPersonalTutorMessageSchema,
 } from "@shared/schema";
 import OpenAI from "openai";
 import { requireAuth, requireRole } from "./shared";
 import { createNotification } from "../services/notifications.service";
+import { storage } from "../storage";
 
 const router = Router();
+
+// Personal Tutor Routes
+router.get("/api/ai/personal-tutor/materials", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const materials = await storage.getPersonalTutorMaterials(req.user!.id);
+    res.json(materials);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch materials" });
+  }
+});
+
+router.post("/api/ai/personal-tutor/materials", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const data = insertStudentPersonalTutorMaterialSchema.parse({
+      ...req.body,
+      studentId: req.user!.id
+    });
+    const material = await storage.createPersonalTutorMaterial(data);
+    res.json(material);
+  } catch (error) {
+    res.status(400).json({ error: "Invalid material data" });
+  }
+});
+
+router.get("/api/ai/personal-tutor/sessions", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const sessions = await storage.getPersonalTutorSessions(req.user!.id);
+    res.json(sessions);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch sessions" });
+  }
+});
+
+router.post("/api/ai/personal-tutor/sessions", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const data = insertStudentPersonalTutorSessionSchema.parse({
+      ...req.body,
+      studentId: req.user!.id
+    });
+    const session = await storage.createPersonalTutorSession(data);
+    res.json(session);
+  } catch (error) {
+    res.status(400).json({ error: "Invalid session data" });
+  }
+});
+
+router.get("/api/ai/personal-tutor/sessions/:sessionId/messages", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const messages = await storage.getPersonalTutorMessages(req.params.sessionId);
+    res.json(messages);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch messages" });
+  }
+});
+
+router.post("/api/ai/personal-tutor/chat", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { sessionId, message, mode } = req.body;
+    if (!sessionId || !message) {
+      return res.status(400).json({ error: "sessionId and message are required" });
+    }
+
+    if (!openai) {
+      return res.status(503).json({ error: "AI Tutor is not available. Please configure the OpenAI API key." });
+    }
+
+    // Save user message
+    await storage.createPersonalTutorMessage({
+      sessionId,
+      role: 'user',
+      content: message
+    });
+
+    // Get context: Student profile and materials
+    const materials = await storage.getPersonalTutorMaterials(req.user!.id);
+    const contextText = materials
+      .filter(m => m.textContent)
+      .map(m => `Material (${m.fileName}): ${m.textContent?.substring(0, 2000)}`)
+      .join('\n\n');
+
+    const systemPrompt = `You are a Personal Academic Tutor for ${req.user!.firstName} ${req.user!.lastName}.
+Level: ${req.user!.major || 'Student'} at ${req.user!.university || 'University'}.
+Mode: ${mode || 'Explain'}
+
+Your goal is to be a private tutor, not a generic chatbot. 
+1. Adapt to the student's level.
+2. Use uploaded materials as context if relevant.
+3. If the mode is "Explain", break down concepts.
+4. If "Practice", provide exercises.
+5. If "Quiz", test their knowledge.
+6. If "Revision", provide summaries.
+
+Context from uploaded materials:
+${contextText || 'No specific materials uploaded yet.'}`;
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: message },
+      ],
+      temperature: 0.7,
+    });
+
+    const assistantContent = completion.choices[0]?.message?.content || "I'm sorry, I couldn't process that.";
+
+    // Save assistant message
+    const savedMessage = await storage.createPersonalTutorMessage({
+      sessionId,
+      role: 'assistant',
+      content: assistantContent
+    });
+
+    res.json(savedMessage);
+  } catch (error) {
+    console.error("Personal Tutor error:", error);
+    res.status(500).json({ error: "Failed to get response from Personal Tutor" });
+  }
+});
 
 const openai = process.env.OPENAI_API_KEY ? new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,

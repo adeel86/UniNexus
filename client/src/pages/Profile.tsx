@@ -11,6 +11,7 @@ import { SkillsSection } from "@/components/SkillsSection";
 import { WorkExperienceSection } from "@/components/WorkExperienceSection";
 import { StudentCoursesSection } from "@/components/StudentCoursesSection";
 import { TeacherValidatedCoursesSection } from "@/components/TeacherValidatedCoursesSection";
+import { PersonalTutor } from "@/components/PersonalTutor";
 import {
   useProfile,
   ProfileHeader,
@@ -23,10 +24,12 @@ import {
   UniversityProfile,
   IndustryProfile,
 } from "@/components/profile";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Profile() {
   const { userData: currentUser } = useAuth();
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
   
   const params = new URLSearchParams(window.location.search);
   const viewingUserId = params.get('userId');
@@ -90,148 +93,168 @@ export default function Profile() {
         currentUser={currentUser}
       />
 
-      {showFollowers && (
-        <FollowersFollowingList
-          type="followers"
-          data={followersData}
-          onClose={() => setShowFollowers(false)}
-          currentUserId={currentUser?.id}
-          isOwnProfile={isViewingOwnProfile}
-          targetUserId={targetUserId}
-        />
-      )}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
+        <TabsList className="grid w-full grid-cols-2 md:w-[400px]">
+          <TabsTrigger value="overview">Profile Overview</TabsTrigger>
+          {isViewingOwnProfile && user.role === "student" && (
+            <TabsTrigger value="tutor" className="flex items-center gap-2">
+              <BrainCircuit className="h-4 w-4" />
+              Personal Tutor
+            </TabsTrigger>
+          )}
+        </TabsList>
 
-      {showFollowing && (
-        <FollowersFollowingList
-          type="following"
-          data={followingData}
-          onClose={() => setShowFollowing(false)}
-          currentUserId={currentUser?.id}
-          isOwnProfile={isViewingOwnProfile}
-          targetUserId={targetUserId}
-        />
-      )}
-
-      {user.role === "student" && (
-        <>
-          <AchievementsSection
-            userBadges={userBadges}
-            engagementScore={user.engagementScore || 0}
-          />
-          {targetUserId && (
-            <RecruiterFeedbackSection 
-              userId={targetUserId} 
+        <TabsContent value="overview">
+          {showFollowers && (
+            <FollowersFollowingList
+              type="followers"
+              data={followersData}
+              onClose={() => setShowFollowers(false)}
+              currentUserId={currentUser?.id}
               isOwnProfile={isViewingOwnProfile}
+              targetUserId={targetUserId}
             />
           )}
-        </>
-      )}
 
-      {isStudentOrTeacher && (
-        <>
+          {showFollowing && (
+            <FollowersFollowingList
+              type="following"
+              data={followingData}
+              onClose={() => setShowFollowing(false)}
+              currentUserId={currentUser?.id}
+              isOwnProfile={isViewingOwnProfile}
+              targetUserId={targetUserId}
+            />
+          )}
+
+          {user.role === "student" && (
+            <>
+              <AchievementsSection
+                userBadges={userBadges}
+                engagementScore={user.engagementScore || 0}
+              />
+              {targetUserId && (
+                <RecruiterFeedbackSection 
+                  userId={targetUserId} 
+                  isOwnProfile={isViewingOwnProfile}
+                />
+              )}
+            </>
+          )}
+
+          {isStudentOrTeacher && (
+            <>
+              <div className="mt-6">
+                <h2 className="font-heading text-2xl font-semibold mb-4 flex items-center gap-2">
+                  <Shield className="h-6 w-6 text-purple-600" />
+                  Digital Certificates ({certifications.length})
+                </h2>
+                <CertificateShowcase certifications={certifications} />
+              </div>
+
+              <div className="mt-6">
+                <EducationSection
+                  educationRecords={educationRecords}
+                  isOwnProfile={isViewingOwnProfile}
+                  userId={targetUserId!}
+                />
+              </div>
+
+              <div className="mt-6">
+                <SkillsSection
+                  userSkills={userSkills}
+                  isOwnProfile={isViewingOwnProfile}
+                  userId={targetUserId!}
+                />
+              </div>
+
+              {user.role === "student" && (
+                <>
+                  <div className="mt-6">
+                    <WorkExperienceSection
+                      isOwnProfile={isViewingOwnProfile}
+                      userId={targetUserId!}
+                    />
+                  </div>
+                  <div className="mt-6">
+                    <StudentCoursesSection
+                      isOwnProfile={isViewingOwnProfile}
+                      userId={targetUserId!}
+                    />
+                  </div>
+                </>
+              )}
+
+              {user.role === "teacher" && (
+                <div className="mt-6">
+                  <TeacherValidatedCoursesSection 
+                    teacherId={targetUserId!}
+                    isOwnProfile={isViewingOwnProfile}
+                  />
+                </div>
+              )}
+            </>
+          )}
+
+          {extendedProfile && (
+            <>
+              {user.role === "student" && (
+                <StudentAcademicInfo extendedProfile={extendedProfile} />
+              )}
+
+              {user.role === "teacher" && (
+                <>
+                  <TeachingProfile extendedProfile={extendedProfile} />
+                  <ProfessionalExperience
+                    jobExperiences={jobExperiences}
+                    isViewingOwnProfile={isViewingOwnProfile}
+                    onAddExperience={openAddJobExperience}
+                    onEditExperience={openEditJobExperience}
+                    onDeleteExperience={(id) => deleteJobExperienceMutation.mutate(id)}
+                  />
+                </>
+              )}
+
+              {user.role === "university_admin" && (
+                <UniversityProfile 
+                  extendedProfile={extendedProfile} 
+                  universityName={user.university} 
+                />
+              )}
+
+              {user.role === "industry_professional" && (
+                <IndustryProfile 
+                  extendedProfile={extendedProfile} 
+                  companyName={user.company} 
+                />
+              )}
+            </>
+          )}
+
           <div className="mt-6">
-            <h2 className="font-heading text-2xl font-semibold mb-4 flex items-center gap-2">
-              <Shield className="h-6 w-6 text-purple-600" />
-              Digital Certificates ({certifications.length})
+            <h2 className="font-heading text-2xl font-semibold mb-4">
+              Posts ({userPosts.length})
             </h2>
-            <CertificateShowcase certifications={certifications} />
-          </div>
-
-          <div className="mt-6">
-            <EducationSection
-              educationRecords={educationRecords}
-              isOwnProfile={isViewingOwnProfile}
-              userId={targetUserId!}
-            />
-          </div>
-
-          <div className="mt-6">
-            <SkillsSection
-              userSkills={userSkills}
-              isOwnProfile={isViewingOwnProfile}
-              userId={targetUserId!}
-            />
-          </div>
-
-          {user.role === "student" && (
-            <>
-              <div className="mt-6">
-                <WorkExperienceSection
-                  isOwnProfile={isViewingOwnProfile}
-                  userId={targetUserId!}
-                />
+            {userPosts.length > 0 ? (
+              <div className="space-y-4">
+                {userPosts.map((post) => (
+                  <PostCard key={post.id} post={post} />
+                ))}
               </div>
-              <div className="mt-6">
-                <StudentCoursesSection
-                  isOwnProfile={isViewingOwnProfile}
-                  userId={targetUserId!}
-                />
-              </div>
-            </>
-          )}
-
-          {user.role === "teacher" && (
-            <div className="mt-6">
-              <TeacherValidatedCoursesSection 
-                teacherId={targetUserId!}
-                isOwnProfile={isViewingOwnProfile}
-              />
-            </div>
-          )}
-        </>
-      )}
-
-      {extendedProfile && (
-        <>
-          {user.role === "student" && (
-            <StudentAcademicInfo extendedProfile={extendedProfile} />
-          )}
-
-          {user.role === "teacher" && (
-            <>
-              <TeachingProfile extendedProfile={extendedProfile} />
-              <ProfessionalExperience
-                jobExperiences={jobExperiences}
-                isViewingOwnProfile={isViewingOwnProfile}
-                onAddExperience={openAddJobExperience}
-                onEditExperience={openEditJobExperience}
-                onDeleteExperience={(id) => deleteJobExperienceMutation.mutate(id)}
-              />
-            </>
-          )}
-
-          {user.role === "university_admin" && (
-            <UniversityProfile 
-              extendedProfile={extendedProfile} 
-              universityName={user.university} 
-            />
-          )}
-
-          {user.role === "industry_professional" && (
-            <IndustryProfile 
-              extendedProfile={extendedProfile} 
-              companyName={user.company} 
-            />
-          )}
-        </>
-      )}
-
-      <div className="mt-6">
-        <h2 className="font-heading text-2xl font-semibold mb-4">
-          Posts ({userPosts.length})
-        </h2>
-        {userPosts.length > 0 ? (
-          <div className="space-y-4">
-            {userPosts.map((post) => (
-              <PostCard key={post.id} post={post} />
-            ))}
+            ) : (
+              <Card className="p-12 text-center">
+                <p className="text-muted-foreground">No posts yet</p>
+              </Card>
+            )}
           </div>
-        ) : (
-          <Card className="p-12 text-center">
-            <p className="text-muted-foreground">No posts yet</p>
-          </Card>
-        )}
-      </div>
+        </TabsContent>
+
+        <TabsContent value="tutor">
+          <div className="mt-6">
+            <PersonalTutor />
+          </div>
+        </TabsContent>
+      </Tabs>
 
       <JobExperienceModal
         open={jobExperienceModalOpen}

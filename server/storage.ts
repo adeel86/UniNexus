@@ -13,6 +13,15 @@ import {
   discussionUpvotes,
   type DiscussionUpvote,
   type InsertDiscussionUpvote,
+  studentPersonalTutorMaterials,
+  type StudentPersonalTutorMaterial,
+  type InsertStudentPersonalTutorMaterial,
+  studentPersonalTutorSessions,
+  type StudentPersonalTutorSession,
+  type InsertStudentPersonalTutorSession,
+  studentPersonalTutorMessages,
+  type StudentPersonalTutorMessage,
+  type InsertStudentPersonalTutorMessage,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql } from "drizzle-orm";
@@ -36,6 +45,14 @@ export interface IStorage {
   createReply(reply: InsertDiscussionReply): Promise<DiscussionReply>;
   toggleDiscussionUpvote(userId: string, discussionId: string): Promise<boolean>;
   toggleReplyUpvote(userId: string, replyId: string): Promise<boolean>;
+
+  // Personal Tutor
+  getPersonalTutorMaterials(studentId: string): Promise<StudentPersonalTutorMaterial[]>;
+  createPersonalTutorMaterial(material: InsertStudentPersonalTutorMaterial): Promise<StudentPersonalTutorMaterial>;
+  getPersonalTutorSessions(studentId: string): Promise<StudentPersonalTutorSession[]>;
+  createPersonalTutorSession(session: InsertStudentPersonalTutorSession): Promise<StudentPersonalTutorSession>;
+  getPersonalTutorMessages(sessionId: string): Promise<StudentPersonalTutorMessage[]>;
+  createPersonalTutorMessage(message: InsertStudentPersonalTutorMessage): Promise<StudentPersonalTutorMessage>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -244,6 +261,61 @@ export class DatabaseStorage implements IStorage {
         }
       }
     });
+  }
+
+  async getPersonalTutorMaterials(studentId: string): Promise<StudentPersonalTutorMaterial[]> {
+    return await db
+      .select()
+      .from(studentPersonalTutorMaterials)
+      .where(eq(studentPersonalTutorMaterials.studentId, studentId))
+      .orderBy(desc(studentPersonalTutorMaterials.createdAt));
+  }
+
+  async createPersonalTutorMaterial(material: InsertStudentPersonalTutorMaterial): Promise<StudentPersonalTutorMaterial> {
+    const [newMaterial] = await db
+      .insert(studentPersonalTutorMaterials)
+      .values(material)
+      .returning();
+    return newMaterial;
+  }
+
+  async getPersonalTutorSessions(studentId: string): Promise<StudentPersonalTutorSession[]> {
+    return await db
+      .select()
+      .from(studentPersonalTutorSessions)
+      .where(eq(studentPersonalTutorSessions.studentId, studentId))
+      .orderBy(desc(studentPersonalTutorSessions.lastMessageAt));
+  }
+
+  async createPersonalTutorSession(session: InsertStudentPersonalTutorSession): Promise<StudentPersonalTutorSession> {
+    const [newSession] = await db
+      .insert(studentPersonalTutorSessions)
+      .values(session)
+      .returning();
+    return newSession;
+  }
+
+  async getPersonalTutorMessages(sessionId: string): Promise<StudentPersonalTutorMessage[]> {
+    return await db
+      .select()
+      .from(studentPersonalTutorMessages)
+      .where(eq(studentPersonalTutorMessages.sessionId, sessionId))
+      .orderBy(studentPersonalTutorMessages.createdAt);
+  }
+
+  async createPersonalTutorMessage(message: InsertStudentPersonalTutorMessage): Promise<StudentPersonalTutorMessage> {
+    const [newMessage] = await db
+      .insert(studentPersonalTutorMessages)
+      .values(message)
+      .returning();
+    
+    // Update last message timestamp in session
+    await db
+      .update(studentPersonalTutorSessions)
+      .set({ lastMessageAt: new Date() })
+      .where(eq(studentPersonalTutorSessions.id, message.sessionId));
+      
+    return newMessage;
   }
 }
 

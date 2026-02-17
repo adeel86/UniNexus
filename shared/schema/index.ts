@@ -223,6 +223,15 @@ export {
   insertAiChatMessageSchema,
   insertAIInteractionEventSchema,
   insertModerationActionSchema,
+  studentPersonalTutorMaterials,
+  studentPersonalTutorSessions,
+  studentPersonalTutorMessages,
+  studentPersonalTutorMaterialsRelations,
+  studentPersonalTutorSessionsRelations,
+  studentPersonalTutorMessagesRelations,
+  insertStudentPersonalTutorMaterialSchema,
+  insertStudentPersonalTutorSessionSchema,
+  insertStudentPersonalTutorMessageSchema,
 } from "./ai";
 export type {
   TeacherContent,
@@ -235,7 +244,12 @@ export type {
   AIInteractionEvent,
   InsertAIInteractionEvent,
   ModerationAction,
-  InsertModerationAction,
+  StudentPersonalTutorMaterial,
+  InsertStudentPersonalTutorMaterial,
+  StudentPersonalTutorSession,
+  InsertStudentPersonalTutorSession,
+  StudentPersonalTutorMessage,
+  InsertStudentPersonalTutorMessage,
 } from "./ai";
 
 // Re-export relations for users (needs to be defined here to avoid circular deps)
