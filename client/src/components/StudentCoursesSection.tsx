@@ -83,8 +83,27 @@ export function StudentCoursesSection({ isOwnProfile, userId }: StudentCoursesSe
     onSuccess: (data, variables) => {
       queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/student-courses`] });
       queryClient.invalidateQueries({ queryKey: ['/api/teacher/pending-validations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/me/enrolled-courses'] });
       toast({ title: variables.action === 'approve' ? "Course validated successfully" : "Course validation rejected" });
       setValidatingCourse(null);
+    },
+    onError: (err: any) => {
+      toast({ 
+        title: "Action failed", 
+        description: err.message || "An error occurred",
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const removeValidationMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest("DELETE", `/api/student-courses/${id}/validation`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}/student-courses`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/me/enrolled-courses"] });
+      toast({ title: "Validation removed" });
     },
     onError: (err: any) => {
       toast({ 

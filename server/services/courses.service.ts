@@ -149,32 +149,32 @@ export async function validateStudentCourse(
     .returning();
 
   // Create enrollment record
-  if (course.courseId) {
+  if (validated.courseId) {
     const [existingEnrollment] = await db
       .select()
       .from(courseEnrollments)
       .where(
         and(
-          eq(courseEnrollments.courseId, course.courseId),
-          eq(courseEnrollments.studentId, student.id)
+          eq(courseEnrollments.courseId, validated.courseId),
+          eq(courseEnrollments.studentId, validated.userId)
         )
       )
       .limit(1);
 
     if (!existingEnrollment) {
       await db.insert(courseEnrollments).values({
-        courseId: course.courseId,
-        studentId: student.id,
+        courseId: validated.courseId,
+        studentId: validated.userId,
       });
     }
   }
 
   // Create notification for student
   await db.insert(notifications).values({
-    userId: course.userId,
+    userId: validated.userId,
     type: "validation",
     title: "Course Validated",
-    message: `Your course "${course.courseName}" has been validated by your teacher.`,
+    message: `Your course "${validated.courseName}" has been validated by your teacher.`,
     link: "/courses",
   });
 
