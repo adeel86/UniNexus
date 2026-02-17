@@ -228,7 +228,7 @@ export function StudentCoursesSection({ isOwnProfile, userId }: StudentCoursesSe
                           {course.courseCode}
                         </Badge>
                       )}
-                      {course.isValidated ? (
+                      {course.isValidated || course.validationStatus === 'validated' ? (
                         <Badge variant="default" className="bg-green-600 text-xs gap-1">
                           <CheckCircle className="h-3 w-3" />
                           Validated

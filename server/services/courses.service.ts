@@ -1,4 +1,4 @@
-import { eq, desc, sql, and, like } from "drizzle-orm";
+import { eq, desc, sql, and, like, or } from "drizzle-orm";
 import { db } from "../db";
 import {
   users,
@@ -53,8 +53,10 @@ export async function getEnrolledCoursesForStudent(userId: string) {
     .where(
       and(
         eq(studentCourses.userId, userId),
-        eq(studentCourses.isValidated, true),
-        eq(studentCourses.isEnrolled, true)
+        or(
+          eq(studentCourses.validationStatus, "validated"),
+          eq(studentCourses.isValidated, true)
+        )
       )
     )
     .orderBy(desc(studentCourses.enrolledAt));
