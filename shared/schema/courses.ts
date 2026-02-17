@@ -157,6 +157,7 @@ export type InsertCourseMilestone = z.infer<typeof insertCourseMilestoneSchema>;
 
 export const studentCourses = pgTable("student_courses", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   courseId: varchar("course_id").references(() => courses.id, { onDelete: 'set null' }),
   courseName: varchar("course_name", { length: 200 }).notNull(),
   courseCode: varchar("course_code", { length: 50 }),

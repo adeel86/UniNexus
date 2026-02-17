@@ -8,7 +8,7 @@ export async function seedEducation(insertedUsers: User[]): Promise<void> {
   const mockEducationRecords = [
     {
       userId: insertedUsers[0].id,
-      institution: "Tech University",
+      institution: "Massachusetts Institute of Technology",
       degree: "Bachelor of Science",
       fieldOfStudy: "Computer Science",
       startDate: "2022-09-01",
