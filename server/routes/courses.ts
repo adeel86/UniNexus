@@ -136,14 +136,14 @@ router.post("/student-courses/:id/validate", isAuthenticated, async (req: Reques
   if (req.user.role !== "teacher") return res.status(403).json({ error: "Only teachers can validate courses" });
 
   try {
-    const { action } = req.body; // 'approve' or 'reject'
+    const { action, validationNote } = req.body; // 'approve' or 'reject'
     
     if (action === 'reject') {
       const [updated] = await db.update(studentCourses)
         .set({ 
           validationStatus: 'rejected',
           isValidated: false,
-          validationNote: req.body.validationNote || null,
+          validationNote: validationNote || null,
           updatedAt: new Date() 
         })
         .where(eq(studentCourses.id, req.params.id))
@@ -164,7 +164,7 @@ router.post("/student-courses/:id/validate", isAuthenticated, async (req: Reques
       req.params.id,
       req.user.id,
       req.user.university ?? null,
-      req.body.validationNote
+      validationNote
     );
     res.json(validated);
   } catch (error: any) {
