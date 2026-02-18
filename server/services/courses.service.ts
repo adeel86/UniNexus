@@ -152,17 +152,7 @@ export async function validateStudentCourse(
 
   // Increment enrollment count in courses table
   if (validated.courseId) {
-    await db
-      .update(courses)
-      .set({
-        enrollmentCount: sql`${courses.enrollmentCount} + 1`,
-        updatedAt: new Date(),
-      })
-      .where(eq(courses.id, validated.courseId));
-  }
-
-  // Create enrollment record
-  if (validated.courseId) {
+    // First, check if enrollment already exists to avoid double counting
     const [existingEnrollment] = await db
       .select()
       .from(courseEnrollments)
@@ -175,10 +165,28 @@ export async function validateStudentCourse(
       .limit(1);
 
     if (!existingEnrollment) {
+      // Create enrollment record
       await db.insert(courseEnrollments).values({
         courseId: validated.courseId,
         studentId: validated.userId,
+        enrolledAt: new Date(),
       });
+
+      // Update the actual count based on enrollment table to ensure accuracy
+      const countResult = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(courseEnrollments)
+        .where(eq(courseEnrollments.courseId, validated.courseId));
+      
+      const newCount = Number(countResult[0]?.count || 0);
+
+      await db
+        .update(courses)
+        .set({
+          enrollmentCount: newCount,
+          updatedAt: new Date(),
+        })
+        .where(eq(courses.id, validated.courseId));
     }
   }
 
@@ -237,6 +245,22 @@ export async function removeValidation(
           eq(courseEnrollments.studentId, course.userId)
         )
       );
+
+    // Update enrollment count after removal
+    const countResult = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(courseEnrollments)
+      .where(eq(courseEnrollments.courseId, course.courseId));
+    
+    const newCount = Number(countResult[0]?.count || 0);
+
+    await db
+      .update(courses)
+      .set({
+        enrollmentCount: newCount,
+        updatedAt: new Date(),
+      })
+      .where(eq(courses.id, course.courseId));
   }
 
   return updated;

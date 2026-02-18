@@ -53,6 +53,9 @@ export interface IStorage {
   createPersonalTutorSession(session: InsertStudentPersonalTutorSession): Promise<StudentPersonalTutorSession>;
   getPersonalTutorMessages(sessionId: string): Promise<StudentPersonalTutorMessage[]>;
   createPersonalTutorMessage(message: InsertStudentPersonalTutorMessage): Promise<StudentPersonalTutorMessage>;
+  
+  // Course Enrollments
+  createEnrollment(courseId: string, studentId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -316,6 +319,18 @@ export class DatabaseStorage implements IStorage {
       .where(eq(studentPersonalTutorSessions.id, message.sessionId));
       
     return newMessage;
+  }
+
+  async createEnrollment(courseId: string, studentId: string): Promise<void> {
+    await db.insert(courseEnrollments).values({
+      courseId,
+      studentId,
+      enrolledAt: new Date(),
+    }).onConflictDoNothing();
+
+    await db.update(courses)
+      .set({ enrollmentCount: sql`${courses.enrollmentCount} + 1` })
+      .where(eq(courses.id, courseId));
   }
 }
 

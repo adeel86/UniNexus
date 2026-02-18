@@ -1,6 +1,10 @@
 import { Router, Request, Response } from "express";
 import { eq, desc, and, or, sql, notInArray } from "drizzle-orm";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
 import { db } from "../db";
+import { uploadToCloud } from "../cloudStorage";
 import {
   users,
   courses,
@@ -17,6 +21,47 @@ import {
 } from "@shared/schema";
 
 const router = Router();
+
+// Configure multer for local storage fallback
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+});
+
+router.post("/upload/image", upload.single("image"), async (req: Request, res: Response) => {
+  if (!req.user) return res.status(401).send("Unauthorized");
+  if (!req.file) return res.status(400).send("No file uploaded");
+
+  try {
+    const cloudResult = await uploadToCloud(req.file.buffer, {
+      folder: "avatars",
+      contentType: req.file.mimetype,
+      originalFilename: req.file.originalname,
+    });
+
+    if (cloudResult) {
+      return res.json({ url: cloudResult.url });
+    }
+
+    // Fallback to local storage if cloud is unavailable
+    const uploadsDir = path.join(process.cwd(), "uploads", "images");
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+
+    const filename = `${Date.now()}-${req.file.originalname.replace(/[^a-z0-9.]/gi, "_")}`;
+    const filePath = path.join(uploadsDir, filename);
+    fs.writeFileSync(filePath, req.file.buffer);
+
+    const baseUrl = `${req.protocol}://${req.get("host")}`;
+    const url = `${baseUrl}/uploads/images/${filename}`;
+
+    res.json({ url });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 router.get("/teachers", async (req: Request, res: Response) => {
   if (!req.user) {
