@@ -30,6 +30,7 @@ import GroupsDiscovery from "@/pages/GroupsDiscovery";
 import GroupPage from "@/pages/GroupPage";
 import Notifications from "@/pages/Notifications";
 import Discovery from "@/pages/Discovery";
+import PersonalTutorPage from "@/pages/PersonalTutorPage";
 import EthicsDashboard from "@/pages/EthicsDashboard";
 import TransparencyReport from "@/pages/TransparencyReport";
 import Settings from "@/pages/Settings";
@@ -97,6 +98,11 @@ function Router() {
           <Route path="/discovery">
             <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional', 'university_admin']}>
               <Discovery />
+            </RoleGuard>
+          </Route>
+          <Route path="/personal-tutor">
+            <RoleGuard allowedRoles={['student']}>
+              <PersonalTutorPage />
             </RoleGuard>
           </Route>
           <Route path="/messages">
