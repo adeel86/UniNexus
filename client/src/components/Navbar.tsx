@@ -46,6 +46,9 @@ export function Navbar({ onMenuClick }: NavbarProps) {
   };
 
   const isStudent = user?.role === 'student';
+  const isTeacher = user?.role === 'teacher';
+  const isUniversity = user?.role === 'university_admin';
+  const isIndustry = user?.role === 'industry_partner' || user?.role === 'industry_professional';
   const isAdmin = user?.role === 'master_admin';
 
   return (
@@ -159,6 +162,20 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                     <a>
                       <GraduationCap className="h-4 w-4" />
                       <span>Courses</span>
+                    </a>
+                  </Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className={`text-white hover:bg-white/20 gap-2 ${location === '/personal-tutor' ? 'bg-white/20' : ''}`}
+                  data-testid="nav-link-personal-tutor"
+                >
+                  <Link href="/personal-tutor">
+                    <a>
+                      <BrainCircuit className="h-4 w-4" />
+                      <span>Personal Tutor</span>
                     </a>
                   </Link>
                 </Button>

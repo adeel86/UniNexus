@@ -94,14 +94,8 @@ export default function Profile() {
       />
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-6">
-        <TabsList className="grid w-full grid-cols-2 md:w-[400px]">
+        <TabsList className="grid w-full grid-cols-1 md:w-[200px]">
           <TabsTrigger value="overview">Profile Overview</TabsTrigger>
-          {isViewingOwnProfile && user.role === "student" && (
-            <TabsTrigger value="tutor" className="flex items-center gap-2">
-              <BrainCircuit className="h-4 w-4" />
-              Personal Tutor
-            </TabsTrigger>
-          )}
         </TabsList>
 
         <TabsContent value="overview">
@@ -246,12 +240,6 @@ export default function Profile() {
                 <p className="text-muted-foreground">No posts yet</p>
               </Card>
             )}
-          </div>
-        </TabsContent>
-
-        <TabsContent value="tutor">
-          <div className="mt-6">
-            <PersonalTutor />
           </div>
         </TabsContent>
       </Tabs>
