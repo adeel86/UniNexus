@@ -14,7 +14,6 @@ const navigationItems: NavItem[] = [
   // Student Navigation - Most complete with distinct routes
   { icon: Home, label: 'Home', path: '/', roles: ['student'] },
   { icon: GraduationCap, label: 'Courses', path: '/courses', roles: ['student'] },
-  { icon: BrainCircuit, label: 'AI Tutor', path: '/personal-tutor', roles: ['student'] },
   { icon: Trophy, label: 'Challenges', path: '/challenges', roles: ['student'] },
   { icon: Bell, label: 'Notifications', path: '/notifications', roles: ['student'] },
   { icon: User, label: 'Profile', path: '/profile', roles: ['student'] },
