@@ -2,7 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "./UserAvatar";
-import { Bell, LogOut, Menu, Trophy, Target, MessageCircle, Users, UsersRound, Compass, Lightbulb, GraduationCap } from "lucide-react";
+import { Bell, LogOut, Menu, Trophy, Target, MessageCircle, Users, UsersRound, Compass, Lightbulb, GraduationCap, BrainCircuit } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,

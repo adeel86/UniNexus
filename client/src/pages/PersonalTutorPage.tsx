@@ -4,8 +4,8 @@ import { BrainCircuit } from "lucide-react";
 
 export default function PersonalTutorPage() {
   return (
-    <div className="container mx-auto px-4 py-8 max-w-7xl">
-      <div className="mb-8 flex items-center gap-3">
+    <div className="container mx-auto px-4 py-8 max-w-7xl h-[calc(100vh-64px)] overflow-hidden flex flex-col">
+      <div className="mb-6 flex items-center gap-3 shrink-0">
         <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
           <BrainCircuit className="h-8 w-8 text-purple-600" />
         </div>
@@ -15,7 +15,9 @@ export default function PersonalTutorPage() {
         </div>
       </div>
       
-      <PersonalTutor />
+      <div className="flex-1 min-h-0">
+        <PersonalTutor />
+      </div>
     </div>
   );
 }
