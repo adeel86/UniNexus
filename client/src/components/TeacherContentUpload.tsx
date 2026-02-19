@@ -189,7 +189,7 @@ export function TeacherContentUpload({ teacherId }: TeacherContentUploadProps) {
           </TabsTrigger>
           <TabsTrigger value="validations" data-testid="tab-validations">
             <CheckCircle className="h-4 w-4 mr-2" />
-            Validations
+            Validations Requests
             {pendingValidations.length > 0 && (
               <Badge variant="destructive" className="ml-2 text-xs">
                 {pendingValidations.length}
