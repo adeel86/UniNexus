@@ -5,6 +5,7 @@ import path from "path";
 import fs from "fs";
 import { db } from "../db";
 import { uploadToCloud } from "../cloudStorage";
+import { requireAuth } from "./shared";
 import {
   users,
   courses,

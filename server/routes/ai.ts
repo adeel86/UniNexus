@@ -24,6 +24,7 @@ import OpenAI from "openai";
 import { requireAuth, requireRole, upload, saveFileLocally } from "./shared";
 import { createNotification } from "../services/notifications.service";
 import { storage } from "../storage";
+import { uploadToCloud, isCloudStorageAvailable } from "../cloudStorage";
 
 const router = Router();
 
