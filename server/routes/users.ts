@@ -29,8 +29,7 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
 });
 
-router.post("/upload/image", upload.single("image"), async (req: Request, res: Response) => {
-  if (!req.user) return res.status(401).send("Unauthorized");
+router.post("/upload/image", requireAuth, upload.single("image"), async (req: Request, res: Response) => {
   if (!req.file) return res.status(400).send("No file uploaded");
 
   try {
@@ -64,17 +63,25 @@ router.post("/upload/image", upload.single("image"), async (req: Request, res: R
 });
 
 router.get("/teachers", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
+  if (!req.user) return res.status(401).send("Unauthorized");
 
   try {
-    const teachers = await db
-      .select()
-      .from(users)
-      .where(eq(users.role, "teacher"))
-      .orderBy(users.lastName, users.firstName);
+    const user = req.user as any;
+    let query = db.select().from(users).where(eq(users.role, "teacher"));
 
+    // Scope restriction: University Admins only see affiliated teachers
+    if (user.role === 'university_admin' || user.role === 'university') {
+      if (user.university) {
+        query = db.select().from(users).where(
+          and(
+            eq(users.role, "teacher"),
+            eq(users.university, user.university)
+          )
+        );
+      }
+    }
+
+    const teachers = await query.orderBy(users.lastName, users.firstName);
     res.json(teachers);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -82,13 +89,25 @@ router.get("/teachers", async (req: Request, res: Response) => {
 });
 
 router.get("/students", async (req: Request, res: Response) => {
+  if (!req.user) return res.status(401).send("Unauthorized");
+  
   try {
-    const students = await db
-      .select()
-      .from(users)
-      .where(eq(users.role, "student"))
-      .orderBy(desc(users.engagementScore));
+    const user = req.user as any;
+    let query = db.select().from(users).where(eq(users.role, "student"));
 
+    // Scope restriction: Teachers and University Admins only see affiliated students
+    if (user.role === 'teacher' || user.role === 'university_admin' || user.role === 'university') {
+      if (user.university) {
+        query = db.select().from(users).where(
+          and(
+            eq(users.role, "student"),
+            eq(users.university, user.university)
+          )
+        );
+      }
+    }
+
+    const students = await query.orderBy(desc(users.engagementScore));
     res.json(students);
   } catch (error: any) {
     res.status(500).json({ error: error.message });

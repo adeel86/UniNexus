@@ -1,6 +1,28 @@
 import type { Request, Response, NextFunction } from "express";
 export type { AuthRequest } from "../firebaseAuth";
 
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+
+export const uploadsDir = path.join(process.cwd(), 'uploads');
+
+export const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 },
+});
+
+export async function saveFileLocally(buffer: Buffer, folder: string, filename: string): Promise<string> {
+  const targetDir = path.join(uploadsDir, folder);
+  if (!fs.existsSync(targetDir)) {
+    fs.mkdirSync(targetDir, { recursive: true });
+  }
+  const uniqueFilename = `${Date.now()}-${filename}`;
+  const filePath = path.join(targetDir, uniqueFilename);
+  fs.writeFileSync(filePath, buffer);
+  return `/uploads/${folder}/${uniqueFilename}`;
+}
+
 export function blockRestrictedRoles(req: Request, res: Response, next: NextFunction) {
   if (!req.isAuthenticated()) {
     return res.status(401).json({ error: "Unauthorized" });

@@ -286,7 +286,42 @@ router.get("/me/created-courses", isAuthenticated, async (req: Request, res: Res
   }
 
   try {
-    const coursesWithStats = await getCoursesWithStats(req.user.id);
+    const instructorId = req.user.id;
+    const university = req.user.university;
+
+    // Teachers only see their own courses. University admins/Master admins might see more.
+    const createdCoursesData = await db
+      .select()
+      .from(courses)
+      .where(
+        req.user.role === "master_admin" 
+          ? undefined 
+          : and(
+              eq(courses.instructorId, instructorId),
+              university ? eq(courses.university, university) : undefined
+            )
+      )
+      .orderBy(desc(courses.createdAt));
+
+    const coursesWithStats = await Promise.all(
+      createdCoursesData.map(async (course) => {
+        const discussionCountResult = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(courseDiscussions)
+          .where(eq(courseDiscussions.courseId, course.id));
+
+        const enrollmentCountResult = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(courseEnrollments)
+          .where(eq(courseEnrollments.courseId, course.id));
+
+        return {
+          ...course,
+          discussionCount: Number(discussionCountResult[0]?.count || 0),
+          enrollmentCount: Number(enrollmentCountResult[0]?.count || 0),
+        };
+      })
+    );
     res.json(coursesWithStats);
   } catch (error: any) {
     res.status(500).json({ error: error.message });

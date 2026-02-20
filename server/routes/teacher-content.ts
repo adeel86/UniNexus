@@ -73,6 +73,7 @@ router.post("/upload", requireAuth, requireRole('teacher', 'master_admin'), docu
     }
 
     const { courseId } = req.body;
+    const user = req.user as any;
 
     if (!courseId || typeof courseId !== 'string' || courseId.trim() === '') {
       return res.status(400).json({ 
@@ -90,12 +91,19 @@ router.post("/upload", requireAuth, requireRole('teacher', 'master_admin'), docu
       return res.status(404).json({ error: "Course not found" });
     }
 
-    const user = req.user as any;
-    if (targetCourse.instructorId !== user.id && user.role !== 'master_admin') {
+    // Teacher must be the instructor AND both must be in the same university (if applicable)
+    const isOwner = targetCourse.instructorId === user.id;
+    const sameUniversity = !user.university || !targetCourse.university || user.university === targetCourse.university;
+
+    if (!isOwner && user.role !== 'master_admin') {
       return res.status(403).json({ error: "You can only upload to your own courses" });
     }
 
-    if (!targetCourse.isUniversityValidated) {
+    if (!sameUniversity && user.role !== 'master_admin') {
+      return res.status(403).json({ error: "You are not authorized to upload to a course outside your university" });
+    }
+
+    if (!targetCourse.isUniversityValidated && user.role !== 'master_admin') {
       return res.status(400).json({ 
         error: "Course must be validated by the university before uploading materials" 
       });

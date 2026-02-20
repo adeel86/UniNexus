@@ -21,7 +21,7 @@ import {
   insertStudentPersonalTutorMessageSchema,
 } from "@shared/schema";
 import OpenAI from "openai";
-import { requireAuth, requireRole } from "./shared";
+import { requireAuth, requireRole, upload, saveFileLocally } from "./shared";
 import { createNotification } from "../services/notifications.service";
 import { storage } from "../storage";
 
@@ -37,16 +37,37 @@ router.get("/api/ai/personal-tutor/materials", requireAuth, async (req: Request,
   }
 });
 
-router.post("/api/ai/personal-tutor/materials", requireAuth, async (req: Request, res: Response) => {
+router.post("/api/ai/personal-tutor/materials", requireAuth, upload.single('file'), async (req: Request, res: Response) => {
   try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file provided" });
+    }
+
+    let fileUrl: string;
+    if (isCloudStorageAvailable()) {
+      const result = await uploadToCloud(req.file.buffer, {
+        folder: 'documents',
+        contentType: req.file.mimetype,
+        originalFilename: req.file.originalname,
+      });
+      fileUrl = result?.url || await saveFileLocally(req.file.buffer, 'documents', req.file.originalname);
+    } else {
+      fileUrl = await saveFileLocally(req.file.buffer, 'documents', req.file.originalname);
+    }
+
     const data = insertStudentPersonalTutorMaterialSchema.parse({
       ...req.body,
-      studentId: req.user!.id
+      studentId: req.user!.id,
+      fileName: req.file.originalname,
+      fileUrl: fileUrl,
+      fileType: req.file.mimetype,
+      fileSize: req.file.size,
+      textContent: req.file.mimetype.startsWith('text/') ? req.file.buffer.toString() : null
     });
     const material = await storage.createPersonalTutorMaterial(data);
     res.json(material);
-  } catch (error) {
-    res.status(400).json({ error: "Invalid material data" });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || "Invalid material data" });
   }
 });
 
