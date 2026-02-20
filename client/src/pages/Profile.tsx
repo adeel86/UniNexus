@@ -224,23 +224,6 @@ export default function Profile() {
               )}
             </>
           )}
-
-          <div className="mt-6">
-            <h2 className="font-heading text-2xl font-semibold mb-4">
-              Posts ({userPosts.length})
-            </h2>
-            {userPosts.length > 0 ? (
-              <div className="space-y-4">
-                {userPosts.map((post) => (
-                  <PostCard key={post.id} post={post} />
-                ))}
-              </div>
-            ) : (
-              <Card className="p-12 text-center">
-                <p className="text-muted-foreground">No posts yet</p>
-              </Card>
-            )}
-          </div>
         </TabsContent>
       </Tabs>
 

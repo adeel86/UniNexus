@@ -156,201 +156,180 @@ export function TeacherCoursesSection() {
 
   if (isLoading) {
     return (
-      <Card className="p-6">
-        <div className="flex items-center gap-2 mb-4">
+      <div className="container mx-auto px-4 py-6 max-w-5xl">
+        <div className="flex items-center gap-2 mb-4 px-2">
           <Skeleton className="h-5 w-5" />
           <Skeleton className="h-6 w-48" />
         </div>
-        <div className="space-y-4">
-          {[1, 2, 3].map(i => (
-            <Skeleton key={i} className="h-24 w-full" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <Skeleton key={i} className="h-48 w-full rounded-xl" />
           ))}
         </div>
-      </Card>
+      </div>
     );
   }
 
   if (courses.length === 0) {
     return (
-      <Card className="p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <BookOpen className="h-5 w-5 text-purple-600" />
-          <h2 className="font-heading text-xl font-semibold">My Courses</h2>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          No courses have been assigned to you yet. Students will assign you when adding courses to their profiles.
-        </p>
-      </Card>
+      <div className="container mx-auto px-4 py-6 max-w-5xl">
+        <Card className="p-12 text-center border-dashed border-2">
+          <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
+          <h2 className="font-heading text-xl font-semibold mb-2">No courses assigned</h2>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            No courses have been assigned to you yet. Students will assign you when adding courses to their profiles.
+          </p>
+        </Card>
+      </div>
     );
   }
 
   const renderCourseCard = (course: TeacherCourse) => (
-    <div
+    <Card
       key={course.id}
-      className="border rounded-md p-4 space-y-3"
+      className="overflow-hidden hover-elevate transition-all duration-300 border-0 shadow-md bg-card"
       data-testid={`teacher-course-${course.id}`}
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h3 className="font-semibold">{course.courseName}</h3>
-            {course.courseCode && (
-              <Badge variant="outline" className="text-xs">
-                {course.courseCode}
-              </Badge>
-            )}
-            {course.isValidated ? (
-              <Badge variant="default" className="bg-green-600 text-xs">
-                <CheckCircle className="h-3 w-3 mr-1" />
-                Validated
-              </Badge>
-            ) : (
-              <Badge variant="secondary" className="text-xs">
-                <Clock className="h-3 w-3 mr-1" />
-                Pending
-              </Badge>
-            )}
+      <div className="p-5 flex flex-col h-full">
+        <div className="flex items-start justify-between mb-4">
+          <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white shrink-0 shadow-lg">
+            <BookOpen className="h-6 w-6" />
           </div>
-          
-          <div className="flex flex-col gap-1 mt-2 text-sm text-muted-foreground">
-            {course.institution && (
-              <p className="flex items-center gap-1">
-                <Building className="h-3 w-3" />
-                {course.institution}
-              </p>
-            )}
-            <div className="flex items-center gap-2 flex-wrap text-xs">
-              {course.semester && course.year && (
-                <span>{course.semester} {course.year}</span>
-              )}
-              {course.grade && (
-                <Badge variant="secondary" className="text-xs">Grade: {course.grade}</Badge>
-              )}
-              {course.credits && (
-                <span>{course.credits} credits</span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Avatar className="h-8 w-8">
-              <AvatarImage src={course.student.profileImageUrl || undefined} />
-              <AvatarFallback className="text-xs">
-                {getStudentInitials(course.student)}
-              </AvatarFallback>
-            </Avatar>
-            <div className="text-sm">
-              <p className="font-medium">{getStudentName(course.student)}</p>
-              <div className="flex flex-col text-xs text-muted-foreground">
-                {course.student.university && <span>{course.student.university}</span>}
-                {(course.student.major || course.student.graduationYear) && (
-                  <span>
-                    {course.student.major && `${course.student.major}`}
-                    {course.student.graduationYear && ` (Class of ${course.student.graduationYear})`}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {course.description && (
-        <p className="text-sm text-muted-foreground">{course.description}</p>
-      )}
-
-      {course.validationNote && course.isValidated && (
-        <div className="bg-green-50 dark:bg-green-950/30 p-2 rounded text-sm">
-          <span className="font-medium text-green-700 dark:text-green-400">Note: </span>
-          <span className="text-green-600 dark:text-green-300">{course.validationNote}</span>
-        </div>
-      )}
-
-      <div className="flex items-center justify-end gap-2 pt-2 border-t">
-        {course.isValidated ? (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => unvalidateMutation.mutate(course.id)}
-            disabled={unvalidateMutation.isPending}
-            data-testid={`button-unvalidate-course-${course.id}`}
-          >
-            Remove Validation
-          </Button>
-        ) : course.canValidate ? (
-          <Button
-            size="sm"
-            onClick={() => openValidateDialog(course)}
-            data-testid={`button-validate-course-${course.id}`}
-          >
-            <CheckCircle className="h-4 w-4 mr-1" />
-            Validate
-          </Button>
-        ) : (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <AlertCircle className="h-4 w-4 text-amber-500" />
-            <span>{course.validationBlockedReason || "Cannot validate"}</span>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  return (
-    <>
-      <Card className="p-6">
-        <div className="flex items-center justify-between gap-2 mb-4">
-          <div className="flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-purple-600" />
-            <h2 className="font-heading text-xl font-semibold">My Courses ({courses.length})</h2>
-          </div>
-          {pendingCourses.length > 0 && (
-            <Badge variant="secondary">
-              {pendingCourses.length} pending validation
+          {course.isValidated ? (
+            <Badge variant="default" className="bg-green-500/10 text-green-600 hover:bg-green-500/20 border-green-200/50">
+              <CheckCircle className="h-3 w-3 mr-1" />
+              Validated
+            </Badge>
+          ) : (
+            <Badge variant="secondary" className="bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border-amber-200/50">
+              <Clock className="h-3 w-3 mr-1" />
+              Pending
             </Badge>
           )}
         </div>
 
-        <Tabs defaultValue="pending" className="w-full">
-          <TabsList className="mb-4">
-            <TabsTrigger value="pending" data-testid="tab-pending-courses">
-              Pending ({pendingCourses.length})
-            </TabsTrigger>
-            <TabsTrigger value="validated" data-testid="tab-validated-courses">
-              Validated ({validatedCourses.length})
-            </TabsTrigger>
-            <TabsTrigger value="all" data-testid="tab-all-courses">
-              All ({courses.length})
-            </TabsTrigger>
-          </TabsList>
+        <div className="flex-1">
+          <h3 className="font-bold text-lg leading-tight mb-1 line-clamp-2">{course.courseName}</h3>
+          {course.courseCode && (
+            <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wider">{course.courseCode}</p>
+          )}
 
-          <TabsContent value="pending" className="space-y-4">
-            {pendingCourses.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">
-                No pending validation requests
-              </p>
-            ) : (
-              pendingCourses.map(renderCourseCard)
-            )}
-          </TabsContent>
+          <div className="flex items-center gap-3 mb-4 p-2 rounded-lg bg-muted/50">
+            <Avatar className="h-8 w-8 border-2 border-background">
+              <AvatarImage src={course.student.profileImageUrl || undefined} />
+              <AvatarFallback className="text-[10px] bg-primary text-primary-foreground font-bold">
+                {getStudentInitials(course.student)}
+              </AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold truncate">{getStudentName(course.student)}</p>
+              <p className="text-[10px] text-muted-foreground truncate">{course.student.university}</p>
+            </div>
+          </div>
+        </div>
 
-          <TabsContent value="validated" className="space-y-4">
-            {validatedCourses.length === 0 ? (
-              <p className="text-sm text-muted-foreground py-4 text-center">
-                No validated courses yet
-              </p>
-            ) : (
-              validatedCourses.map(renderCourseCard)
-            )}
-          </TabsContent>
+        <div className="pt-4 mt-auto border-t border-muted/50 flex items-center justify-between gap-2">
+           <div className="text-[10px] text-muted-foreground font-medium">
+             {course.semester} {course.year}
+           </div>
+           {course.isValidated ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => unvalidateMutation.mutate(course.id)}
+              disabled={unvalidateMutation.isPending}
+              data-testid={`button-unvalidate-course-${course.id}`}
+            >
+              Unvalidate
+            </Button>
+          ) : course.canValidate ? (
+            <Button
+              size="sm"
+              className="h-8 text-xs px-4 rounded-full bg-primary hover:bg-primary/90"
+              onClick={() => openValidateDialog(course)}
+              data-testid={`button-validate-course-${course.id}`}
+            >
+              Validate
+            </Button>
+          ) : (
+            <div className="flex items-center gap-1 text-[10px] text-amber-600 font-medium">
+              <AlertCircle className="h-3 w-3" />
+              <span>Blocked</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
 
-          <TabsContent value="all" className="space-y-4">
+  return (
+    <div className="container mx-auto px-4 py-6 max-w-5xl">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8 px-2">
+        <div>
+          <h2 className="font-heading text-3xl font-bold flex items-center gap-3">
+            <BookOpen className="h-8 w-8 text-primary" />
+            My Courses
+          </h2>
+          <p className="text-muted-foreground mt-1">Manage and validate student enrollment</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {pendingCourses.length > 0 && (
+            <Badge variant="destructive" className="rounded-full px-3">
+              {pendingCourses.length} Pending
+            </Badge>
+          )}
+          <Badge variant="outline" className="rounded-full px-3 bg-card">
+            Total: {courses.length}
+          </Badge>
+        </div>
+      </div>
+
+      <Tabs defaultValue="pending" className="w-full">
+        <TabsList className="bg-muted/50 p-1 rounded-full mb-8 inline-flex">
+          <TabsTrigger value="pending" className="rounded-full px-6" data-testid="tab-pending-courses">
+            Pending ({pendingCourses.length})
+          </TabsTrigger>
+          <TabsTrigger value="validated" className="rounded-full px-6" data-testid="tab-validated-courses">
+            Validated ({validatedCourses.length})
+          </TabsTrigger>
+          <TabsTrigger value="all" className="rounded-full px-6" data-testid="tab-all-courses">
+            All
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="pending">
+          {pendingCourses.length === 0 ? (
+            <Card className="p-12 text-center border-dashed border-2 bg-transparent">
+              <CheckCircle className="h-12 w-12 mx-auto mb-4 text-green-500 opacity-20" />
+              <p className="text-muted-foreground">All caught up! No pending requests.</p>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {pendingCourses.map(renderCourseCard)}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="validated">
+          {validatedCourses.length === 0 ? (
+            <Card className="p-12 text-center border-dashed border-2 bg-transparent">
+              <BookOpen className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-20" />
+              <p className="text-muted-foreground">No validated courses yet.</p>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {validatedCourses.map(renderCourseCard)}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="all">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {courses.map(renderCourseCard)}
-          </TabsContent>
-        </Tabs>
-      </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
 
       <Dialog open={validateDialogOpen} onOpenChange={setValidateDialogOpen}>
         <DialogContent>

@@ -54,10 +54,14 @@ export default function UniversityDashboard() {
       </div>
 
       <Tabs defaultValue="feed" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 max-w-lg">
+        <TabsList className="grid w-full grid-cols-4 max-w-lg">
           <TabsTrigger value="feed" data-testid="tab-feed">
             <MessageSquare className="h-4 w-4 mr-2" />
             Feed
+          </TabsTrigger>
+          <TabsTrigger value="my-posts" data-testid="tab-my-posts">
+            <Plus className="h-4 w-4 mr-2" />
+            My Posts
           </TabsTrigger>
           <TabsTrigger value="analytics" data-testid="tab-analytics">
             <TrendingUp className="h-4 w-4 mr-2" />
@@ -76,6 +80,10 @@ export default function UniversityDashboard() {
 
         <TabsContent value="feed">
           <UniversalFeed role="university" initialCategory="all" />
+        </TabsContent>
+
+        <TabsContent value="my-posts">
+          <UniversalFeed role="university" showOnlyOwnPosts={true} />
         </TabsContent>
 
         <TabsContent value="validations">

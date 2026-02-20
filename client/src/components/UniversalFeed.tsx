@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, TrendingUp, Users } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 type PostWithAuthor = Post & {
   author: User;
@@ -17,12 +18,21 @@ type PostWithAuthor = Post & {
 interface UniversalFeedProps {
   role: string;
   initialCategory?: string;
+  showOnlyOwnPosts?: boolean;
 }
 
-export function UniversalFeed({ role, initialCategory = "social" }: UniversalFeedProps) {
+export function UniversalFeed({ role, initialCategory = "social", showOnlyOwnPosts = false }: UniversalFeedProps) {
+  const { userData: user } = useAuth();
   const [createPostOpen, setCreatePostOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [feedType, setFeedType] = useState<'personalized' | 'following'>('personalized');
+
+  // My Posts logic
+  const myPostsUrl = `/api/posts?authorId=${user?.id}`;
+  const { data: myPosts = [], isLoading: isLoadingMyPosts } = useQuery<PostWithAuthor[]>({
+    queryKey: [myPostsUrl],
+    enabled: !!user?.id && showOnlyOwnPosts,
+  });
 
   // Personalized AI-curated feed
   const personalizedUrl = selectedCategory && selectedCategory !== 'all'
@@ -31,7 +41,7 @@ export function UniversalFeed({ role, initialCategory = "social" }: UniversalFee
   
   const { data: personalizedPosts = [], isLoading: isLoadingPersonalized } = useQuery<PostWithAuthor[]>({
     queryKey: [personalizedUrl],
-    enabled: feedType === 'personalized',
+    enabled: !showOnlyOwnPosts && feedType === 'personalized',
   });
 
   // Following feed (chronological from followed users only)
@@ -41,11 +51,11 @@ export function UniversalFeed({ role, initialCategory = "social" }: UniversalFee
   
   const { data: followingPosts = [], isLoading: isLoadingFollowing } = useQuery<PostWithAuthor[]>({
     queryKey: [followingUrl],
-    enabled: feedType === 'following',
+    enabled: !showOnlyOwnPosts && feedType === 'following',
   });
 
-  const posts = feedType === 'personalized' ? personalizedPosts : followingPosts;
-  const isLoading = feedType === 'personalized' ? isLoadingPersonalized : isLoadingFollowing;
+  const posts = showOnlyOwnPosts ? myPosts : (feedType === 'personalized' ? personalizedPosts : followingPosts);
+  const isLoading = showOnlyOwnPosts ? isLoadingMyPosts : (feedType === 'personalized' ? isLoadingPersonalized : isLoadingFollowing);
 
   const categories = [
     { value: "all", label: "All Posts", icon: TrendingUp },
@@ -56,46 +66,60 @@ export function UniversalFeed({ role, initialCategory = "social" }: UniversalFee
 
   return (
     <div className="space-y-4">
-      {/* Create Post Button */}
-      <Card className="p-4">
-        <Button 
-          onClick={() => setCreatePostOpen(true)} 
-          className="w-full"
-          data-testid="button-create-post"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Create Post
-        </Button>
-      </Card>
+      {!showOnlyOwnPosts && (
+        <Card className="p-4 border-dashed border-2 hover:border-primary/50 transition-colors cursor-pointer" onClick={() => setCreatePostOpen(true)}>
+          <div className="flex items-center gap-4">
+            <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+              <Plus className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <span className="text-muted-foreground font-medium">Share something with the community...</span>
+          </div>
+        </Card>
+      )}
 
       {/* Feed Type Toggle */}
-      <Tabs value={feedType} onValueChange={(v) => setFeedType(v as 'personalized' | 'following')}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="personalized" data-testid="tab-personalized">
-            <TrendingUp className="h-4 w-4 mr-2" />
-            For You
-          </TabsTrigger>
-          <TabsTrigger value="following" data-testid="tab-following">
-            <Users className="h-4 w-4 mr-2" />
-            Following
-          </TabsTrigger>
-        </TabsList>
-      </Tabs>
+      {!showOnlyOwnPosts && (
+        <Tabs value={feedType} onValueChange={(v) => setFeedType(v as 'personalized' | 'following')}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="personalized" data-testid="tab-personalized">
+              <TrendingUp className="h-4 w-4 mr-2" />
+              For You
+            </TabsTrigger>
+            <TabsTrigger value="following" data-testid="tab-following">
+              <Users className="h-4 w-4 mr-2" />
+              Following
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      )}
 
       {/* Category Filter */}
-      <div className="flex gap-2 flex-wrap">
-        {categories.map((category) => (
-          <Button
-            key={category.value}
-            variant={selectedCategory === category.value ? "default" : "outline"}
-            size="sm"
-            onClick={() => setSelectedCategory(category.value)}
-            data-testid={`filter-${category.value}`}
-          >
-            {category.label}
+      {!showOnlyOwnPosts && (
+        <div className="flex gap-2 flex-wrap">
+          {categories.map((category) => (
+            <Button
+              key={category.value}
+              variant={selectedCategory === category.value ? "default" : "outline"}
+              size="sm"
+              onClick={() => setSelectedCategory(category.value)}
+              className="rounded-full"
+              data-testid={`filter-${category.value}`}
+            >
+              {category.label}
+            </Button>
+          ))}
+        </div>
+      )}
+
+      {showOnlyOwnPosts && (
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-2xl font-bold font-heading">My Posts</h2>
+          <Button onClick={() => setCreatePostOpen(true)} size="sm">
+            <Plus className="h-4 w-4 mr-2" />
+            New Post
           </Button>
-        ))}
-      </div>
+        </div>
+      )}
 
       {/* Posts Feed */}
       {isLoading ? (

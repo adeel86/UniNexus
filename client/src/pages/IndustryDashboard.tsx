@@ -54,10 +54,14 @@ export default function IndustryDashboard() {
       </div>
 
       <Tabs defaultValue="feed" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 max-w-xl">
+        <TabsList className="grid w-full grid-cols-5 max-w-2xl">
           <TabsTrigger value="feed" data-testid="tab-feed">
             <MessageSquare className="h-4 w-4 mr-2" />
             Feed
+          </TabsTrigger>
+          <TabsTrigger value="my-posts" data-testid="tab-my-posts">
+            <Plus className="h-4 w-4 mr-2" />
+            My Posts
           </TabsTrigger>
           <TabsTrigger value="analytics" data-testid="tab-analytics">
             <TrendingUp className="h-4 w-4 mr-2" />
@@ -75,6 +79,10 @@ export default function IndustryDashboard() {
 
         <TabsContent value="feed">
           <UniversalFeed role="industry" initialCategory="all" />
+        </TabsContent>
+
+        <TabsContent value="my-posts">
+          <UniversalFeed role="industry" showOnlyOwnPosts={true} />
         </TabsContent>
 
         <TabsContent value="challenges">

@@ -142,7 +142,7 @@ export default function Network() {
   );
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-7xl">
+    <div className="container mx-auto px-4 py-6 max-w-5xl">
       <div className="mb-6">
         <h1 className="font-heading text-3xl font-bold mb-2">My Network</h1>
         <p className="text-muted-foreground">

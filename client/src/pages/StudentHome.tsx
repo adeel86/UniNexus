@@ -10,7 +10,7 @@ import { ChallengeMilestonesCard } from "@/components/ChallengeMilestonesCard";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, TrendingUp, Users, Target, Sparkles } from "lucide-react";
+import { Plus, TrendingUp, Users, Target, Sparkles, MessageCircle } from "lucide-react";
 import { useState } from "react";
 import { Badge as BadgePill } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -27,7 +27,7 @@ export default function StudentHome() {
   const { userData: user } = useAuth();
   const [createPostOpen, setCreatePostOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [feedType, setFeedType] = useState<'personalized' | 'following'>('personalized');
+  const [feedType, setFeedType] = useState<'personalized' | 'following' | 'my-posts'>('personalized');
   const [postInitialValues, setPostInitialValues] = useState<{ content: string; category: string; tags: string }>({ 
     content: "", 
     category: "social", 
@@ -54,8 +54,18 @@ export default function StudentHome() {
     enabled: feedType === 'following',
   });
 
-  const posts = feedType === 'personalized' ? personalizedPosts : followingPosts;
-  const isLoading = feedType === 'personalized' ? isLoadingPersonalized : isLoadingFollowing;
+  // My Posts feed
+  const myPostsUrl = selectedCategory && selectedCategory !== 'all'
+    ? `/api/posts?userId=${user?.id}&category=${selectedCategory}`
+    : `/api/posts?userId=${user?.id}`;
+
+  const { data: myPosts = [], isLoading: isLoadingMyPosts } = useQuery<PostWithAuthor[]>({
+    queryKey: [myPostsUrl],
+    enabled: feedType === 'my-posts' && !!user?.id,
+  });
+
+  const posts = feedType === 'personalized' ? personalizedPosts : feedType === 'following' ? followingPosts : myPosts;
+  const isLoading = feedType === 'personalized' ? isLoadingPersonalized : feedType === 'following' ? isLoadingFollowing : isLoadingMyPosts;
 
   const { data: userBadges = [] } = useQuery<(UserBadge & { badge: Badge })[]>({
     queryKey: ["/api/user-badges", user?.id],
@@ -116,8 +126,8 @@ export default function StudentHome() {
           </Card>
 
           {/* Feed Type Tabs */}
-          <Tabs value={feedType} onValueChange={(v) => setFeedType(v as 'personalized' | 'following')} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
+          <Tabs value={feedType} onValueChange={(v) => setFeedType(v as 'personalized' | 'following' | 'my-posts')} className="w-full">
+            <TabsList className="grid w-full grid-cols-3 mb-4">
               <TabsTrigger value="personalized" className="gap-2" data-testid="tab-for-you">
                 <Sparkles className="h-4 w-4" />
                 For You
@@ -125,6 +135,10 @@ export default function StudentHome() {
               <TabsTrigger value="following" className="gap-2" data-testid="tab-following">
                 <Users className="h-4 w-4" />
                 Following
+              </TabsTrigger>
+              <TabsTrigger value="my-posts" className="gap-2" data-testid="tab-my-posts">
+                <MessageCircle className="h-4 w-4" />
+                My Posts
               </TabsTrigger>
             </TabsList>
           </Tabs>
