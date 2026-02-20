@@ -154,15 +154,18 @@ router.get("/feed/personalized", async (req: Request, res: Response) => {
       })
       .from(posts)
       .leftJoin(users, eq(posts.authorId, users.id))
+      .where(
+        and(
+          sql`${posts.createdAt} > ${sevenDaysAgo.toISOString()}`,
+          category && category !== 'all' ? eq(posts.category, category) : sql`true`,
+          inArray(posts.authorId, [...followedIds, currentUser.id])
+        )
+      )
       .orderBy(desc(posts.createdAt))
+      .limit(limit)
       .$dynamic();
     
-    const conditions = [sql`${posts.createdAt} > ${sevenDaysAgo.toISOString()}`];
-    if (category && category !== 'all') {
-      conditions.push(eq(posts.category, category));
-    }
-    
-    const allPosts = await query.where(and(...conditions));
+    const allPosts = await query;
     const validPosts = allPosts.filter(post => post.createdAt != null);
     
     const postsWithDetails = await Promise.all(
