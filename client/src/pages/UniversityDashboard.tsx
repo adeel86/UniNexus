@@ -60,7 +60,6 @@ export default function UniversityDashboard() {
             Feed
           </TabsTrigger>
           <TabsTrigger value="my-posts" data-testid="tab-my-posts">
-            <Plus className="h-4 w-4 mr-2" />
             My Posts
           </TabsTrigger>
           <TabsTrigger value="analytics" data-testid="tab-analytics">
