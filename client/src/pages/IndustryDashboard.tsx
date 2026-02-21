@@ -40,13 +40,17 @@ export default function IndustryDashboard() {
     handleSubmitFeedback,
     openRankingModal,
     handleAwardRank,
-    const handleSelectSuggestion = (content: string, category: string, tags: string) => {
-      // Implementation for industry suggestion selection if needed
-    };
+    openFeedbackModal,
+    closeFeedbackModal,
+  } = useIndustryDashboard() as any;
 
-    const handleCreatePost = () => {
-      // Implementation for industry post creation if needed
-    };
+  const handleSelectSuggestion = (content: string, category: string, tags: string[]) => {
+    // Implementation for industry suggestion selection
+  };
+
+  const handleCreatePost = () => {
+    // Implementation for industry post creation
+  };
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">

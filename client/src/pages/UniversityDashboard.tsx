@@ -41,13 +41,16 @@ export default function UniversityDashboard() {
     atRiskStudents,
     engagementRate,
     engagementData,
-    const handleSelectSuggestion = (content: string, category: string, tags: string) => {
-      // Implementation for university suggestion selection if needed
-    };
+    departmentRetentionData,
+  } = useUniversityDashboard() as any;
 
-    const handleCreatePost = () => {
-      // Implementation for university post creation if needed
-    };
+  const handleSelectSuggestion = (content: string, category: string, tags: string[]) => {
+    // Implementation for university suggestion selection
+  };
+
+  const handleCreatePost = () => {
+    // Implementation for university post creation
+  };
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">

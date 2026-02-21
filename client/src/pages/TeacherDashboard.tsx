@@ -42,6 +42,7 @@ export default function TeacherDashboard() {
     createPostOpen,
     setCreatePostOpen,
     postInitialValues,
+    setPostInitialValues,
     certificateForm,
     setCertificateForm,
     students,
@@ -56,23 +57,29 @@ export default function TeacherDashboard() {
     handleEndorseClick,
     handleIssueCertificateClick,
     handleCareerInsightsClick,
-    const handleSelectSuggestion = (content: string, category: string, tags: string) => {
+  } = useTeacherDashboard() as any;
+
+  const handleSelectSuggestion = (content: string, category: string, tags: string[]) => {
+    if (setPostInitialValues) {
       setPostInitialValues({
         content,
         category,
-        tags
+        tags: tags.join(", ")
       });
-      setCreatePostOpen(true);
-    };
+    }
+    setCreatePostOpen(true);
+  };
 
-    const handleCreatePost = () => {
+  const handleCreatePost = () => {
+    if (setPostInitialValues) {
       setPostInitialValues({
         content: "",
         category: "academic",
         tags: ""
       });
-      setCreatePostOpen(true);
-    };
+    }
+    setCreatePostOpen(true);
+  };
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">

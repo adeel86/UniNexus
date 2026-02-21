@@ -22,6 +22,7 @@ const router = Router();
 
 router.get("/posts", async (req: Request, res: Response) => {
   const { category, filterByInterests, userId, authorId } = req.query;
+  const targetUserId = (userId || authorId) as string;
   
   try {
     let query = db
@@ -50,8 +51,8 @@ router.get("/posts", async (req: Request, res: Response) => {
       query = query.where(eq(posts.category, category as string));
     }
 
-    if (authorId) {
-      query = query.where(eq(posts.authorId, authorId as string));
+    if (targetUserId) {
+      query = query.where(eq(posts.authorId, targetUserId));
     }
 
     let postsData = await query;
@@ -132,6 +133,9 @@ router.get("/feed/personalized", async (req: Request, res: Response) => {
     
     const followedIds = followedUsers.map(f => f.followingId);
     
+    // For You includes network (following) and own posts
+    const allowedIds = [...followedIds, currentUser.id];
+    
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     
@@ -158,7 +162,7 @@ router.get("/feed/personalized", async (req: Request, res: Response) => {
         and(
           sql`${posts.createdAt} > ${sevenDaysAgo.toISOString()}`,
           category && category !== 'all' ? eq(posts.category, category) : sql`true`,
-          inArray(posts.authorId, [...followedIds, currentUser.id])
+          inArray(posts.authorId, allowedIds)
         )
       )
       .orderBy(desc(posts.createdAt))
