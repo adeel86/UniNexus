@@ -1,11 +1,9 @@
-import { db } from "../db";
-import { sql } from "drizzle-orm";
-import { getSeedProfile, parseSeedProfile, type SeedConfig } from "./config";
+import { getSeedProfile, parseSeedProfile } from "./config";
 
 // Import seed functions from data modules
-import { mockUsers, seedUsers } from "./data/users";
-import { mockBadges, seedBadges, seedUserBadges } from "./data/badges";
-import { mockSkills, seedSkills, seedUserSkills } from "./data/skills";
+import { seedUsers } from "./data/users";
+import { seedBadges, seedUserBadges } from "./data/badges";
+import { seedSkills, seedUserSkills } from "./data/skills";
 import { seedEducation, seedUserProfiles } from "./data/education";
 import { seedPosts, seedCommentsAndReactions } from "./data/posts";
 import { seedCourses, seedEnrollmentsAndDiscussions, seedTeacherContent } from "./data/courses";
@@ -16,16 +14,10 @@ import { seedAIEvents, seedModerationActions, seedRecruiterFeedback, seedJobExpe
 export async function seedDatabase(profileName?: string) {
   const config = getSeedProfile(profileName);
   console.log(`\n🌱 Starting database seed with profile: ${config.profile.toUpperCase()}`);
-  console.log(`📊 Configuration:`);
-  console.log(`   - Users: ${config.users.bulkUserCount} bulk + ${config.users.demoAccountsOnly ? 'demo only' : 'all roles'}`);
-  console.log(`   - Posts: ${config.posts.perUser} per user`);
-  console.log(`   - Courses: ${config.courses.count} courses`);
-  console.log(`   - Connection rate: ${(config.connections.connectionRate * 100).toFixed(0)}%\n`);
-
+  
   // 1. Users - foundational data
   const insertedUsers = await seedUsers(config);
-  console.log(`Using ${insertedUsers.length} users`);
-
+  
   // 2. Badges and user badge assignments
   const insertedBadges = await seedBadges();
   if (insertedUsers.length > 0 && insertedBadges.length > 0) {
@@ -51,20 +43,20 @@ export async function seedDatabase(profileName?: string) {
   }
 
   // 6. Courses and enrollments
-  const insertedCourses = await seedCourses(insertedUsers, config);
+  const insertedCourses = await seedCourses(insertedUsers);
   if (insertedCourses.length > 0 && insertedUsers.length > 0) {
-    await seedEnrollmentsAndDiscussions(insertedCourses, insertedUsers, config);
-    await seedTeacherContent(insertedCourses, insertedUsers, config);
+    await seedEnrollmentsAndDiscussions(insertedCourses, insertedUsers);
+    await seedTeacherContent(insertedCourses, insertedUsers);
   }
 
   // 7. Social connections
   if (insertedUsers.length > 0) {
-    await seedConnections(insertedUsers, config);
-    await seedFollowers(insertedUsers, config);
-    await seedEndorsements(insertedUsers, insertedSkills, config);
-    const insertedConversations = await seedConversations(insertedUsers, config);
+    await seedConnections(insertedUsers);
+    await seedFollowers(insertedUsers);
+    await seedEndorsements(insertedUsers, insertedSkills);
+    const insertedConversations = await seedConversations(insertedUsers);
     if (insertedConversations.length > 0) {
-      await seedMessages(insertedConversations, insertedUsers, config);
+      await seedMessages(insertedConversations, insertedUsers);
     }
   }
 
@@ -72,32 +64,31 @@ export async function seedDatabase(profileName?: string) {
   if (insertedUsers.length > 0) {
     const insertedChallenges = await seedChallenges(insertedUsers, config);
     if (insertedChallenges.length > 0) {
-      await seedChallengeParticipants(insertedChallenges, insertedUsers, config);
+      await seedChallengeParticipants(insertedChallenges, insertedUsers);
     }
-    const insertedGroups = await seedGroups(insertedUsers, config);
+    const insertedGroups = await seedGroups(insertedUsers);
     if (insertedGroups.length > 0) {
-      await seedGroupMembers(insertedGroups, insertedUsers, config);
-      await seedGroupPosts(insertedGroups, insertedUsers, config);
+      await seedGroupMembers(insertedGroups, insertedUsers);
+      await seedGroupPosts(insertedGroups, insertedUsers);
     }
-    await seedNotifications(insertedUsers, config);
-    await seedAnnouncements(insertedUsers, config);
-    await seedCertifications(insertedUsers, config);
+    await seedNotifications(insertedUsers, insertedPosts);
+    await seedAnnouncements(insertedUsers);
+    await seedCertifications(insertedUsers);
   }
 
   // 9. Admin and auxiliary data
   if (insertedUsers.length > 0) {
-    await seedAIEvents(insertedUsers, config);
-    await seedModerationActions(insertedUsers, config);
-    await seedRecruiterFeedback(insertedUsers, config);
-    await seedJobExperience(insertedUsers, config);
-    await seedStudentCourses(insertedUsers, insertedCourses, config);
+    await seedAIEvents(insertedUsers);
+    await seedModerationActions(insertedUsers);
+    await seedRecruiterFeedback(insertedUsers);
+    await seedJobExperience(insertedUsers);
+    await seedStudentCourses(insertedUsers, insertedCourses);
     if (insertedPosts.length > 0) {
-      await seedPostSharesAndBoosts(insertedPosts, insertedUsers, config);
+      await seedPostSharesAndBoosts(insertedPosts, insertedUsers);
     }
   }
 
   console.log("\n✅ Database seeding completed successfully!");
-  console.log(`📈 Summary: ${insertedUsers.length} users, ${insertedPosts.length} posts, ${insertedCourses.length} courses\n`);
 }
 
 // Support CLI usage (ESM-compatible)

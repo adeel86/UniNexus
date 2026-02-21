@@ -66,12 +66,17 @@ export async function seedModerationActions(insertedUsers: User[]): Promise<void
 }
 
 export async function seedRecruiterFeedback(insertedUsers: User[]): Promise<void> {
-  if (insertedUsers.length < 12) return;
+  if (insertedUsers.length < 2) return;
+
+  const recruiters = insertedUsers.filter(u => u.role === 'industry_professional' || u.role === 'industry');
+  const students = insertedUsers.filter(u => u.role === 'student');
+  
+  if (recruiters.length === 0 || students.length === 0) return;
 
   const mockRecruiterFeedback = [
     {
-      recruiterId: insertedUsers[3].id,
-      studentId: insertedUsers[0].id,
+      recruiterId: recruiters[0].id,
+      studentId: students[0].id,
       rating: 5,
       category: "technical_skills",
       feedback: "Strong technical skills demonstrated. Excellent communication abilities and great cultural fit.",
@@ -79,8 +84,8 @@ export async function seedRecruiterFeedback(insertedUsers: User[]): Promise<void
       isPublic: true,
     },
     {
-      recruiterId: insertedUsers[11].id,
-      studentId: insertedUsers[0].id,
+      recruiterId: recruiters[1]?.id || recruiters[0].id,
+      studentId: students[0].id,
       rating: 4,
       category: "problem_solving",
       feedback: "Demonstrated strong analytical thinking during the technical assessment.",
@@ -88,8 +93,8 @@ export async function seedRecruiterFeedback(insertedUsers: User[]): Promise<void
       isPublic: true,
     },
     {
-      recruiterId: insertedUsers[11].id,
-      studentId: insertedUsers[5].id,
+      recruiterId: recruiters[1]?.id || recruiters[0].id,
+      studentId: students[1]?.id || students[0].id,
       rating: 5,
       category: "technical_skills",
       feedback: "Outstanding problem-solving abilities and deep knowledge of ML algorithms.",

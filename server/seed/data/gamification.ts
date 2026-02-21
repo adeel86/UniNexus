@@ -9,10 +9,10 @@ export async function seedChallenges(insertedUsers: User[], config?: any): Promi
   const oneDay = 24 * 60 * 60 * 1000;
   
   const demoUsers = getDemoUsers(insertedUsers);
-  const industryScreenGlitz = demoUsers.industryScreenGlitz!;
-  const industryCouchPotatos = demoUsers.industryCouchPotatos!;
-  const teacherDrAdeel = demoUsers.teacherDrAdeel!;
-  const teacherSheldon = demoUsers.teacherSheldon!;
+  const industryScreenGlitz = demoUsers.industryScreenGlitz || insertedUsers.find(u => u.role === 'industry_professional') || insertedUsers[0];
+  const industryCouchPotatos = demoUsers.industryCouchPotatos || insertedUsers.find(u => u.role === 'industry_professional' && u.id !== industryScreenGlitz.id) || insertedUsers[0];
+  const teacherDrAdeel = demoUsers.teacherDrAdeel || insertedUsers.find(u => u.role === 'teacher') || insertedUsers[0];
+  const teacherSheldon = demoUsers.teacherSheldon || insertedUsers.find(u => u.role === 'teacher' && u.id !== teacherDrAdeel.id) || insertedUsers[0];
   
   const mockChallenges = [
     {
@@ -99,8 +99,8 @@ export async function seedChallengeParticipants(insertedChallenges: Challenge[],
   if (insertedChallenges.length === 0) return;
 
   const demoUsers = getDemoUsers(insertedUsers);
-  const studentAdeel = demoUsers.studentAdeel!;
-  const studentAneeqa = demoUsers.studentAneeqa!;
+  const studentAdeel = demoUsers.studentAdeel || insertedUsers.find(u => u.role === 'student') || insertedUsers[0];
+  const studentAneeqa = demoUsers.studentAneeqa || insertedUsers.find(u => u.role === 'student' && u.id !== studentAdeel.id) || insertedUsers[0];
   
   const additionalStudents = insertedUsers.filter(u => 
     u?.role === 'student' && u.email !== studentAdeel.email && u.email !== studentAneeqa.email
@@ -122,9 +122,9 @@ export async function seedChallengeParticipants(insertedChallenges: Challenge[],
 
 export async function seedGroups(insertedUsers: User[]): Promise<Group[]> {
   const demoUsers = getDemoUsers(insertedUsers);
-  const studentAdeel = demoUsers.studentAdeel!;
-  const studentAneeqa = demoUsers.studentAneeqa!;
-  const teacherDrAdeel = demoUsers.teacherDrAdeel!;
+  const studentAdeel = demoUsers.studentAdeel || insertedUsers.find(u => u.role === 'student') || insertedUsers[0];
+  const studentAneeqa = demoUsers.studentAneeqa || insertedUsers.find(u => u.role === 'student' && u.id !== studentAdeel.id) || insertedUsers[0];
+  const teacherDrAdeel = demoUsers.teacherDrAdeel || insertedUsers.find(u => u.role === 'teacher') || insertedUsers[0];
   
   const mockGroups = [
     {
@@ -171,10 +171,10 @@ export async function seedGroupMembers(insertedGroups: Group[], insertedUsers: U
   if (insertedGroups.length === 0) return;
 
   const demoUsers = getDemoUsers(insertedUsers);
-  const studentAdeel = demoUsers.studentAdeel!;
-  const studentAneeqa = demoUsers.studentAneeqa!;
-  const teacherDrAdeel = demoUsers.teacherDrAdeel!;
-  const industryScreenGlitz = demoUsers.industryScreenGlitz!;
+  const studentAdeel = demoUsers.studentAdeel || insertedUsers.find(u => u.role === 'student') || insertedUsers[0];
+  const studentAneeqa = demoUsers.studentAneeqa || insertedUsers.find(u => u.role === 'student' && u.id !== studentAdeel.id) || insertedUsers[0];
+  const teacherDrAdeel = demoUsers.teacherDrAdeel || insertedUsers.find(u => u.role === 'teacher') || insertedUsers[0];
+  const industryScreenGlitz = demoUsers.industryScreenGlitz || insertedUsers.find(u => u.role === 'industry_professional') || insertedUsers[0];
 
   const mockGroupMembers = [
     { groupId: insertedGroups[0].id, userId: studentAdeel.id, role: "admin" },
@@ -198,9 +198,9 @@ export async function seedGroupPosts(insertedGroups: Group[], insertedUsers: Use
   if (insertedGroups.length === 0) return;
 
   const demoUsers = getDemoUsers(insertedUsers);
-  const studentAdeel = demoUsers.studentAdeel!;
-  const studentAneeqa = demoUsers.studentAneeqa!;
-  const teacherDrAdeel = demoUsers.teacherDrAdeel!;
+  const studentAdeel = demoUsers.studentAdeel || insertedUsers.find(u => u.role === 'student') || insertedUsers[0];
+  const studentAneeqa = demoUsers.studentAneeqa || insertedUsers.find(u => u.role === 'student' && u.id !== studentAdeel.id) || insertedUsers[0];
+  const teacherDrAdeel = demoUsers.teacherDrAdeel || insertedUsers.find(u => u.role === 'teacher') || insertedUsers[0];
 
   const mockGroupPosts = [
     { groupId: insertedGroups[0].id, authorId: studentAdeel.id, content: "Welcome to the React Developers group! Share your React tips and tricks here." },
@@ -216,9 +216,9 @@ export async function seedGroupPosts(insertedGroups: Group[], insertedUsers: Use
 
 export async function seedNotifications(insertedUsers: User[], insertedPosts?: any[]): Promise<void> {
   const demoUsers = getDemoUsers(insertedUsers);
-  const studentAdeel = demoUsers.studentAdeel!;
-  const studentAneeqa = demoUsers.studentAneeqa!;
-  const teacherDrAdeel = demoUsers.teacherDrAdeel!;
+  const studentAdeel = demoUsers.studentAdeel || insertedUsers.find(u => u.role === 'student') || insertedUsers[0];
+  const studentAneeqa = demoUsers.studentAneeqa || insertedUsers.find(u => u.role === 'student' && u.id !== studentAdeel.id) || insertedUsers[0];
+  const teacherDrAdeel = demoUsers.teacherDrAdeel || insertedUsers.find(u => u.role === 'teacher') || insertedUsers[0];
   
   const mockNotifications = [
     { 
@@ -286,8 +286,8 @@ export async function seedNotifications(insertedUsers: User[], insertedPosts?: a
 
 export async function seedAnnouncements(insertedUsers: User[]): Promise<void> {
   const demoUsers = getDemoUsers(insertedUsers);
-  const uniAdminDISC = demoUsers.uniAdminDISC!;
-  const industryScreenGlitz = demoUsers.industryScreenGlitz!;
+  const uniAdminDISC = demoUsers.uniAdminDISC || insertedUsers.find(u => u.role === 'university_admin') || insertedUsers[0];
+  const industryScreenGlitz = demoUsers.industryScreenGlitz || insertedUsers.find(u => u.role === 'industry_professional') || insertedUsers[0];
   
   const mockAnnouncements = [
     { authorId: uniAdminDISC.id, title: "Welcome to UniNexus!", content: "Welcome to our learning platform. Get started by exploring courses and connecting with peers.", targetAudience: "all", isPinned: true },
@@ -301,13 +301,13 @@ export async function seedAnnouncements(insertedUsers: User[]): Promise<void> {
 }
 
 export async function seedCertifications(insertedUsers: User[]): Promise<void> {
-  if (insertedUsers.length < 8) return;
+  if (insertedUsers.length < 2) return;
 
   const demoUsers = getDemoUsers(insertedUsers);
-  const studentAdeel = demoUsers.studentAdeel!;
-  const studentAneeqa = demoUsers.studentAneeqa!;
-  const teacherDrAdeel = demoUsers.teacherDrAdeel!;
-  const teacherSheldon = demoUsers.teacherSheldon!;
+  const studentAdeel = demoUsers.studentAdeel || insertedUsers.find(u => u.role === 'student') || insertedUsers[0];
+  const studentAneeqa = demoUsers.studentAneeqa || insertedUsers.find(u => u.role === 'student' && u.id !== studentAdeel.id) || insertedUsers[0];
+  const teacherDrAdeel = demoUsers.teacherDrAdeel || insertedUsers.find(u => u.role === 'teacher') || insertedUsers[0];
+  const teacherSheldon = demoUsers.teacherSheldon || insertedUsers.find(u => u.role === 'teacher' && u.id !== teacherDrAdeel.id) || insertedUsers[0];
 
   const mockCertifications = [
     {

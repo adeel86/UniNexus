@@ -48,7 +48,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
   const isStudent = user?.role === 'student';
   const isTeacher = user?.role === 'teacher';
   const isUniversity = user?.role === 'university_admin';
-  const isIndustry = user?.role === 'industry_partner' || user?.role === 'industry_professional';
+  const isIndustry = user?.role === 'industry_partner' || user?.role === 'industry_professional' || user?.role === 'industry';
   const isAdmin = user?.role === 'master_admin';
 
   return (
@@ -67,13 +67,11 @@ export function Navbar({ onMenuClick }: NavbarProps) {
               <Menu className="h-5 w-5" />
             </Button>
           )}
-          <Link href="/">
-            <a className="flex items-center gap-2" data-testid="link-home">
-              <div className="h-8 w-8 rounded-lg bg-white/20 backdrop-blur flex items-center justify-center font-heading font-bold text-lg">
-                U
-              </div>
-              <span className="font-heading font-bold text-xl hidden sm:inline">UniNexus</span>
-            </a>
+          <Link href="/" data-testid="link-home" className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-white/20 backdrop-blur flex items-center justify-center font-heading font-bold text-lg">
+              U
+            </div>
+            <span className="font-heading font-bold text-xl hidden sm:inline">UniNexus</span>
           </Link>
 
           {/* Navigation Links */}
@@ -89,10 +87,10 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                   data-testid="nav-link-network"
                 >
                   <Link href="/network">
-                    <a>
+                    <div className="flex items-center gap-2">
                       <Users className="h-4 w-4" />
                       <span>My Network</span>
-                    </a>
+                    </div>
                   </Link>
                 </Button>
                 <Button
@@ -103,10 +101,10 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                   data-testid="nav-link-discovery"
                 >
                   <Link href="/discovery">
-                    <a>
+                    <div className="flex items-center gap-2">
                       <Compass className="h-4 w-4" />
                       <span>Discover</span>
-                    </a>
+                    </div>
                   </Link>
                 </Button>
                 <Button
@@ -117,7 +115,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                   data-testid="nav-link-messages"
                 >
                   <Link href="/messages">
-                    <a>
+                    <div className="flex items-center gap-2 relative">
                       <MessageCircle className="h-4 w-4" />
                       <span>Messages</span>
                       {unreadMessages > 0 && (
@@ -128,7 +126,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                           {unreadMessages > 9 ? "9+" : unreadMessages}
                         </Badge>
                       )}
-                    </a>
+                    </div>
                   </Link>
                 </Button>
                 <Button
@@ -139,16 +137,15 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                   data-testid="nav-link-groups"
                 >
                   <Link href="/groups">
-                    <a>
+                    <div className="flex items-center gap-2">
                       <UsersRound className="h-4 w-4" />
                       <span>Groups</span>
-                    </a>
+                    </div>
                   </Link>
                 </Button>
               </>
             )}
             
-            {/* Student-specific links */}
             {isStudent && (
               <>
                 <Button
@@ -159,10 +156,10 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                   data-testid="nav-link-courses"
                 >
                   <Link href="/courses">
-                    <a>
+                    <div className="flex items-center gap-2">
                       <GraduationCap className="h-4 w-4" />
                       <span>Courses</span>
-                    </a>
+                    </div>
                   </Link>
                 </Button>
                 <Button
@@ -173,10 +170,10 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                   data-testid="nav-link-personal-tutor"
                 >
                   <Link href="/personal-tutor">
-                    <a>
+                    <div className="flex items-center gap-2">
                       <BrainCircuit className="h-4 w-4" />
                       <span>Personal Tutor</span>
-                    </a>
+                    </div>
                   </Link>
                 </Button>
                 <Button
@@ -187,29 +184,12 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                   data-testid="nav-link-leaderboard"
                 >
                   <Link href="/leaderboard">
-                    <a>
+                    <div className="flex items-center gap-2">
                       <Trophy className="h-4 w-4" />
                       <span>Leaderboard</span>
-                    </a>
+                    </div>
                   </Link>
                 </Button>
-                {/* Challenges tab hidden */}
-                {/* 
-                <Button
-                  asChild
-                  variant="ghost"
-                  size="sm"
-                  className={`text-white hover:bg-white/20 gap-2 ${location === '/challenges' ? 'bg-white/20' : ''}`}
-                  data-testid="nav-link-challenges"
-                >
-                  <Link href="/challenges">
-                    <a>
-                      <Target className="h-4 w-4" />
-                      <span>Challenges</span>
-                    </a>
-                  </Link>
-                </Button>
-                */}
                 <Button
                   asChild
                   variant="ghost"
@@ -218,10 +198,10 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                   data-testid="nav-link-problem-solving"
                 >
                   <Link href="/problem-solving">
-                    <a>
+                    <div className="flex items-center gap-2">
                       <Lightbulb className="h-4 w-4" />
                       <span>Q&A</span>
-                    </a>
+                    </div>
                   </Link>
                 </Button>
               </>

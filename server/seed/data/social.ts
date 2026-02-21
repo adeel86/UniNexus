@@ -7,15 +7,16 @@ export async function seedConnections(insertedUsers: User[]): Promise<void> {
   if (insertedUsers.length < 8) return;
 
   const demoUsers = getDemoUsers(insertedUsers);
-  const teacherDrAdeel = demoUsers.teacherDrAdeel!;
-  const teacherSheldon = demoUsers.teacherSheldon!;
-  const studentAdeel = demoUsers.studentAdeel!;
-  const studentAneeqa = demoUsers.studentAneeqa!;
-  const uniAdminDISC = demoUsers.uniAdminDISC!;
-  const industryScreenGlitz = demoUsers.industryScreenGlitz!;
-  const industryCouchPotatos = demoUsers.industryCouchPotatos!;
+  const teacherDrAdeel = demoUsers.teacherDrAdeel || insertedUsers.find(u => u.role === 'teacher') || insertedUsers[0];
+  const teacherSheldon = demoUsers.teacherSheldon || insertedUsers.find(u => u.role === 'teacher' && u.id !== teacherDrAdeel.id) || insertedUsers[0];
+  const studentAdeel = demoUsers.studentAdeel || insertedUsers.find(u => u.role === 'student') || insertedUsers[0];
+  const studentAneeqa = demoUsers.studentAneeqa || insertedUsers.find(u => u.role === 'student' && u.id !== studentAdeel.id) || insertedUsers[0];
+  const uniAdminDISC = demoUsers.uniAdminDISC || insertedUsers.find(u => u.role === 'university_admin') || insertedUsers[0];
+  const industryScreenGlitz = demoUsers.industryScreenGlitz || insertedUsers.find(u => u.role === 'industry_professional') || insertedUsers[0];
+  const industryCouchPotatos = demoUsers.industryCouchPotatos || insertedUsers.find(u => u.role === 'industry_professional' && u.id !== industryScreenGlitz.id) || insertedUsers[0];
   
   const additionalUsers = insertedUsers.filter(u => 
+    u && u.email && 
     u.email !== teacherDrAdeel.email && u.email !== teacherSheldon.email &&
     u.email !== studentAdeel.email && u.email !== studentAneeqa.email &&
     u.email !== uniAdminDISC.email && u.email !== industryScreenGlitz.email &&
@@ -52,17 +53,18 @@ export async function seedConnections(insertedUsers: User[]): Promise<void> {
 }
 
 export async function seedFollowers(insertedUsers: User[]): Promise<void> {
-  if (insertedUsers.length < 8) return;
+  if (insertedUsers.length < 2) return;
 
   const demoUsers = getDemoUsers(insertedUsers);
-  const teacherDrAdeel = demoUsers.teacherDrAdeel!;
-  const teacherSheldon = demoUsers.teacherSheldon!;
-  const studentAdeel = demoUsers.studentAdeel!;
-  const studentAneeqa = demoUsers.studentAneeqa!;
-  const industryScreenGlitz = demoUsers.industryScreenGlitz!;
-  const industryCouchPotatos = demoUsers.industryCouchPotatos!;
+  const teacherDrAdeel = demoUsers.teacherDrAdeel || insertedUsers.find(u => u.role === 'teacher') || insertedUsers[0];
+  const teacherSheldon = demoUsers.teacherSheldon || insertedUsers.find(u => u.role === 'teacher' && u.id !== teacherDrAdeel.id) || insertedUsers[0];
+  const studentAdeel = demoUsers.studentAdeel || insertedUsers.find(u => u.role === 'student') || insertedUsers[0];
+  const studentAneeqa = demoUsers.studentAneeqa || insertedUsers.find(u => u.role === 'student' && u.id !== studentAdeel.id) || insertedUsers[0];
+  const industryScreenGlitz = demoUsers.industryScreenGlitz || insertedUsers.find(u => u.role === 'industry_professional') || insertedUsers[0];
+  const industryCouchPotatos = demoUsers.industryCouchPotatos || insertedUsers.find(u => u.role === 'industry_professional' && u.id !== industryScreenGlitz.id) || insertedUsers[0];
   
   const additionalUsers = insertedUsers.filter(u => 
+    u && u.email &&
     u.email !== teacherDrAdeel.email && u.email !== teacherSheldon.email &&
     u.email !== studentAdeel.email && u.email !== studentAneeqa.email &&
     u.email !== industryScreenGlitz.email && u.email !== industryCouchPotatos.email
@@ -100,13 +102,13 @@ export async function seedFollowers(insertedUsers: User[]): Promise<void> {
 }
 
 export async function seedEndorsements(insertedUsers: User[], insertedSkills: Skill[]): Promise<void> {
-  if (insertedUsers.length < 8 || insertedSkills.length === 0) return;
+  if (insertedUsers.length < 2 || insertedSkills.length === 0) return;
 
   const demoUsers = getDemoUsers(insertedUsers);
-  const teacherDrAdeel = demoUsers.teacherDrAdeel!;
-  const teacherSheldon = demoUsers.teacherSheldon!;
-  const studentAdeel = demoUsers.studentAdeel!;
-  const studentAneeqa = demoUsers.studentAneeqa!;
+  const teacherDrAdeel = demoUsers.teacherDrAdeel || insertedUsers.find(u => u.role === 'teacher') || insertedUsers[0];
+  const teacherSheldon = demoUsers.teacherSheldon || insertedUsers.find(u => u.role === 'teacher' && u.id !== teacherDrAdeel.id) || insertedUsers[0];
+  const studentAdeel = demoUsers.studentAdeel || insertedUsers.find(u => u.role === 'student') || insertedUsers[0];
+  const studentAneeqa = demoUsers.studentAneeqa || insertedUsers.find(u => u.role === 'student' && u.id !== studentAdeel.id) || insertedUsers[0];
 
   const mockEndorsements = [
     { 
@@ -147,14 +149,14 @@ export async function seedEndorsements(insertedUsers: User[], insertedSkills: Sk
 }
 
 export async function seedConversations(insertedUsers: User[]): Promise<Conversation[]> {
-  if (insertedUsers.length < 4) return [];
+  if (insertedUsers.length < 2) return [];
 
   const demoUsers = getDemoUsers(insertedUsers);
-  const teacherDrAdeel = demoUsers.teacherDrAdeel!;
-  const teacherSheldon = demoUsers.teacherSheldon!;
-  const studentAdeel = demoUsers.studentAdeel!;
-  const studentAneeqa = demoUsers.studentAneeqa!;
-  const industryScreenGlitz = demoUsers.industryScreenGlitz!;
+  const teacherDrAdeel = demoUsers.teacherDrAdeel || insertedUsers.find(u => u.role === 'teacher') || insertedUsers[0];
+  const teacherSheldon = demoUsers.teacherSheldon || insertedUsers.find(u => u.role === 'teacher' && u.id !== teacherDrAdeel.id) || insertedUsers[0];
+  const studentAdeel = demoUsers.studentAdeel || insertedUsers.find(u => u.role === 'student') || insertedUsers[0];
+  const studentAneeqa = demoUsers.studentAneeqa || insertedUsers.find(u => u.role === 'student' && u.id !== studentAdeel.id) || insertedUsers[0];
+  const industryScreenGlitz = demoUsers.industryScreenGlitz || insertedUsers.find(u => u.role === 'industry_professional') || insertedUsers[0];
 
   const mockConversations = [
     // Student to student
@@ -199,10 +201,10 @@ export async function seedMessages(insertedConversations: Conversation[], insert
   if (insertedConversations.length === 0) return;
 
   const demoUsers = getDemoUsers(insertedUsers);
-  const teacherDrAdeel = demoUsers.teacherDrAdeel!;
-  const studentAdeel = demoUsers.studentAdeel!;
-  const studentAneeqa = demoUsers.studentAneeqa!;
-  const industryScreenGlitz = demoUsers.industryScreenGlitz!;
+  const teacherDrAdeel = demoUsers.teacherDrAdeel || insertedUsers.find(u => u.role === 'teacher') || insertedUsers[0];
+  const studentAdeel = demoUsers.studentAdeel || insertedUsers.find(u => u.role === 'student') || insertedUsers[0];
+  const studentAneeqa = demoUsers.studentAneeqa || insertedUsers.find(u => u.role === 'student' && u.id !== studentAdeel.id) || insertedUsers[0];
+  const industryScreenGlitz = demoUsers.industryScreenGlitz || insertedUsers.find(u => u.role === 'industry_professional') || insertedUsers[0];
 
   const mockMessages = [
     // Conversation 0: Students chatting

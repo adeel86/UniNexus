@@ -72,8 +72,10 @@ function Router() {
       case 'teacher':
         return TeacherDashboard;
       case 'university_admin':
+      case 'university':
         return UniversityDashboard;
       case 'industry_professional':
+      case 'industry':
         return IndustryDashboard;
       case 'master_admin':
         return MasterAdminDashboard;

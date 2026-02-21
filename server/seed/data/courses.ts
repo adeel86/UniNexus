@@ -6,10 +6,10 @@ import { getDemoUsers } from "./users";
 export async function seedCourses(insertedUsers: User[]): Promise<Course[]> {
   const demoUsers = getDemoUsers(insertedUsers);
   
-  const teacherDrAdeel = demoUsers.teacherDrAdeel!;
-  const teacherSheldon = demoUsers.teacherSheldon!;
-  const uniAdminDISC = demoUsers.uniAdminDISC!;
-  const uniAdminTechNerd = demoUsers.uniAdminTechNerd!;
+  const teacherDrAdeel = demoUsers.teacherDrAdeel || insertedUsers.find(u => u.role === 'teacher') || insertedUsers[0];
+  const teacherSheldon = demoUsers.teacherSheldon || insertedUsers.find(u => u.role === 'teacher' && u.id !== teacherDrAdeel.id) || insertedUsers[0];
+  const uniAdminDISC = demoUsers.uniAdminDISC || insertedUsers.find(u => u.role === 'university_admin') || insertedUsers[0];
+  const uniAdminTechNerd = demoUsers.uniAdminTechNerd || insertedUsers.find(u => u.role === 'university_admin' && u.id !== uniAdminDISC.id) || insertedUsers[0];
   
   const mockCourses = [
     {
@@ -110,8 +110,8 @@ export async function seedEnrollmentsAndDiscussions(insertedCourses: Course[], i
   if (insertedCourses.length === 0) return;
 
   const demoUsers = getDemoUsers(insertedUsers);
-  const studentAdeel = demoUsers.studentAdeel!;
-  const studentAneeqa = demoUsers.studentAneeqa!;
+  const studentAdeel = demoUsers.studentAdeel || insertedUsers.find(u => u.role === 'student') || insertedUsers[0];
+  const studentAneeqa = demoUsers.studentAneeqa || insertedUsers.find(u => u.role === 'student' && u.id !== studentAdeel.id) || insertedUsers[0];
   const additionalStudents = insertedUsers.filter(u => u?.role === 'student' && u.email !== studentAdeel.email && u.email !== studentAneeqa.email).slice(0, 4);
   
   const enrollments: { courseId: string; studentId: string }[] = [];
@@ -180,8 +180,8 @@ export async function seedEnrollmentsAndDiscussions(insertedCourses: Course[], i
   console.log(`Inserted ${insertedDiscussions.length} discussions`);
 
   if (insertedDiscussions.length > 0) {
-    const teacherDrAdeel = demoUsers.teacherDrAdeel!;
-    const teacherSheldon = demoUsers.teacherSheldon!;
+    const teacherDrAdeel = demoUsers.teacherDrAdeel || insertedUsers.find(u => u.role === 'teacher') || insertedUsers[0];
+    const teacherSheldon = demoUsers.teacherSheldon || insertedUsers.find(u => u.role === 'teacher' && u.id !== teacherDrAdeel.id) || insertedUsers[0];
     
     const mockReplies = [
       {
@@ -211,8 +211,8 @@ export async function seedTeacherContent(insertedCourses: Course[], insertedUser
   if (insertedCourses.length === 0) return;
 
   const demoUsers = getDemoUsers(insertedUsers);
-  const teacherDrAdeel = demoUsers.teacherDrAdeel!;
-  const teacherSheldon = demoUsers.teacherSheldon!;
+  const teacherDrAdeel = demoUsers.teacherDrAdeel || insertedUsers.find(u => u.role === 'teacher') || insertedUsers[0];
+  const teacherSheldon = demoUsers.teacherSheldon || insertedUsers.find(u => u.role === 'teacher' && u.id !== teacherDrAdeel.id) || insertedUsers[0];
 
   const mockTeacherContent = [
     {
