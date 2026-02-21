@@ -142,56 +142,144 @@ export default function Network() {
   );
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-5xl">
-      <div className="mb-6">
-        <h1 className="font-heading text-3xl font-bold mb-2">My Network</h1>
-        <p className="text-muted-foreground">
-          Connect with students, teachers, and industry professionals
-        </p>
-      </div>
-
-      {/* Search Bar */}
-      <Card className="p-4 mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search for people to connect with..."
-            className="pl-10"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            data-testid="input-search-network"
-          />
+    <div className="container mx-auto px-4 py-8 max-w-5xl h-[calc(100vh-64px)] overflow-hidden flex flex-col">
+      <div className="mb-6 flex items-center gap-3 shrink-0 px-2">
+        <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
+          <Users className="h-8 w-8 text-purple-600" />
         </div>
+        <div>
+          <h1 className="text-3xl font-heading font-bold">My Network</h1>
+          <p className="text-muted-foreground">Connect with students, teachers, and industry professionals</p>
+        </div>
+      </div>
+      
+      <div className="flex-1 min-h-0 overflow-y-auto pr-2 custom-scrollbar">
+        {/* Search Bar */}
+        <Card className="p-4 mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search for people to connect with..."
+              className="pl-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              data-testid="input-search-network"
+            />
+          </div>
 
-        {/* Search Results */}
-        {searchTerm.length > 2 && (
-          <div className="mt-4">
-            {searchResults.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                No connections found matching "{searchTerm}"
-              </p>
+          {/* Search Results */}
+          {searchTerm.length > 2 && (
+            <div className="mt-4">
+              {searchResults.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  No connections found matching "{searchTerm}"
+                </p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {searchResults.map((user) => (
+                    <Card
+                      key={user.id}
+                      className="p-4 hover-elevate"
+                      data-testid={`search-result-${user.id}`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <UserAvatar user={user} size="lg" />
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">
+                            {user.firstName} {user.lastName}
+                          </p>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {user.role === 'student' && user.major}
+                            {user.role === 'teacher' && 'Teacher'}
+                            {user.role === 'industry_professional' && user.company}
+                            {user.role === 'university_admin' && user.university}
+                          </p>
+                          <Badge variant="secondary" className="mt-2">
+                            {user.role.replace('_', ' ')}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="mt-4 flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => window.location.href = `/profile?userId=${user.id}`}
+                          data-testid={`button-view-profile-${user.id}`}
+                        >
+                          View Profile
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => window.location.href = `/messages?userId=${user.id}`}
+                          data-testid={`button-message-${user.id}`}
+                        >
+                          Message
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </Card>
+
+        {/* Tabs for Connections, Requests, Followers, and Following */}
+        <Tabs defaultValue="connections" className="w-full">
+          <TabsList className="grid w-full grid-cols-4 gap-2">
+            <TabsTrigger value="connections" data-testid="tab-connections">
+              <Users className="h-4 w-4 mr-2" />
+              Connections ({acceptedConnections.length})
+            </TabsTrigger>
+            <TabsTrigger value="requests" data-testid="tab-requests">
+              <UserPlus className="h-4 w-4 mr-2" />
+              Requests ({receivedRequests.length})
+            </TabsTrigger>
+            <TabsTrigger value="followers" data-testid="tab-followers">
+              <Heart className="h-4 w-4 mr-2" />
+              Followers ({followers.length})
+            </TabsTrigger>
+            <TabsTrigger value="following" data-testid="tab-following">
+              <UserCheck className="h-4 w-4 mr-2" />
+              Following ({following.length})
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Connections Tab */}
+          <TabsContent value="connections" className="mt-6">
+            {acceptedConnections.length === 0 ? (
+              <Card className="p-8 text-center">
+                <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="font-semibold text-lg mb-2">No connections yet</h3>
+                <p className="text-muted-foreground mb-4">
+                  Start building your network by connecting with people
+                </p>
+              </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {searchResults.map((user) => (
+                {acceptedConnections.map((connection) => (
                   <Card
-                    key={user.id}
+                    key={connection.id}
                     className="p-4 hover-elevate"
-                    data-testid={`search-result-${user.id}`}
+                    data-testid={`connection-card-${connection.id}`}
                   >
                     <div className="flex items-start gap-3">
-                      <UserAvatar user={user} size="lg" />
+                      <UserAvatar user={connection.user} size="lg" />
                       <div className="flex-1 min-w-0">
                         <p className="font-medium truncate">
-                          {user.firstName} {user.lastName}
+                          {connection.user.firstName} {connection.user.lastName}
                         </p>
                         <p className="text-sm text-muted-foreground truncate">
-                          {user.role === 'student' && user.major}
-                          {user.role === 'teacher' && 'Teacher'}
-                          {user.role === 'industry_professional' && user.company}
-                          {user.role === 'university_admin' && user.university}
+                          {connection.user.role === 'student' && connection.user.major}
+                          {connection.user.role === 'teacher' && 'Teacher'}
+                          {connection.user.role === 'industry_professional' && connection.user.company}
+                          {connection.user.role === 'university_admin' && connection.user.university}
                         </p>
                         <Badge variant="secondary" className="mt-2">
-                          {user.role.replace('_', ' ')}
+                          {connection.user.role.replace('_', ' ')}
                         </Badge>
                       </div>
                     </div>
@@ -200,8 +288,8 @@ export default function Network() {
                         variant="outline"
                         size="sm"
                         className="flex-1"
-                        onClick={() => window.location.href = `/profile?userId=${user.id}`}
-                        data-testid={`button-view-profile-${user.id}`}
+                        onClick={() => window.location.href = `/profile?userId=${connection.user.id}`}
+                        data-testid={`button-view-profile-${connection.id}`}
                       >
                         View Profile
                       </Button>
@@ -209,8 +297,8 @@ export default function Network() {
                         variant="outline"
                         size="sm"
                         className="flex-1"
-                        onClick={() => window.location.href = `/messages?userId=${user.id}`}
-                        data-testid={`button-message-${user.id}`}
+                        onClick={() => window.location.href = `/messages?userId=${connection.user.id}`}
+                        data-testid={`button-message-${connection.id}`}
                       >
                         Message
                       </Button>
@@ -219,282 +307,199 @@ export default function Network() {
                 ))}
               </div>
             )}
-          </div>
-        )}
-      </Card>
+          </TabsContent>
 
-      {/* Tabs for Connections, Requests, Followers, and Following */}
-      <Tabs defaultValue="connections" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 gap-2">
-          <TabsTrigger value="connections" data-testid="tab-connections">
-            <Users className="h-4 w-4 mr-2" />
-            Connections ({acceptedConnections.length})
-          </TabsTrigger>
-          <TabsTrigger value="requests" data-testid="tab-requests">
-            <UserPlus className="h-4 w-4 mr-2" />
-            Requests ({receivedRequests.length})
-          </TabsTrigger>
-          <TabsTrigger value="followers" data-testid="tab-followers">
-            <Heart className="h-4 w-4 mr-2" />
-            Followers ({followers.length})
-          </TabsTrigger>
-          <TabsTrigger value="following" data-testid="tab-following">
-            <UserCheck className="h-4 w-4 mr-2" />
-            Following ({following.length})
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Connections Tab */}
-        <TabsContent value="connections" className="mt-6">
-          {acceptedConnections.length === 0 ? (
-            <Card className="p-8 text-center">
-              <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="font-semibold text-lg mb-2">No connections yet</h3>
-              <p className="text-muted-foreground mb-4">
-                Start building your network by connecting with people
-              </p>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {acceptedConnections.map((connection) => (
-                <Card
-                  key={connection.id}
-                  className="p-4 hover-elevate"
-                  data-testid={`connection-card-${connection.id}`}
-                >
-                  <div className="flex items-start gap-3">
-                    <UserAvatar user={connection.user} size="lg" />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">
-                        {connection.user.firstName} {connection.user.lastName}
-                      </p>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {connection.user.role === 'student' && connection.user.major}
-                        {connection.user.role === 'teacher' && 'Teacher'}
-                        {connection.user.role === 'industry_professional' && connection.user.company}
-                        {connection.user.role === 'university_admin' && connection.user.university}
-                      </p>
-                      <Badge variant="secondary" className="mt-2">
-                        {connection.user.role.replace('_', ' ')}
-                      </Badge>
-                    </div>
-                  </div>
-                  <div className="mt-4 flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => window.location.href = `/profile?userId=${connection.user.id}`}
-                      data-testid={`button-view-profile-${connection.id}`}
-                    >
-                      View Profile
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => window.location.href = `/messages?userId=${connection.user.id}`}
-                      data-testid={`button-message-${connection.id}`}
-                    >
-                      Message
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* Requests Tab */}
-        <TabsContent value="requests" className="mt-6">
-          {receivedRequests.length === 0 ? (
-            <Card className="p-8 text-center">
-              <UserPlus className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="font-semibold text-lg mb-2">No pending requests</h3>
-              <p className="text-muted-foreground">
-                You have no connection requests at the moment
-              </p>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {receivedRequests.map((request) => (
-                <Card
-                  key={request.id}
-                  className="p-4"
-                  data-testid={`request-card-${request.id}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <UserAvatar user={request.user} size="md" />
-                      <div>
-                        <p className="font-medium">
-                          {request.user.firstName} {request.user.lastName}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {request.user.role === 'student' && request.user.major}
-                          {request.user.role === 'teacher' && 'Teacher'}
-                          {request.user.role === 'industry_professional' && request.user.company}
-                          {request.user.role === 'university_admin' && request.user.university}
-                        </p>
+          {/* Requests Tab */}
+          <TabsContent value="requests" className="mt-6">
+            {receivedRequests.length === 0 ? (
+              <Card className="p-8 text-center">
+                <UserPlus className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="font-semibold text-lg mb-2">No pending requests</h3>
+                <p className="text-muted-foreground">
+                  You have no connection requests at the moment
+                </p>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {receivedRequests.map((request) => (
+                  <Card
+                    key={request.id}
+                    className="p-4"
+                    data-testid={`request-card-${request.id}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <UserAvatar user={request.user} size="md" />
+                        <div>
+                          <p className="font-medium">
+                            {request.user.firstName} {request.user.lastName}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {request.user.role === 'student' && request.user.major}
+                            {request.user.role === 'teacher' && 'Teacher'}
+                            {request.user.role === 'industry_professional' && request.user.company}
+                            {request.user.role === 'university_admin' && request.user.university}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          onClick={() => respondToRequest.mutate({ id: request.id, status: 'accepted' })}
+                          disabled={respondToRequest.isPending}
+                          data-testid={`button-accept-${request.id}`}
+                        >
+                          <UserCheck className="h-4 w-4 mr-2" />
+                          Accept
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => respondToRequest.mutate({ id: request.id, status: 'rejected' })}
+                          disabled={respondToRequest.isPending}
+                          data-testid={`button-reject-${request.id}`}
+                        >
+                          <UserX className="h-4 w-4 mr-2" />
+                          Reject
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => respondToRequest.mutate({ id: request.id, status: 'accepted' })}
-                        disabled={respondToRequest.isPending}
-                        data-testid={`button-accept-${request.id}`}
-                      >
-                        <UserCheck className="h-4 w-4 mr-2" />
-                        Accept
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => respondToRequest.mutate({ id: request.id, status: 'rejected' })}
-                        disabled={respondToRequest.isPending}
-                        data-testid={`button-reject-${request.id}`}
-                      >
-                        <UserX className="h-4 w-4 mr-2" />
-                        Reject
-                      </Button>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
 
-        {/* Followers Tab */}
-        <TabsContent value="followers" className="mt-6">
-          {followers.length === 0 ? (
-            <Card className="p-8 text-center">
-              <Heart className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="font-semibold text-lg mb-2">No followers yet</h3>
-              <p className="text-muted-foreground">
-                Share great content to gain followers
-              </p>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {followers.map((follow) => (
-                <Card
-                  key={follow.id}
-                  className="p-4 hover-elevate"
-                  data-testid={`follower-card-${follow.id}`}
-                >
-                  <div className="flex items-start gap-3">
-                    <UserAvatar user={follow.follower} size="lg" />
-                    <div className="flex-1 min-w-0">
+          {/* Followers Tab */}
+          <TabsContent value="followers" className="mt-6">
+            {followers.length === 0 ? (
+              <Card className="p-8 text-center">
+                <Heart className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="font-semibold text-lg mb-2">No followers yet</h3>
+                <p className="text-muted-foreground">
+                  Share great content to gain followers
+                </p>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {followers.map((follow) => (
+                  <Card
+                    key={follow.id}
+                    className="p-4 hover-elevate"
+                    data-testid={`follower-card-${follow.id}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <UserAvatar user={follow.follower} size="lg" />
+                      <div className="flex-1 min-w-0">
+                        <Link href={`/profile?userId=${follow.follower.id}`}>
+                          <p className="font-medium truncate hover:text-primary cursor-pointer">
+                            {follow.follower.firstName} {follow.follower.lastName}
+                          </p>
+                        </Link>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {follow.follower.role === 'student' && follow.follower.major}
+                          {follow.follower.role === 'teacher' && 'Teacher'}
+                          {follow.follower.role === 'industry_professional' && follow.follower.company}
+                          {follow.follower.role === 'university_admin' && follow.follower.university}
+                        </p>
+                        <Badge variant="secondary" className="mt-2">
+                          {follow.follower.role.replace('_', ' ')}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="mt-4 flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => followUser.mutate(follow.follower.id)}
+                        disabled={followUser.isPending}
+                        data-testid={`button-follow-back-${follow.id}`}
+                      >
+                        Follow Back
+                      </Button>
                       <Link href={`/profile?userId=${follow.follower.id}`}>
-                        <p className="font-medium truncate hover:text-primary cursor-pointer">
-                          {follow.follower.firstName} {follow.follower.lastName}
-                        </p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          data-testid={`button-view-follower-${follow.id}`}
+                        >
+                          View
+                        </Button>
                       </Link>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {follow.follower.role === 'student' && follow.follower.major}
-                        {follow.follower.role === 'teacher' && 'Teacher'}
-                        {follow.follower.role === 'industry_professional' && follow.follower.company}
-                        {follow.follower.role === 'university_admin' && follow.follower.university}
-                      </p>
-                      <Badge variant="secondary" className="mt-2">
-                        {follow.follower.role.replace('_', ' ')}
-                      </Badge>
                     </div>
-                  </div>
-                  <div className="mt-4 flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => followUser.mutate(follow.follower.id)}
-                      disabled={followUser.isPending}
-                      data-testid={`button-follow-back-${follow.id}`}
-                    >
-                      Follow Back
-                    </Button>
-                    <Link href={`/profile?userId=${follow.follower.id}`}>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        data-testid={`button-view-follower-${follow.id}`}
-                      >
-                        View
-                      </Button>
-                    </Link>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
 
-        {/* Following Tab */}
-        <TabsContent value="following" className="mt-6">
-          {following.length === 0 ? (
-            <Card className="p-8 text-center">
-              <UserCheck className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="font-semibold text-lg mb-2">Not following anyone</h3>
-              <p className="text-muted-foreground">
-                Discover people to follow in the Discovery page
-              </p>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {following.map((follow) => (
-                <Card
-                  key={follow.id}
-                  className="p-4 hover-elevate"
-                  data-testid={`following-card-${follow.id}`}
-                >
-                  <div className="flex items-start gap-3">
-                    <UserAvatar user={follow.following} size="lg" />
-                    <div className="flex-1 min-w-0">
-                      <Link href={`/profile?userId=${follow.following.id}`}>
-                        <p className="font-medium truncate hover:text-primary cursor-pointer">
-                          {follow.following.firstName} {follow.following.lastName}
+          {/* Following Tab */}
+          <TabsContent value="following" className="mt-6">
+            {following.length === 0 ? (
+              <Card className="p-8 text-center">
+                <UserCheck className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                <h3 className="font-semibold text-lg mb-2">Not following anyone</h3>
+                <p className="text-muted-foreground">
+                  Discover people to follow in the Discovery page
+                </p>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {following.map((follow) => (
+                  <Card
+                    key={follow.id}
+                    className="p-4 hover-elevate"
+                    data-testid={`following-card-${follow.id}`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <UserAvatar user={follow.following} size="lg" />
+                      <div className="flex-1 min-w-0">
+                        <Link href={`/profile?userId=${follow.following.id}`}>
+                          <p className="font-medium truncate hover:text-primary cursor-pointer">
+                            {follow.following.firstName} {follow.following.lastName}
+                          </p>
+                        </Link>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {follow.following.role === 'student' && follow.following.major}
+                          {follow.following.role === 'teacher' && 'Teacher'}
+                          {follow.following.role === 'industry_professional' && follow.following.company}
+                          {follow.following.role === 'university_admin' && follow.following.university}
                         </p>
-                      </Link>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {follow.following.role === 'student' && follow.following.major}
-                        {follow.following.role === 'teacher' && 'Teacher'}
-                        {follow.following.role === 'industry_professional' && follow.following.company}
-                        {follow.following.role === 'university_admin' && follow.following.university}
-                      </p>
-                      <Badge variant="secondary" className="mt-2">
-                        {follow.following.role.replace('_', ' ')}
-                      </Badge>
+                        <Badge variant="secondary" className="mt-2">
+                          {follow.following.role.replace('_', ' ')}
+                        </Badge>
+                      </div>
                     </div>
-                  </div>
-                  <div className="mt-4 flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => unfollowUser.mutate(follow.following.id)}
-                      disabled={unfollowUser.isPending}
-                      data-testid={`button-unfollow-${follow.id}`}
-                    >
-                      <UserMinus className="h-4 w-4 mr-2" />
-                      Unfollow
-                    </Button>
-                    <Link href={`/profile?userId=${follow.following.id}`}>
+                    <div className="mt-4 flex gap-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        data-testid={`button-view-following-${follow.id}`}
+                        className="flex-1"
+                        onClick={() => unfollowUser.mutate(follow.following.id)}
+                        disabled={unfollowUser.isPending}
+                        data-testid={`button-unfollow-${follow.id}`}
                       >
-                        View
+                        <UserMinus className="h-4 w-4 mr-2" />
+                        Unfollow
                       </Button>
-                    </Link>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+                      <Link href={`/profile?userId=${follow.following.id}`}>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          data-testid={`button-view-following-${follow.id}`}
+                        >
+                          View
+                        </Button>
+                      </Link>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   );
 }

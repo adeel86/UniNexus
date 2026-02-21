@@ -161,14 +161,20 @@ export default function Messages() {
   ) || [];
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-5xl h-[calc(100vh-8rem)]">
-      <div className="mb-4">
-        <h1 className="font-heading text-3xl font-bold">Messages</h1>
+    <div className="container mx-auto px-4 py-8 max-w-5xl h-[calc(100vh-64px)] overflow-hidden flex flex-col">
+      <div className="mb-6 flex items-center gap-3 shrink-0 px-2">
+        <div className="p-3 bg-pink-100 dark:bg-pink-900/30 rounded-xl">
+          <MessageCircle className="h-8 w-8 text-pink-600" />
+        </div>
+        <div>
+          <h1 className="text-3xl font-heading font-bold">Messages</h1>
+          <p className="text-muted-foreground">Connect and collaborate with your network</p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-4 h-full">
+      <div className="flex-1 min-h-0 grid grid-cols-12 gap-4 h-full">
         {/* Conversations List */}
-        <Card className="col-span-12 md:col-span-4 p-4 flex flex-col">
+        <Card className="col-span-12 md:col-span-4 p-4 flex flex-col min-h-0">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold">Conversations</h2>
             <Dialog open={newConversationOpen} onOpenChange={setNewConversationOpen}>
@@ -303,7 +309,7 @@ export default function Messages() {
         </Card>
 
         {/* Chat Window */}
-        <Card className="col-span-12 md:col-span-8 p-4 flex flex-col">
+        <Card className="col-span-12 md:col-span-8 p-4 flex flex-col min-h-0">
           {!selectedConversationId ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
@@ -317,7 +323,7 @@ export default function Messages() {
           ) : (
             <>
               {/* Chat Header */}
-              <div className="border-b pb-4 mb-4">
+              <div className="border-b pb-4 mb-4 shrink-0">
                 <div className="flex items-center gap-3">
                   {otherParticipants.map(user => (
                     <div key={user.id} className="flex items-center gap-3">
@@ -368,7 +374,7 @@ export default function Messages() {
               </ScrollArea>
 
               {/* Message Input */}
-              <form onSubmit={handleSendMessage} className="mt-4 flex gap-2">
+              <form onSubmit={handleSendMessage} className="mt-4 flex gap-2 shrink-0">
                 <Input
                   value={messageInput}
                   onChange={(e) => setMessageInput(e.target.value)}
