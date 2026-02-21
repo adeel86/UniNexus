@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +17,8 @@ export function PersonalTutor() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [input, setInput] = useState("");
   const [mode, setMode] = useState("Explain");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const { data: materials = [] } = useQuery<StudentPersonalTutorMaterial[]>({
     queryKey: ["/api/ai/personal-tutor/materials"],
@@ -58,6 +60,30 @@ export function PersonalTutor() {
     },
   });
 
+  const uploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await apiRequest("POST", "/api/ai/personal-tutor/materials", formData);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ai/personal-tutor/materials"] });
+      toast({
+        title: "Success",
+        description: "Material uploaded successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Upload failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+    onSettled: () => setIsUploading(false),
+  });
+
   const handleSend = () => {
     if (!input.trim() || sendMessageMutation.isPending) return;
     
@@ -69,6 +95,14 @@ export function PersonalTutor() {
       });
     } else {
       sendMessageMutation.mutate(input);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setIsUploading(true);
+      uploadMutation.mutate(file);
     }
   };
 
@@ -84,9 +118,21 @@ export function PersonalTutor() {
             </CardTitle>
           </CardHeader>
           <CardContent className="flex-1 flex flex-col min-h-0">
-            <Button className="w-full justify-start gap-2 mb-4 shrink-0" variant="outline">
+            <input
+              type="file"
+              className="hidden"
+              onChange={handleFileChange}
+              ref={fileInputRef}
+              accept=".pdf,.doc,.docx,.txt"
+            />
+            <Button 
+              className="w-full justify-start gap-2 mb-4 shrink-0" 
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+            >
               <Upload className="h-4 w-4" />
-              Upload Material
+              {isUploading ? "Uploading..." : "Upload Material"}
             </Button>
             <div className="flex-1 flex flex-col gap-6 min-h-0">
               <div className="flex-1 flex flex-col min-h-0">

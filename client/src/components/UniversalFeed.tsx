@@ -19,19 +19,28 @@ interface UniversalFeedProps {
   role: string;
   initialCategory?: string;
   showOnlyOwnPosts?: boolean;
+  feedType?: 'personalized' | 'following' | 'my-posts';
 }
 
-export function UniversalFeed({ role, initialCategory = "social", showOnlyOwnPosts = false }: UniversalFeedProps) {
+export function UniversalFeed({ 
+  role, 
+  initialCategory = "social", 
+  showOnlyOwnPosts = false,
+  feedType: initialFeedType
+}: UniversalFeedProps) {
   const { userData: user } = useAuth();
   const [createPostOpen, setCreatePostOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [feedType, setFeedType] = useState<'personalized' | 'following'>('personalized');
+  const [feedType, setFeedType] = useState<'personalized' | 'following' | 'my-posts'>(initialFeedType || (showOnlyOwnPosts ? 'my-posts' : 'personalized'));
 
   // My Posts logic
-  const myPostsUrl = `/api/posts?authorId=${user?.id}`;
+  const myPostsUrl = selectedCategory && selectedCategory !== 'all'
+    ? `/api/posts?userId=${user?.id}&category=${selectedCategory}`
+    : `/api/posts?userId=${user?.id}`;
+
   const { data: myPosts = [], isLoading: isLoadingMyPosts } = useQuery<PostWithAuthor[]>({
     queryKey: [myPostsUrl],
-    enabled: !!user?.id && showOnlyOwnPosts,
+    enabled: !!user?.id && (showOnlyOwnPosts || feedType === 'my-posts'),
   });
 
   // Personalized AI-curated feed
@@ -54,8 +63,8 @@ export function UniversalFeed({ role, initialCategory = "social", showOnlyOwnPos
     enabled: !showOnlyOwnPosts && feedType === 'following',
   });
 
-  const posts = showOnlyOwnPosts ? myPosts : (feedType === 'personalized' ? personalizedPosts : followingPosts);
-  const isLoading = showOnlyOwnPosts ? isLoadingMyPosts : (feedType === 'personalized' ? isLoadingPersonalized : isLoadingFollowing);
+  const posts = feedType === 'my-posts' ? myPosts : (feedType === 'personalized' ? personalizedPosts : followingPosts);
+  const isLoading = feedType === 'my-posts' ? isLoadingMyPosts : (feedType === 'personalized' ? isLoadingPersonalized : isLoadingFollowing);
 
   const categories = [
     { value: "all", label: "All Posts", icon: TrendingUp },
@@ -78,8 +87,8 @@ export function UniversalFeed({ role, initialCategory = "social", showOnlyOwnPos
       )}
 
       {/* Feed Type Toggle */}
-      {!showOnlyOwnPosts && (
-        <Tabs value={feedType} onValueChange={(v) => setFeedType(v as 'personalized' | 'following')}>
+      {(!showOnlyOwnPosts && !initialFeedType) && (
+        <Tabs value={feedType} onValueChange={(v) => setFeedType(v as 'personalized' | 'following' | 'my-posts')}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="personalized" data-testid="tab-personalized">
               <TrendingUp className="h-4 w-4 mr-2" />
@@ -94,7 +103,7 @@ export function UniversalFeed({ role, initialCategory = "social", showOnlyOwnPos
       )}
 
       {/* Category Filter */}
-      {!showOnlyOwnPosts && (
+      {(!showOnlyOwnPosts || initialFeedType === 'my-posts') && (
         <div className="flex gap-2 flex-wrap">
           {categories.map((category) => (
             <Button
@@ -111,7 +120,7 @@ export function UniversalFeed({ role, initialCategory = "social", showOnlyOwnPos
         </div>
       )}
 
-      {showOnlyOwnPosts && (
+      {(showOnlyOwnPosts || initialFeedType === 'my-posts') && (
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold font-heading">My Posts</h2>
           <Button onClick={() => setCreatePostOpen(true)} size="sm">

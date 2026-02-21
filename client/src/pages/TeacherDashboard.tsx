@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, Plus, MessageSquare, GraduationCap, FileCheck } from "lucide-react";
+import { TrendingUp, Plus, MessageSquare, GraduationCap, FileCheck, Sparkles, Users, MessageCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { CreatePostModal } from "@/components/CreatePostModal";
 import { SuggestedPosts } from "@/components/SuggestedPosts";
@@ -56,9 +56,23 @@ export default function TeacherDashboard() {
     handleEndorseClick,
     handleIssueCertificateClick,
     handleCareerInsightsClick,
-    handleCreatePost,
-    handleSelectSuggestion,
-  } = useTeacherDashboard();
+    const handleSelectSuggestion = (content: string, category: string, tags: string) => {
+      setPostInitialValues({
+        content,
+        category,
+        tags
+      });
+      setCreatePostOpen(true);
+    };
+
+    const handleCreatePost = () => {
+      setPostInitialValues({
+        content: "",
+        category: "academic",
+        tags: ""
+      });
+      setCreatePostOpen(true);
+    };
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
@@ -70,14 +84,10 @@ export default function TeacherDashboard() {
       </div>
 
       <Tabs defaultValue="feed" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+        <TabsList className="grid w-full grid-cols-3 max-w-2xl">
           <TabsTrigger value="feed" data-testid="tab-feed">
             <MessageSquare className="h-4 w-4 mr-2" />
             Feed
-          </TabsTrigger>
-          <TabsTrigger value="my-posts" data-testid="tab-my-posts">
-            <Plus className="h-4 w-4 mr-2" />
-            My Posts
           </TabsTrigger>
           <TabsTrigger value="analytics" data-testid="tab-analytics">
             <TrendingUp className="h-4 w-4 mr-2" />
@@ -94,11 +104,31 @@ export default function TeacherDashboard() {
         </TabsContent>
 
         <TabsContent value="feed">
-          <UniversalFeed role="teacher" initialCategory="academic" />
-        </TabsContent>
-
-        <TabsContent value="my-posts">
-          <UniversalFeed role="teacher" showOnlyOwnPosts={true} />
+          <Tabs defaultValue="for-you" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 mb-4">
+              <TabsTrigger value="for-you" className="gap-2">
+                <Sparkles className="h-4 w-4" />
+                For You
+              </TabsTrigger>
+              <TabsTrigger value="following" className="gap-2">
+                <Users className="h-4 w-4" />
+                Following
+              </TabsTrigger>
+              <TabsTrigger value="my-posts" className="gap-2">
+                <MessageCircle className="h-4 w-4" />
+                My Posts
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="for-you">
+              <UniversalFeed role="teacher" initialCategory="academic" feedType="personalized" />
+            </TabsContent>
+            <TabsContent value="following">
+              <UniversalFeed role="teacher" initialCategory="academic" feedType="following" />
+            </TabsContent>
+            <TabsContent value="my-posts">
+              <UniversalFeed role="teacher" showOnlyOwnPosts={true} feedType="my-posts" />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="analytics">

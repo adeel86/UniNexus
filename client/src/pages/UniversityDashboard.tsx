@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, TrendingDown, Users, Award, Target, AlertTriangle, Trophy, GraduationCap, FileCheck, Briefcase, MessageSquare, CheckCircle, BookOpen, Loader2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Users, Award, Target, AlertTriangle, Trophy, GraduationCap, FileCheck, Briefcase, MessageSquare, CheckCircle, BookOpen, Loader2, Sparkles, MessageCircle } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { UniversalFeed } from "@/components/UniversalFeed";
 import {
@@ -41,8 +41,13 @@ export default function UniversityDashboard() {
     atRiskStudents,
     engagementRate,
     engagementData,
-    departmentRetentionData,
-  } = useUniversityDashboard();
+    const handleSelectSuggestion = (content: string, category: string, tags: string) => {
+      // Implementation for university suggestion selection if needed
+    };
+
+    const handleCreatePost = () => {
+      // Implementation for university post creation if needed
+    };
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
@@ -54,13 +59,10 @@ export default function UniversityDashboard() {
       </div>
 
       <Tabs defaultValue="feed" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 max-w-lg">
+        <TabsList className="grid w-full grid-cols-3 max-w-lg">
           <TabsTrigger value="feed" data-testid="tab-feed">
             <MessageSquare className="h-4 w-4 mr-2" />
             Feed
-          </TabsTrigger>
-          <TabsTrigger value="my-posts" data-testid="tab-my-posts">
-            My Posts
           </TabsTrigger>
           <TabsTrigger value="analytics" data-testid="tab-analytics">
             <TrendingUp className="h-4 w-4 mr-2" />
@@ -78,11 +80,31 @@ export default function UniversityDashboard() {
         </TabsList>
 
         <TabsContent value="feed">
-          <UniversalFeed role="university" initialCategory="all" />
-        </TabsContent>
-
-        <TabsContent value="my-posts">
-          <UniversalFeed role="university" showOnlyOwnPosts={true} />
+          <Tabs defaultValue="for-you" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 mb-4">
+              <TabsTrigger value="for-you" className="gap-2">
+                <Sparkles className="h-4 w-4" />
+                For You
+              </TabsTrigger>
+              <TabsTrigger value="following" className="gap-2">
+                <Users className="h-4 w-4" />
+                Following
+              </TabsTrigger>
+              <TabsTrigger value="my-posts" className="gap-2">
+                <MessageCircle className="h-4 w-4" />
+                My Posts
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="for-you">
+              <UniversalFeed role="university" initialCategory="all" feedType="personalized" />
+            </TabsContent>
+            <TabsContent value="following">
+              <UniversalFeed role="university" initialCategory="all" feedType="following" />
+            </TabsContent>
+            <TabsContent value="my-posts">
+              <UniversalFeed role="university" showOnlyOwnPosts={true} feedType="my-posts" />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         <TabsContent value="validations">
