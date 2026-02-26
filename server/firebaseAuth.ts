@@ -112,6 +112,9 @@ export async function setupAuth(app: Express): Promise<void> {
 
     const authHeader = req.headers?.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      // In development, if no token is provided but we are on a registration/login path, 
+      // we might want to allow it to proceed or provide a dummy user for the register route 
+      // if the frontend expects one from the middleware.
       return next();
     }
 
@@ -144,25 +147,22 @@ export async function setupAuth(app: Express): Promise<void> {
             console.error('Non-fatal dev token verification failed:', e);
           }
         }
-          if (user) {
-            req.user = {
-              id: user.id,
-              email: user.email || '',
-              role: user.role,
-              firstName: user.firstName || '',
-              lastName: user.lastName || '',
-              major: user.major || undefined,
-              university: user.university || undefined,
-              company: user.company || undefined,
-              bio: user.bio || undefined,
-              avatarUrl: user.profileImageUrl || undefined,
-              engagementScore: user.engagementScore,
-              problemSolverScore: user.problemSolverScore,
-              endorsementScore: user.endorsementScore,
-            };
-          }
-        } catch (e) {
-          console.error('Non-fatal dev token verification failed:', e);
+        if (user) {
+          req.user = {
+            id: user.id,
+            email: user.email || '',
+            role: user.role,
+            firstName: user.firstName || '',
+            lastName: user.lastName || '',
+            major: user.major || undefined,
+            university: user.university || undefined,
+            company: user.company || undefined,
+            bio: user.bio || undefined,
+            avatarUrl: user.profileImageUrl || undefined,
+            engagementScore: user.engagementScore,
+            problemSolverScore: user.problemSolverScore,
+            endorsementScore: user.endorsementScore,
+          };
         }
 
         req.isAuthenticated = () => !!req.user;
@@ -270,33 +270,32 @@ export const verifyToken = async (
         return res.status(401).json({ message: 'User not found' });
       }
 
-        console.log(`Dev auth: User ${user.email} authenticated (role: ${user.role})`);
+      console.log(`Dev auth: User ${user.email} authenticated (role: ${user.role})`);
 
-        req.user = {
-          id: user.id,
-          email: user.email || '',
-          role: user.role,
-          firstName: user.firstName || '',
-          lastName: user.lastName || '',
-          major: user.major || undefined,
-          university: user.university || undefined,
-          company: user.company || undefined,
-          bio: user.bio || undefined,
-          avatarUrl: user.profileImageUrl || undefined,
-          engagementScore: user.engagementScore,
-          problemSolverScore: user.problemSolverScore,
-          endorsementScore: user.endorsementScore,
-        };
+      req.user = {
+        id: user.id,
+        email: user.email || '',
+        role: user.role,
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        major: user.major || undefined,
+        university: user.university || undefined,
+        company: user.company || undefined,
+        bio: user.bio || undefined,
+        avatarUrl: user.profileImageUrl || undefined,
+        engagementScore: user.engagementScore,
+        problemSolverScore: user.problemSolverScore,
+        endorsementScore: user.endorsementScore,
+      };
 
-        return next();
-      } catch (jwtError) {
-        console.error('Dev JWT verification error:', jwtError);
-        return res.status(403).json({ message: 'Forbidden: Invalid development token' });
-      }
+      return next();
     }
 
     // Production Firebase authentication
     if (!firebaseAdmin) {
+      if (DEV_AUTH_ENABLED) {
+        return next();
+      }
       return res.status(503).json({ message: 'Authentication service not configured' });
     }
 

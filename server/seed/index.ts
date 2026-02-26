@@ -21,25 +21,25 @@ export async function seedDatabase(profileName?: string) {
   // 2. Badges and user badge assignments
   const insertedBadges = await seedBadges();
   if (insertedUsers.length > 0 && insertedBadges.length > 0) {
-    await seedUserBadges(insertedUsers, insertedBadges, config);
+    await seedUserBadges(insertedUsers, insertedBadges);
   }
 
   // 3. Skills and user skill assignments
   const insertedSkills = await seedSkills();
   if (insertedUsers.length > 0 && insertedSkills.length > 0) {
-    await seedUserSkills(insertedUsers, insertedSkills, config);
+    await seedUserSkills(insertedUsers, insertedSkills);
   }
 
   // 4. Education and user profiles
   if (insertedUsers.length > 0) {
-    await seedEducation(insertedUsers, config);
-    await seedUserProfiles(insertedUsers, config);
+    await seedEducation(insertedUsers);
+    await seedUserProfiles(insertedUsers);
   }
 
   // 5. Posts and engagement
-  const insertedPosts = await seedPosts(insertedUsers, config);
+  const insertedPosts = await seedPosts(insertedUsers);
   if (insertedPosts.length > 0) {
-    await seedCommentsAndReactions(insertedPosts, insertedUsers, config);
+    await seedCommentsAndReactions(insertedPosts, insertedUsers);
   }
 
   // 6. Courses and enrollments

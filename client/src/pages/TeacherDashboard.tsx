@@ -157,7 +157,7 @@ export default function TeacherDashboard() {
                 </div>
 
                 <div className="space-y-3">
-                  {filteredStudents.map((student) => (
+                  {filteredStudents.map((student: any) => (
                     <StudentCard
                       key={student.id}
                       student={student}

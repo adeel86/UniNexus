@@ -84,7 +84,7 @@ export default function Settings() {
                   <Label htmlFor="firstName">First Name</Label>
                   <Input 
                     id="firstName" 
-                    defaultValue={userData?.firstName} 
+                    defaultValue={userData?.firstName || ""} 
                     data-testid="input-first-name"
                   />
                 </div>
@@ -92,7 +92,7 @@ export default function Settings() {
                   <Label htmlFor="lastName">Last Name</Label>
                   <Input 
                     id="lastName" 
-                    defaultValue={userData?.lastName} 
+                    defaultValue={userData?.lastName || ""} 
                     data-testid="input-last-name"
                   />
                 </div>
@@ -103,7 +103,7 @@ export default function Settings() {
                 <Input 
                   id="email" 
                   type="email" 
-                  defaultValue={userData?.email} 
+                  defaultValue={userData?.email || ""} 
                   data-testid="input-email"
                 />
               </div>

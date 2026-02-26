@@ -446,7 +446,7 @@ async function seedAcademicData(
     if (instructors.length === 0) continue;
 
     for (let i = 0; i < CONFIG.COURSES_PER_UNIVERSITY; i++) {
-      coursesToCreate.push(makeCourse(university, randomItem(instructors).id));
+      coursesToCreate.push(makeCourse(university, (randomItem(instructors) as any).id));
     }
   }
 
@@ -493,7 +493,7 @@ async function seedAcademicData(
     for (let i = 0; i < numDiscussions; i++) {
       discussionsToCreate.push({
         courseId: course.id,
-        authorId: randomItem(enrolledStudents).id,
+        authorId: (randomItem(enrolledStudents) as any).id,
         title: faker.lorem.sentence(),
         content: faker.lorem.paragraph(),
         isQuestion: faker.datatype.boolean(0.7),
@@ -524,7 +524,7 @@ async function seedAcademicData(
     for (let i = 0; i < numReplies; i++) {
       repliesToCreate.push({
         discussionId: discussion.id,
-        authorId: randomItem(enrolledStudents).id,
+        authorId: (randomItem(enrolledStudents) as any).id,
         content: faker.lorem.paragraph(),
         upvoteCount: faker.number.int({ min: 0, max: 15 }),
         createdAt: randomDate(new Date(discussion.createdAt!), new Date()),
@@ -586,7 +586,7 @@ async function seedEngagementData(
     for (let i = 0; i < numComments; i++) {
       commentsToCreate.push({
         postId: post.id,
-        authorId: randomItem(usersByRole.students).id,
+        authorId: (randomItem(usersByRole.students) as any).id,
         content: faker.lorem.sentence(),
         createdAt: randomDate(new Date(post.createdAt!), new Date()),
       });
@@ -612,7 +612,7 @@ async function seedEngagementData(
     for (const reactor of reactors) {
       reactionsToCreate.push({
         postId: post.id,
-        userId: reactor.id,
+        userId: (reactor as any).id,
         type: randomItem(reactionTypes),
         createdAt: randomDate(new Date(post.createdAt!), new Date()),
       });
@@ -639,7 +639,7 @@ async function seedEngagementData(
 
     for (const follower of followersList) {
       followersToCreate.push({
-        followerId: follower.id,
+        followerId: (follower as any).id,
         followingId: student.id,
       });
     }
@@ -666,7 +666,7 @@ async function seedEngagementData(
 
   const groupsToCreate = groupsData.map((g) => ({
     ...g,
-    creatorId: randomItem(usersByRole.students).id,
+    creatorId: (randomItem(usersByRole.students) as any).id,
     isPrivate: false,
     memberCount: 0,
   }));
@@ -689,7 +689,7 @@ async function seedEngagementData(
     for (let i = 0; i < members.length; i++) {
       groupMembersToCreate.push({
         groupId: group.id,
-        userId: members[i].id,
+        userId: (members[i] as any).id,
         role: i === 0 ? "admin" : i < 3 ? "moderator" : "member",
       });
     }
@@ -771,7 +771,7 @@ async function seedAncillarySystems(
 
   const challengesToCreate = challengesData.map((c) => ({
     ...c,
-    organizerId: randomItem(usersByRole.industryPros).id,
+    organizerId: (randomItem(usersByRole.industryPros) as any).id,
     startDate: randomDate(new Date(2024, 9, 1), new Date(2024, 11, 31)),
     endDate: new Date(2025, 0, 15), // Fixed future date for determinism
     participantCount: 0,
@@ -795,7 +795,7 @@ async function seedAncillarySystems(
     for (let i = 0; i < participants.length; i++) {
       participantsToCreate.push({
         challengeId: challenge.id,
-        userId: participants[i].id,
+        userId: (participants[i] as any).id,
         submissionUrl: faker.datatype.boolean(0.7) ? `https://github.com/student/project-${i}` : null,
         submittedAt: faker.datatype.boolean(0.7) ? randomDate(new Date(challenge.startDate!), new Date()) : null,
         rank: challenge.status === "completed" && i < 3 ? i + 1 : null,
@@ -855,7 +855,7 @@ async function seedAncillarySystems(
     const numFeedback = faker.number.int({ min: 1, max: 3 });
     for (let i = 0; i < numFeedback; i++) {
       feedbackToCreate.push({
-        recruiterId: randomItem(usersByRole.industryPros).id,
+        recruiterId: (randomItem(usersByRole.industryPros) as any).id,
         studentId: student.id,
         rating: faker.number.int({ min: 3, max: 5 }),
         category: randomItem(feedbackCategories),

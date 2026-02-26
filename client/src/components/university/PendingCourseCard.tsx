@@ -52,7 +52,7 @@ export function PendingCourseCard({
             )}
             {course.validationRequestedAt || course.createdAt ? (
               <span>
-                Requested: {new Date(course.validationRequestedAt || course.createdAt).toLocaleDateString()}
+                Requested: {new Date((course.validationRequestedAt || course.createdAt) as string | number | Date).toLocaleDateString()}
               </span>
             ) : null}
           </div>

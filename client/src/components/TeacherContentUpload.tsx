@@ -325,7 +325,7 @@ export function TeacherContentUpload({ teacherId }: TeacherContentUploadProps) {
                     <StudentValidationCard
                       key={validation.id}
                       validation={validation}
-                      courseName={getCourseNameById(validation.courseId)}
+                      courseName={getCourseNameById(validation.courseId as string) || ""}
                       isPending={mutations.validateStudent.isPending}
                       onValidate={(id, note) => mutations.validateStudent.mutate({ id, note })}
                     />
@@ -344,7 +344,7 @@ export function TeacherContentUpload({ teacherId }: TeacherContentUploadProps) {
         courseForm={courseForm}
         isPending={mutations.createCourse.isPending}
         onSubmit={handleCreateCourse}
-        defaultUniversity={userData?.university}
+        defaultUniversity={userData?.university || undefined}
       />
 
       <CourseFormModal

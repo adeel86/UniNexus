@@ -400,6 +400,6 @@ export function TeacherCoursesSection() {
           </div>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }

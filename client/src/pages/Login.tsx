@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
@@ -18,10 +18,16 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function Login() {
-  const { signIn } = useAuth();
+  const { signIn, currentUser, userData } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (currentUser && userData) {
+      navigate("/");
+    }
+  }, [currentUser, userData, navigate]);
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),

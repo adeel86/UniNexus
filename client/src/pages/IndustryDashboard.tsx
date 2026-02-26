@@ -125,14 +125,14 @@ export default function IndustryDashboard() {
             </div>
 
             <div className="space-y-4">
-              {myChallenges.filter(c => c.organizerId).length === 0 ? (
+              {myChallenges.filter((c: any) => c.organizerId).length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>You haven't created any challenges yet.</p>
                   <p className="text-sm mt-2">Create a challenge to engage with students!</p>
                 </div>
               ) : (
-                myChallenges.map((challenge) => (
+                myChallenges.map((challenge: any) => (
                   <ChallengeManageCard
                     key={challenge.id}
                     challenge={challenge}
@@ -157,7 +157,7 @@ export default function IndustryDashboard() {
               </div>
             ) : (
               <div className="space-y-4">
-                {myFeedback.map((fb) => (
+                {myFeedback.map((fb: any) => (
                   <FeedbackCard key={fb.id} feedback={fb} />
                 ))}
               </div>
@@ -219,7 +219,7 @@ export default function IndustryDashboard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {filteredStudents.map((student) => (
+              {filteredStudents.map((student: any) => (
                 <TalentCard
                   key={student.id}
                   student={student}

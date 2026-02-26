@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
@@ -37,10 +37,16 @@ const roleOptions = [
 ];
 
 export default function Register() {
-  const { signUp } = useAuth();
+  const { signUp, currentUser, userData } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (currentUser && userData) {
+      navigate("/");
+    }
+  }, [currentUser, userData, navigate]);
 
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),

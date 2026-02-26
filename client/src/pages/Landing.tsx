@@ -1,8 +1,20 @@
 import { GradientButton } from "@/components/GradientButton";
 import { Card } from "@/components/ui/card";
 import { Sparkles, Users, Trophy, Zap, Building2, Briefcase } from "lucide-react";
+import { useAuth } from "@/lib/AuthContext";
+import { useLocation } from "wouter";
+import { useEffect } from "react";
 
 export default function Landing() {
+  const { currentUser, userData } = useAuth();
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    if (currentUser && userData) {
+      navigate("/");
+    }
+  }, [currentUser, userData, navigate]);
+
   const demoAccounts = [
     {
       role: "Student",

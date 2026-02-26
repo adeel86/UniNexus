@@ -138,7 +138,7 @@ export default function UniversityDashboard() {
               </div>
             ) : (
               <div className="space-y-4">
-                {pendingCourses.map((course) => (
+                {pendingCourses.map((course: any) => (
                   <PendingCourseCard
                     key={course.id}
                     course={course}
