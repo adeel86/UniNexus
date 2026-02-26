@@ -212,12 +212,12 @@ export default function StudentHome() {
               </div>
               
               <Link href="/leaderboard">
-                <a className="block" data-testid="link-leaderboard">
+                <div className="block cursor-pointer" data-testid="link-leaderboard">
                   <Button variant="outline" className="w-full justify-start gap-2">
                     <TrendingUp className="h-4 w-4" />
                     View Leaderboard
                   </Button>
-                </a>
+                </div>
               </Link>
             </div>
           </Card>

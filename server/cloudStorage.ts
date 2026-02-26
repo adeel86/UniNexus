@@ -58,6 +58,11 @@ export async function initializeCloudStorage(): Promise<boolean> {
         console.warn("Firebase service account not found. Cloud storage unavailable.");
         return false;
       }
+    } else {
+      // If app already exists, make sure it has the storage bucket configured
+      const app = existingApps[0]!;
+      // We can't easily re-initialize with storageBucket if it wasn't there,
+      // but we can try to use the default bucket if it's already set.
     }
 
     storage = getStorage();
