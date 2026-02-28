@@ -23,6 +23,29 @@ import {
   type StudentPersonalTutorMessage,
   type InsertStudentPersonalTutorMessage,
   courseEnrollments,
+  userProfiles,
+  educationRecords,
+  jobExperience,
+  userConnections,
+  followers,
+  posts,
+  comments,
+  reactions,
+  postShares,
+  postBoosts,
+  userBadges,
+  userSkills,
+  endorsements,
+  challengeParticipants,
+  groupMembers,
+  groupPosts,
+  messages,
+  notifications,
+  certifications,
+  recruiterFeedback,
+  teacherContent,
+  aiChatSessions,
+  aiChatMessages,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and, sql } from "drizzle-orm";
@@ -57,6 +80,9 @@ export interface IStorage {
   
   // Course Enrollments
   createEnrollment(courseId: string, studentId: string): Promise<void>;
+
+  // User Deletion
+  deleteUser(userId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -338,6 +364,90 @@ export class DatabaseStorage implements IStorage {
     await db.update(courses)
       .set({ enrollmentCount: sql`${courses.enrollmentCount} + 1` })
       .where(eq(courses.id, courseId));
+  }
+
+  async deleteUser(userId: string): Promise<void> {
+    await db.transaction(async (tx) => {
+      // 1. Clean up associated engagement data
+      await tx.delete(notifications).where(eq(notifications.userId, userId));
+      await tx.delete(reactions).where(eq(reactions.userId, userId));
+      await tx.delete(postShares).where(eq(postShares.userId, userId));
+      await tx.delete(postBoosts).where(eq(postBoosts.userId, userId));
+      
+      // 2. Clean up connections and followers
+      await tx.delete(userConnections).where(
+        or(
+          eq(userConnections.requesterId, userId),
+          eq(userConnections.receiverId, userId)
+        )
+      );
+      await tx.delete(followers).where(
+        or(
+          eq(followers.userId, userId),
+          eq(followers.followerId, userId)
+        )
+      );
+
+      // 3. Clean up gamification
+      await tx.delete(userBadges).where(eq(userBadges.userId, userId));
+      await tx.delete(userSkills).where(eq(userSkills.userId, userId));
+      await tx.delete(endorsements).where(
+        or(
+          eq(endorsements.endorserId, userId),
+          eq(endorsements.endorsedId, userId)
+        )
+      );
+      await tx.delete(challengeParticipants).where(eq(challengeParticipants.userId, userId));
+
+      // 4. Clean up course-related data
+      // Decrement enrollment counts before deleting enrollments
+      const userEnrollments = await tx.select().from(courseEnrollments).where(eq(courseEnrollments.studentId, userId));
+      for (const enrollment of userEnrollments) {
+        await tx.update(courses)
+          .set({ enrollmentCount: sql`GREATEST(${courses.enrollmentCount} - 1, 0)` })
+          .where(eq(courses.id, enrollment.courseId));
+      }
+      await tx.delete(courseEnrollments).where(eq(courseEnrollments.studentId, userId));
+      await tx.delete(studentCourses).where(
+        or(
+          eq(studentCourses.userId, userId),
+          eq(studentCourses.validatedBy, userId),
+          eq(studentCourses.assignedTeacherId, userId)
+        )
+      );
+      
+      // Handle course forum data
+      await tx.delete(discussionUpvotes).where(eq(discussionUpvotes.userId, userId));
+      await tx.delete(discussionReplies).where(eq(discussionReplies.authorId, userId));
+      await tx.delete(courseDiscussions).where(eq(courseDiscussions.authorId, userId));
+
+      // 5. Clean up AI and Tutor data
+      await tx.delete(studentPersonalTutorMessages).where(eq(studentPersonalTutorMessages.userId, userId));
+      await tx.delete(studentPersonalTutorSessions).where(eq(studentPersonalTutorSessions.studentId, userId));
+      await tx.delete(studentPersonalTutorMaterials).where(eq(studentPersonalTutorMaterials.studentId, userId));
+      await tx.delete(aiChatMessages).where(eq(aiChatMessages.userId, userId));
+      await tx.delete(aiChatSessions).where(eq(aiChatSessions.userId, userId));
+
+      // 6. Clean up profile and records
+      await tx.delete(educationRecords).where(eq(educationRecords.userId, userId));
+      await tx.delete(jobExperience).where(eq(jobExperience.userId, userId));
+      await tx.delete(userProfiles).where(eq(userProfiles.userId, userId));
+      await tx.delete(certifications).where(eq(certifications.userId, userId));
+      await tx.delete(recruiterFeedback).where(eq(recruiterFeedback.userId, userId));
+
+      // 7. Clean up group memberships
+      await tx.delete(groupMembers).where(eq(groupMembers.userId, userId));
+
+      // 8. Handle messages (anonymize or delete - deleting for full removal as requested)
+      await tx.delete(messages).where(eq(messages.senderId, userId));
+
+      // 9. Delete user's own content (posts) - this might have cascading effects if not handled
+      await tx.delete(comments).where(eq(comments.authorId, userId));
+      await tx.delete(posts).where(eq(posts.authorId, userId));
+      
+      // 10. Finally delete the user
+      await tx.delete(users).where(eq(users.id, userId));
+    });
   }
 }
 

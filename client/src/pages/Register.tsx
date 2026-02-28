@@ -99,10 +99,10 @@ export default function Register() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-purple-500 via-pink-500 to-blue-500">
       <Card className="w-full max-w-2xl">
-        <CardHeader className="gap-2">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-md bg-gradient-to-br from-purple-500 to-pink-500" />
-            <CardTitle className="text-2xl">Join UniNexus</CardTitle>
+        <CardHeader className="gap-2 text-center">
+          <div className="flex flex-col items-center gap-4">
+            <img src="/assets/logo.png" alt="UniNexus Logo" className="h-16 w-16 object-contain" />
+            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Join UniNexus</CardTitle>
           </div>
           <CardDescription>Create your account to get started</CardDescription>
         </CardHeader>

@@ -68,9 +68,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
             </Button>
           )}
           <Link href="/" data-testid="link-home" className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-white/20 backdrop-blur flex items-center justify-center font-heading font-bold text-lg">
-              U
-            </div>
+            <img src="/assets/logo.png" alt="UniNexus Logo" className="h-8 w-8 object-contain" />
             <span className="font-heading font-bold text-xl hidden sm:inline">UniNexus</span>
           </Link>
 

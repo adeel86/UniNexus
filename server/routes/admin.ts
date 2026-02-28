@@ -1,6 +1,8 @@
 import express, { Request, Response } from "express";
 import { eq, desc, sql, and, or } from "drizzle-orm";
+import admin from "firebase-admin";
 import { db } from "../db";
+import { storage as dbStorage } from "../storage";
 import { isAuthenticated, type AuthRequest } from "../firebaseAuth";
 import {
   users,
@@ -21,6 +23,73 @@ const router = express.Router();
 // ========================================================================
 // ADMIN ENDPOINTS (master_admin only)
 // ========================================================================
+
+router.delete("/admin/users/:userId", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  if (!req.user || req.user.role !== 'master_admin') {
+    return res.status(403).send("Forbidden");
+  }
+
+  try {
+    const { userId } = req.params;
+    const user = await dbStorage.getUser(userId);
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Delete from Firebase
+    if (user.firebaseUid) {
+      try {
+        await admin.auth().deleteUser(user.firebaseUid);
+      } catch (fbError: any) {
+        console.warn("Firebase user deletion failed:", fbError.message);
+      }
+    }
+
+    // Delete from DB
+    await dbStorage.deleteUser(userId);
+
+    res.json({ success: true, message: "User deleted by admin" });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete("/university/users/:userId", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  if (!req.user || !['university_admin', 'university'].includes(req.user.role)) {
+    return res.status(403).send("Forbidden");
+  }
+
+  try {
+    const { userId } = req.params;
+    const user = await dbStorage.getUser(userId);
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Verify affiliation
+    if (user.university !== req.user.university) {
+      return res.status(403).json({ error: "You can only remove users from your own university" });
+    }
+
+    // Delete from Firebase
+    if (user.firebaseUid) {
+      try {
+        await admin.auth().deleteUser(user.firebaseUid);
+      } catch (fbError: any) {
+        console.warn("Firebase user deletion failed:", fbError.message);
+      }
+    }
+
+    // Delete from DB
+    await dbStorage.deleteUser(userId);
+
+    res.json({ success: true, message: "User removed by university admin" });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 router.get("/admin/users", isAuthenticated, async (req: AuthRequest, res: Response) => {
   if (!req.user || req.user.role !== 'master_admin') {

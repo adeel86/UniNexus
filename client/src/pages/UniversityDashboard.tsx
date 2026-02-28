@@ -2,17 +2,36 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, TrendingDown, Users, Award, Target, AlertTriangle, Trophy, GraduationCap, FileCheck, Briefcase, MessageSquare, CheckCircle, BookOpen, Loader2, Sparkles, MessageCircle } from "lucide-react";
+import { TrendingUp, TrendingDown, Users, Award, Target, AlertTriangle, Trophy, GraduationCap, FileCheck, Briefcase, MessageSquare, CheckCircle, BookOpen, Loader2, Sparkles, MessageCircle, Trash2, Search } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { UniversalFeed } from "@/components/UniversalFeed";
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
 import {
   useUniversityDashboard,
   ValidateCourseDialog,
   RejectCourseDialog,
   PendingCourseCard,
 } from "@/components/university";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { UserAvatar } from "@/components/UserAvatar";
 
 export default function UniversityDashboard() {
+  const { toast } = useToast();
+  const [userSearch, setUserSearch] = useState("");
   const {
     retentionData,
     isRetentionLoading,
@@ -44,6 +63,46 @@ export default function UniversityDashboard() {
     departmentRetentionData,
   } = useUniversityDashboard() as any;
 
+  const { data: students = [], isLoading: isStudentsLoading } = useQuery<any[]>({
+    queryKey: ["/api/students"],
+  });
+
+  const { data: teachers = [], isLoading: isTeachersLoading } = useQuery<any[]>({
+    queryKey: ["/api/university/teachers"],
+  });
+
+  const removeUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      await apiRequest("DELETE", `/api/university/users/${userId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/students"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/university/teachers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/university/retention/overview"] });
+      toast({
+        title: "User removed",
+        description: "The user has been permanently deleted from the university system.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Removal failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const filteredStudents = students.filter(s => 
+    `${s.firstName} ${s.lastName}`.toLowerCase().includes(userSearch.toLowerCase()) ||
+    s.email.toLowerCase().includes(userSearch.toLowerCase())
+  );
+
+  const filteredTeachers = teachers.filter(t => 
+    `${t.firstName} ${t.lastName}`.toLowerCase().includes(userSearch.toLowerCase()) ||
+    t.email.toLowerCase().includes(userSearch.toLowerCase())
+  );
+
   const handleSelectSuggestion = (content: string, category: string, tags: string[]) => {
     // Implementation for university suggestion selection
   };
@@ -62,7 +121,7 @@ export default function UniversityDashboard() {
       </div>
 
       <Tabs defaultValue="feed" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 max-w-lg">
+        <TabsList className="grid w-full grid-cols-4 max-w-2xl">
           <TabsTrigger value="feed" data-testid="tab-feed">
             <MessageSquare className="h-4 w-4 mr-2" />
             Feed
@@ -70,6 +129,10 @@ export default function UniversityDashboard() {
           <TabsTrigger value="analytics" data-testid="tab-analytics">
             <TrendingUp className="h-4 w-4 mr-2" />
             Analytics
+          </TabsTrigger>
+          <TabsTrigger value="users" data-testid="tab-user-management">
+            <Users className="h-4 w-4 mr-2" />
+            Users
           </TabsTrigger>
           <TabsTrigger value="validations" data-testid="tab-course-validations">
             <CheckCircle className="h-4 w-4 mr-2" />
@@ -81,6 +144,132 @@ export default function UniversityDashboard() {
             )}
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="users">
+          <Card className="p-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+              <h2 className="font-heading text-xl font-semibold">User Management</h2>
+              <div className="relative max-w-sm">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search students or teachers..."
+                  className="pl-8"
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                  data-testid="input-user-search"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div>
+                <h3 className="font-heading font-medium mb-4 flex items-center gap-2">
+                  <GraduationCap className="h-4 w-4 text-purple-600" />
+                  Students
+                </h3>
+                {isStudentsLoading ? (
+                  <div className="flex justify-center py-8"><Loader2 className="animate-spin" /></div>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredStudents.length === 0 ? (
+                      <p className="text-sm text-muted-foreground italic">No students found</p>
+                    ) : (
+                      filteredStudents.map(student => (
+                        <div key={student.id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <UserAvatar user={student} size="sm" />
+                            <div>
+                              <div className="font-medium text-sm">{student.firstName} {student.lastName}</div>
+                              <div className="text-xs text-muted-foreground">{student.email}</div>
+                            </div>
+                          </div>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="text-destructive" data-testid={`button-remove-student-${student.id}`}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Remove student permanently?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will completely delete {student.firstName}'s account and all their data from UniNexus.
+                                  This action is permanent and cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => removeUserMutation.mutate(student.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h3 className="font-heading font-medium mb-4 flex items-center gap-2">
+                  <Users className="h-4 w-4 text-blue-600" />
+                  Teachers
+                </h3>
+                {isTeachersLoading ? (
+                  <div className="flex justify-center py-8"><Loader2 className="animate-spin" /></div>
+                ) : (
+                  <div className="space-y-3">
+                    {filteredTeachers.length === 0 ? (
+                      <p className="text-sm text-muted-foreground italic">No teachers found</p>
+                    ) : (
+                      filteredTeachers.map(teacher => (
+                        <div key={teacher.id} className="flex items-center justify-between p-3 border rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <UserAvatar user={teacher} size="sm" />
+                            <div>
+                              <div className="font-medium text-sm">{teacher.firstName} {teacher.lastName}</div>
+                              <div className="text-xs text-muted-foreground">{teacher.email}</div>
+                            </div>
+                          </div>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="text-destructive" data-testid={`button-remove-teacher-${teacher.id}`}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Remove teacher permanently?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will completely delete {teacher.firstName}'s account and all their data from UniNexus.
+                                  This action is permanent and cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction 
+                                  onClick={() => removeUserMutation.mutate(teacher.id)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="feed">
           <Tabs defaultValue="for-you" className="w-full">

@@ -60,10 +60,10 @@ export default function Login() {
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-purple-500 via-pink-500 to-blue-500">
       <Card className="w-full max-w-md">
-        <CardHeader className="gap-2">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-md bg-gradient-to-br from-purple-500 to-pink-500" />
-            <CardTitle className="text-2xl">UniNexus</CardTitle>
+        <CardHeader className="gap-2 text-center">
+          <div className="flex flex-col items-center gap-4">
+            <img src="/assets/logo.png" alt="UniNexus Logo" className="h-16 w-16 object-contain" />
+            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">UniNexus</CardTitle>
           </div>
           <CardDescription>Sign in to your account to continue</CardDescription>
         </CardHeader>
@@ -124,35 +124,37 @@ export default function Login() {
             </Link>
           </div>
 
-          <div className="border-t pt-4">
-            <p className="text-sm font-medium mb-2">Quick Demo Access:</p>
-            <div className="flex flex-wrap gap-2">
-              {[
-                { email: "demo.student@uninexus.app", label: "Student" },
-                { email: "demo.teacher@uninexus.app", label: "Teacher" },
-                { email: "demo.university@uninexus.app", label: "Univ Admin" },
-                { email: "demo.industry@uninexus.app", label: "Industry" },
-                { email: "demo.admin@uninexus.app", label: "Admin" },
-              ].map((demo) => (
-                <Button
-                  key={demo.email}
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    form.setValue('email', demo.email);
-                    form.setValue('password', 'demo123');
-                  }}
-                  data-testid={`button-demo-${demo.label.toLowerCase().replace(/\s+/g, '-')}`}
-                >
-                  {demo.label}
-                </Button>
-              ))}
+          {import.meta.env.VITE_DEV_AUTH_ENABLED === 'true' && (
+            <div className="border-t pt-4">
+              <p className="text-sm font-medium mb-2">Quick Demo Access:</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { email: "demo.student@uninexus.app", label: "Student" },
+                  { email: "demo.teacher@uninexus.app", label: "Teacher" },
+                  { email: "demo.university@uninexus.app", label: "Univ Admin" },
+                  { email: "demo.industry@uninexus.app", label: "Industry" },
+                  { email: "demo.admin@uninexus.app", label: "Admin" },
+                ].map((demo) => (
+                  <Button
+                    key={demo.email}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      form.setValue('email', demo.email);
+                      form.setValue('password', 'demo123');
+                    }}
+                    data-testid={`button-demo-${demo.label.toLowerCase().replace(/\s+/g, '-')}`}
+                  >
+                    {demo.label}
+                  </Button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                All demo accounts use password: <code className="bg-muted px-1 py-0.5 rounded">demo123</code>
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              All demo accounts use password: <code className="bg-muted px-1 py-0.5 rounded">demo123</code>
-            </p>
-          </div>
+          )}
         </CardContent>
       </Card>
     </div>

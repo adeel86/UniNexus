@@ -8,15 +8,61 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Bell, Lock, User, Shield } from "lucide-react";
+import { Bell, Lock, User, Shield, AlertTriangle, Trash2 } from "lucide-react";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useLocation } from "wouter";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function Settings() {
-  const { userData } = useAuth();
+  const { userData, signOut } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(true);
   const [commentNotifications, setCommentNotifications] = useState(true);
   const [endorsementNotifications, setEndorsementNotifications] = useState(true);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== "DELETE") {
+      toast({
+        title: "Invalid confirmation",
+        description: "Please type DELETE to confirm.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await apiRequest("DELETE", "/api/users/me");
+      await signOut();
+      toast({
+        title: "Account deleted",
+        description: "Your account has been permanently removed.",
+      });
+      setLocation("/login");
+    } catch (error: any) {
+      toast({
+        title: "Deletion failed",
+        description: error.message || "An error occurred while deleting your account.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const handleSaveNotifications = () => {
     toast({
@@ -335,6 +381,58 @@ export default function Settings() {
                 <Button variant="outline" data-testid="button-enable-2fa">
                   Enable Two-Factor Authentication
                 </Button>
+              </div>
+
+              <Separator className="my-6" />
+
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-destructive">
+                  <AlertTriangle className="h-5 w-5" />
+                  <h3 className="font-semibold">Danger Zone</h3>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Once you delete your account, there is no going back. Please be certain.
+                </p>
+                
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" className="gap-2" data-testid="button-delete-account-trigger">
+                      <Trash2 className="h-4 w-4" />
+                      Delete Account
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will permanently delete your
+                        account and remove your data from our servers.
+                        <div className="mt-4 space-y-2">
+                          <Label htmlFor="delete-confirm">Type <span className="font-bold">DELETE</span> to confirm:</Label>
+                          <Input
+                            id="delete-confirm"
+                            value={deleteConfirmText}
+                            onChange={(e) => setDeleteConfirmText(e.target.value)}
+                            placeholder="DELETE"
+                            className="border-destructive focus-visible:ring-destructive"
+                            data-testid="input-delete-confirm"
+                          />
+                        </div>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel onClick={() => setDeleteConfirmText("")}>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDeleteAccount}
+                        disabled={deleteConfirmText !== "DELETE" || isDeleting}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        data-testid="button-confirm-delete"
+                      >
+                        {isDeleting ? "Deleting..." : "Delete Permanently"}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </CardContent>
           </Card>

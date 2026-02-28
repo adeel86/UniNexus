@@ -3,7 +3,9 @@ import { eq, desc, and, or, sql, notInArray } from "drizzle-orm";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import admin from "firebase-admin";
 import { db } from "../db";
+import { storage as dbStorage } from "../storage";
 import { uploadToCloud } from "../cloudStorage";
 import { requireAuth } from "./shared";
 import {
@@ -28,6 +30,33 @@ const storage = multer.memoryStorage();
 const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+});
+
+router.delete("/users/me", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const user = await dbStorage.getUser(userId);
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // 1. Delete from Firebase if enabled
+    if (user.firebaseUid) {
+      try {
+        await admin.auth().deleteUser(user.firebaseUid);
+      } catch (fbError: any) {
+        console.warn("Firebase user deletion failed (non-fatal):", fbError.message);
+      }
+    }
+
+    // 2. Delete from Database (cascading)
+    await dbStorage.deleteUser(userId);
+
+    res.json({ success: true, message: "Account deleted successfully" });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 router.post("/upload/image", requireAuth, upload.single("image"), async (req: Request, res: Response) => {

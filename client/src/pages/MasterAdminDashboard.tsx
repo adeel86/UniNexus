@@ -1,14 +1,28 @@
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import type { User, Post } from "@shared/schema";
-import { Users, FileText, Shield, TrendingUp, AlertTriangle, CheckCircle } from "lucide-react";
+import { Users, FileText, Shield, TrendingUp, AlertTriangle, CheckCircle, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/UserAvatar";
 import { useLocation } from "wouter";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function MasterAdminDashboard() {
+  const { toast } = useToast();
   const [, navigate] = useLocation();
   const { data: users = [] } = useQuery<User[]>({
     queryKey: ["/api/admin/users"],
@@ -16,6 +30,26 @@ export default function MasterAdminDashboard() {
 
   const { data: posts = [] } = useQuery<Post[]>({
     queryKey: ["/api/admin/posts"],
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      await apiRequest("DELETE", `/api/admin/users/${userId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      toast({
+        title: "User deleted",
+        description: "The user has been permanently removed from the platform.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Deletion failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   const roleStats = {
@@ -144,6 +178,36 @@ export default function MasterAdminDashboard() {
                     >
                       View Profile
                     </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          className="text-destructive"
+                          data-testid={`button-delete-user-${user.id}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete user permanently?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will completely remove {user.firstName} {user.lastName}'s account
+                            and all associated data. This action is irreversible.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction 
+                            onClick={() => deleteUserMutation.mutate(user.id)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                   </div>
                 </div>
               ))}
