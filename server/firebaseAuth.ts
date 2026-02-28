@@ -110,6 +110,11 @@ export async function setupAuth(app: Express): Promise<void> {
     // default helper
     req.isAuthenticated = () => !!req.user;
 
+    // Block any request to /api/auth/dev-login if DEV_AUTH_ENABLED is false
+    if (req.path === '/api/auth/dev-login' && !DEV_AUTH_ENABLED) {
+      return _res.status(403).json({ message: "Master Demo is disabled" });
+    }
+
     const authHeader = req.headers?.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       // In development, if no token is provided but we are on a registration/login path, 

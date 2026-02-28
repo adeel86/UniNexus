@@ -201,6 +201,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         email,
         displayName,
         role,
+        firebaseUid: userCredential.user.uid,
         ...additionalData,
       }),
     });

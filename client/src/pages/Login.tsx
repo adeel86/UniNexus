@@ -125,8 +125,8 @@ export default function Login() {
           </div>
 
           {import.meta.env.VITE_DEV_AUTH_ENABLED === 'true' && (
-            <div className="border-t pt-4">
-              <p className="text-sm font-medium mb-2">Quick Demo Access:</p>
+            <div className="border-t pt-4" data-testid="master-demo-section">
+              <p className="text-sm font-medium mb-2">Master Demo Access:</p>
               <div className="flex flex-wrap gap-2">
                 {[
                   { email: "demo.student@uninexus.app", label: "Student" },
@@ -140,9 +140,11 @@ export default function Login() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => {
+                    onClick={async () => {
                       form.setValue('email', demo.email);
                       form.setValue('password', 'demo123');
+                      // Auto-submit for demo convenience if enabled
+                      await form.handleSubmit(onSubmit)();
                     }}
                     data-testid={`button-demo-${demo.label.toLowerCase().replace(/\s+/g, '-')}`}
                   >
@@ -151,7 +153,7 @@ export default function Login() {
                 ))}
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                All demo accounts use password: <code className="bg-muted px-1 py-0.5 rounded">demo123</code>
+                Development/Testing Mode Active
               </p>
             </div>
           )}

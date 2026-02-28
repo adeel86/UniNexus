@@ -44,7 +44,11 @@ router.delete("/users/me", requireAuth, async (req: Request, res: Response) => {
     // 1. Delete from Firebase if enabled
     if (user.firebaseUid) {
       try {
-        await admin.auth().deleteUser(user.firebaseUid);
+        // Ensure firebaseAdmin is available
+        const { firebaseAdmin } = await import("../firebaseAuth");
+        if (firebaseAdmin) {
+          await firebaseAdmin.auth().deleteUser(user.firebaseUid);
+        }
       } catch (fbError: any) {
         console.warn("Firebase user deletion failed (non-fatal):", fbError.message);
       }

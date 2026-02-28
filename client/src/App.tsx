@@ -72,12 +72,13 @@ function Router() {
       case 'teacher':
         return TeacherDashboard;
       case 'university_admin':
-      case 'university':
         return UniversityDashboard;
       case 'industry_professional':
-      case 'industry':
         return IndustryDashboard;
       case 'master_admin':
+        if (import.meta.env.VITE_DEV_AUTH_ENABLED !== 'true') {
+          return StudentHome;
+        }
         return MasterAdminDashboard;
       default:
         return StudentHome;
@@ -92,6 +93,14 @@ function Router() {
       <div className="pb-16 md:pb-0">
         <Switch>
           <Route path="/" component={HomePage} />
+          {/* ... existing routes ... */}
+          <Route path="/master-admin-dashboard">
+            {import.meta.env.VITE_DEV_AUTH_ENABLED === 'true' ? (
+              <MasterAdminDashboard />
+            ) : (
+              <NotFound />
+            )}
+          </Route>
           <Route path="/network">
             <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional', 'university_admin']}>
               <Network />

@@ -18,6 +18,17 @@ export async function apiRequest(
   const devToken = localStorage.getItem('dev_token');
   if (devToken) {
     headers['Authorization'] = `Bearer ${devToken}`;
+  } else {
+    // Fallback to Firebase token for regular users
+    try {
+      const { auth } = await import('./firebase');
+      if (auth.currentUser) {
+        const token = await auth.currentUser.getIdToken();
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    } catch (e) {
+      console.error("Error attaching Firebase token:", e);
+    }
   }
   
   const res = await fetch(url, {
@@ -43,6 +54,17 @@ export const getQueryFn: <T>(options: {
     const devToken = localStorage.getItem('dev_token');
     if (devToken) {
       headers['Authorization'] = `Bearer ${devToken}`;
+    } else {
+      // Fallback to Firebase token for regular users
+      try {
+        const { auth } = await import('./firebase');
+        if (auth.currentUser) {
+          const token = await auth.currentUser.getIdToken();
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+      } catch (e) {
+        console.error("Error attaching Firebase token to query:", e);
+      }
     }
     
     // Build URL with query parameters

@@ -41,12 +41,14 @@ export default function Landing() {
       icon: Briefcase,
       gradient: "from-blue-600 to-indigo-600",
     },
-    {
-      role: "Admin",
-      description: "Full platform control, user moderation, and system configuration.",
-      icon: Zap,
-      gradient: "from-purple-600 to-blue-600",
-    },
+    ...(import.meta.env.VITE_DEV_AUTH_ENABLED === 'true' ? [
+      {
+        role: "Admin",
+        description: "Full platform control, user moderation, and system configuration.",
+        icon: Zap,
+        gradient: "from-purple-600 to-blue-600",
+      }
+    ] : []),
   ];
 
   return (
