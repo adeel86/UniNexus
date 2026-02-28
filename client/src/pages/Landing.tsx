@@ -177,7 +177,7 @@ export default function Landing() {
           <h2 className="text-4xl font-bold mb-8">Ready to transform your future?</h2>
           <GradientButton
             onClick={() => window.location.href = '/login'}
-            className="bg-white text-purple-600 hover:bg-gray-100 px-10 py-8 rounded-2xl text-xl font-bold"
+            className="bg-white text-white hover:bg-gray-100 px-10 py-8 rounded-2xl text-xl font-bold"
           >
             Get Started Now
           </GradientButton>

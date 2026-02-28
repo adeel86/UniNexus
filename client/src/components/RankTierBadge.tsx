@@ -122,7 +122,7 @@ export function RankTierBadge({
 
       {showProgress && nextTier && (
         <div className="flex flex-col gap-1">
-          <div className="flex justify-between text-xs text-muted-foreground">
+          <div className="flex justify-between text-xs text-white">
             <span>Progress to {nextTier.label}</span>
             <span>{Math.round(progress)}%</span>
           </div>
@@ -134,7 +134,7 @@ export function RankTierBadge({
               style={{ width: `${progress}%` }}
             />
           </div>
-          <div className="text-xs text-muted-foreground">
+          <div className="text-xs text-white">
             {nextTier.minPoints - totalPoints} points to {nextTier.label}
           </div>
         </div>
