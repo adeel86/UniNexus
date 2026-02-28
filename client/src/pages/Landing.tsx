@@ -56,17 +56,17 @@ export default function Landing() {
         <div className="container mx-auto px-4 relative z-10">
           <div className="flex flex-col lg:flex-row items-center gap-12">
             <div className="flex-1 text-center lg:text-left">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-100 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800 mb-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+              {/* <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-100 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800 mb-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <Sparkles className="h-4 w-4 text-purple-600" />
                 <span className="text-sm font-semibold text-purple-700 dark:text-purple-300">Gen Z Student Ecosystem</span>
-              </div>
+              </div> */}
               
               <h1 className="font-heading text-5xl md:text-7xl font-extrabold mb-6 tracking-tight leading-tight bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent">
-                UniNexus: The Future of Learning
+                Welcome to UniNexus
               </h1>
               
               <p className="text-lg md:text-xl text-gray-600 dark:text-gray-400 mb-10 leading-relaxed max-w-2xl">
-                The all-in-one ecosystem where students, educators, and industry leaders connect through AI, gamification, and meaningful networking.
+                UniNexus is the future of learning, an all-in-one ecosystem where students, educators, and industry leaders connect through AI, gamification, and meaningful networking.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
