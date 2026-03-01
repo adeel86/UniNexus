@@ -1,9 +1,12 @@
-import type { Request, Response, NextFunction } from "express";
-export type { AuthRequest } from "../firebaseAuth";
-
+import { Router, type Request, type Response, type NextFunction } from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
+import { uploadToCloud } from "../cloudStorage";
+
+const router = Router();
+
+export type { AuthRequest } from "../firebaseAuth";
 
 export const uploadsDir = path.join(process.cwd(), 'uploads');
 
@@ -58,3 +61,50 @@ export function requireRole(...roles: string[]) {
     next();
   };
 }
+
+router.post("/api/upload/video", requireAuth, upload.single("video"), async (req: Request, res: Response) => {
+  if (!req.file) {
+    console.error("Video upload failed: No file in request");
+    return res.status(400).json({ error: "No video file provided" });
+  }
+
+  try {
+    const cloudResult = await uploadToCloud(req.file.buffer, {
+      folder: "videos",
+      contentType: req.file.mimetype,
+      originalFilename: req.file.originalname,
+    });
+
+    const url = cloudResult?.url || await saveFileLocally(req.file.buffer, "videos", req.file.originalname);
+    res.json({ url });
+  } catch (error: any) {
+    console.error("Video upload error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/api/upload/images", requireAuth, upload.array("images", 5), async (req: Request, res: Response) => {
+  if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
+    return res.status(400).json({ error: "No images provided" });
+  }
+
+  try {
+    const uploadPromises = (req.files as Express.Multer.File[]).map(async (file) => {
+      const cloudResult = await uploadToCloud(file.buffer, {
+        folder: "posts",
+        contentType: file.mimetype,
+        originalFilename: file.originalname,
+      });
+      return cloudResult?.url || await saveFileLocally(file.buffer, "posts", file.originalname);
+    });
+
+    const urls = await Promise.all(uploadPromises);
+    res.json({ urls });
+  } catch (error: any) {
+    console.error("Images upload error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+export const sharedRouter = router;
+export default router;

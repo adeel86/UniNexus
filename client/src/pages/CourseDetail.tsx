@@ -93,22 +93,12 @@ export default function CourseDetail() {
   // Fetch course details
   const { data: course, isLoading: courseLoading } = useQuery<CourseDetails>({
     queryKey: ["/api/courses", courseId],
-    queryFn: async () => {
-      const response = await fetch(`/api/courses/${courseId}`);
-      if (!response.ok) throw new Error("Failed to fetch course");
-      return response.json();
-    },
     enabled: !!courseId,
   });
 
   // Fetch all discussions for this course
   const { data: discussions = [], isLoading: discussionsLoading } = useQuery<Discussion[]>({
     queryKey: ["/api/discussions", courseId],
-    queryFn: async () => {
-      const response = await fetch(`/api/discussions?courseId=${courseId}`);
-      if (!response.ok) throw new Error("Failed to fetch discussions");
-      return response.json();
-    },
     enabled: !!courseId,
   });
 

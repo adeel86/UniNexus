@@ -80,24 +80,6 @@ export default function ProblemSolving() {
 
   const { data: questions = [], isLoading: loadingQuestions } = useQuery<Question[]>({
     queryKey: ["/api/qa/questions", activeTab],
-    queryFn: async () => {
-      const params = activeTab === "resolved" 
-        ? "?resolved=true" 
-        : activeTab === "open" 
-          ? "?resolved=false" 
-          : "";
-      const headers: Record<string, string> = {};
-      const devToken = localStorage.getItem('dev_token');
-      if (devToken) {
-        headers['Authorization'] = `Bearer ${devToken}`;
-      }
-      const response = await fetch(`/api/qa/questions${params}`, {
-        headers,
-        credentials: "include",
-      });
-      if (!response.ok) throw new Error("Failed to fetch questions");
-      return response.json();
-    },
   });
 
   const { data: questionDetail, isLoading: loadingDetail } = useQuery<QuestionDetail>({

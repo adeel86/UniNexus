@@ -40,11 +40,7 @@ export function EditProfileModal({ user, open, onOpenChange }: EditProfileModalP
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append("image", file);
-      const response = await fetch("/api/upload/image", {
-        method: "POST",
-        body: formData,
-      });
-      if (!response.ok) throw new Error("Upload failed");
+      const response = await apiRequest("POST", "/api/upload/image", formData);
       return response.json();
     },
     onSuccess: (data) => {

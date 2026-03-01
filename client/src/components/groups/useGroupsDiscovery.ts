@@ -157,8 +157,10 @@ export function useGroupsDiscovery() {
   });
 
   const updateGroupMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: CreateGroupFormData }) => {
-      return apiRequest("PATCH", `/api/groups/${id}`, data);
+    mutationFn: async ({ id, data }: { id: string; data: any }) => {
+      // Check if data is FormData (has files) or plain object
+      const res = await apiRequest("PATCH", `/api/groups/${id}`, data);
+      return res.json();
     },
     onMutate: async ({ id, data }) => {
       await queryClient.cancelQueries({ queryKey: ["/api/groups"] });

@@ -64,7 +64,10 @@ router.delete("/users/me", requireAuth, async (req: Request, res: Response) => {
 });
 
 router.post("/upload/image", requireAuth, upload.single("image"), async (req: Request, res: Response) => {
-  if (!req.file) return res.status(400).send("No file uploaded");
+  if (!req.file) {
+    console.error("Profile image upload failed: No file in request");
+    return res.status(400).json({ error: "No file provided" });
+  }
 
   try {
     const cloudResult = await uploadToCloud(req.file.buffer, {

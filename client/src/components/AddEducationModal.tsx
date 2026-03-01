@@ -63,6 +63,18 @@ export function AddEducationModal({ open, onOpenChange, userId, editingRecord }:
     }
   }, [editingRecord, open]);
 
+  const [isUploading, setIsUploading] = useState(false);
+  const uploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      setIsUploading(true);
+      const formData = new FormData();
+      formData.append("image", file);
+      const res = await apiRequest("POST", "/api/upload/image", formData);
+      return res.json();
+    },
+    onSettled: () => setIsUploading(false),
+  });
+
   const mutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       if (isEditing) {
@@ -211,8 +223,8 @@ export function AddEducationModal({ open, onOpenChange, userId, editingRecord }:
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={mutation.isPending} data-testid="button-save-education">
-              {mutation.isPending ? "Saving..." : isEditing ? "Update" : "Add"}
+            <Button type="submit" disabled={mutation.isPending || isUploading} data-testid="button-save-education">
+              {mutation.isPending || isUploading ? "Saving..." : isEditing ? "Update" : "Add"}
             </Button>
           </div>
         </form>

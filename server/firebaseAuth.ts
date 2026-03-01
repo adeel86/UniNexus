@@ -15,7 +15,7 @@ async function initializeFirebaseAdmin() {
   try {
     // Try to import service account JSON from project root (serviceAccountKey.json)
     // or from env path (VITE_FIREBASE_SERVICE_ACCOUNT_PATH - for backwards compatibility)
-    let serviceAccountPath = new URL("../serviceAccountKey.json", import.meta.url);
+    let serviceAccountPath = new URL("../secrets/serviceAccountKey.json", import.meta.url);
     
     // If env var is set, try that path first
     if (process.env.VITE_FIREBASE_SERVICE_ACCOUNT_PATH) {

@@ -62,7 +62,7 @@ export function CourseFormModal({
   const { data: universities = [] } = useQuery<string[]>({
     queryKey: ['/api/universities'],
     queryFn: async () => {
-      const response = await fetch('/api/users?role=university_admin');
+      const response = await apiRequest("GET", '/api/users?role=university_admin');
       if (!response.ok) return [];
       const admins: any[] = await response.json();
       return Array.from(new Set(admins.map((a: any) => a.university).filter(Boolean))) as string[];

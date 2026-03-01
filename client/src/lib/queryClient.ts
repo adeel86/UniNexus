@@ -12,7 +12,11 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const headers: Record<string, string> = data ? { "Content-Type": "application/json" } : {};
+  const headers: Record<string, string> = {};
+  
+  if (data && !(data instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
   
   // Include dev token if available (for demo accounts)
   const devToken = localStorage.getItem('dev_token');
@@ -22,7 +26,7 @@ export async function apiRequest(
     // Fallback to Firebase token for regular users
     try {
       const { auth } = await import('./firebase');
-      if (auth.currentUser) {
+      if (auth?.currentUser) {
         const token = await auth.currentUser.getIdToken();
         headers['Authorization'] = `Bearer ${token}`;
       }
@@ -31,10 +35,12 @@ export async function apiRequest(
     }
   }
   
+  const body = data instanceof FormData ? data : (data ? JSON.stringify(data) : undefined);
+
   const res = await fetch(url, {
     method,
     headers,
-    body: data ? JSON.stringify(data) : undefined,
+    body,
     credentials: "include",
   });
 

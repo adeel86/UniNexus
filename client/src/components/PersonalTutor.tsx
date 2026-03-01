@@ -62,6 +62,7 @@ export function PersonalTutor() {
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
+      setIsUploading(true);
       const formData = new FormData();
       formData.append("file", file);
       const res = await apiRequest("POST", "/api/ai/personal-tutor/materials", formData);
@@ -101,7 +102,6 @@ export function PersonalTutor() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setIsUploading(true);
       uploadMutation.mutate(file);
     }
   };

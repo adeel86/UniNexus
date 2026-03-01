@@ -65,11 +65,6 @@ export function useProfile({ currentUser, viewingUserId }: UseProfileOptions) {
 
   const { data: userPosts = [] } = useQuery<PostWithAuthor[]>({
     queryKey: [`/api/posts`, 'author', targetUserId],
-    queryFn: async () => {
-      const response = await fetch(`/api/posts?authorId=${targetUserId}`);
-      if (!response.ok) throw new Error('Failed to fetch user posts');
-      return response.json();
-    },
     enabled: !!targetUserId,
   });
 

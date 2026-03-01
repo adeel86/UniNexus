@@ -133,7 +133,7 @@ export function JobExperienceModal({ open, onOpenChange, experience, userId }: J
 
   const updateMutation = useMutation({
     mutationFn: async (data: JobExperienceFormData) => {
-      return apiRequest('PUT', `/api/job-experience/${experience?.id}`, data);
+      return apiRequest('PATCH', `/api/job-experience/${experience?.id}`, data);
     },
     onMutate: async (updatedData) => {
       await queryClient.cancelQueries({ queryKey: [`/api/users/${userId}/job-experience`] });
@@ -180,7 +180,22 @@ export function JobExperienceModal({ open, onOpenChange, experience, userId }: J
     }
   };
 
-  const isPending = createMutation.isPending || updateMutation.isPending;
+  const [isUploading, setIsUploading] = useState(false);
+  const uploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      setIsUploading(true);
+      const formData = new FormData();
+      formData.append("image", file);
+      const res = await apiRequest("POST", "/api/upload/image", formData);
+      return res.json();
+    },
+    onSuccess: (data) => {
+      // Handle success
+    },
+    onSettled: () => setIsUploading(false),
+  });
+
+  const isPending = createMutation.isPending || updateMutation.isPending || isUploading;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -291,10 +306,10 @@ export function JobExperienceModal({ open, onOpenChange, experience, userId }: J
             </Button>
             <Button
               type="submit"
-              disabled={isPending}
+              disabled={isPending || isUploading}
               data-testid="button-submit"
             >
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {(isPending || isUploading) && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {experience ? 'Update' : 'Add'} Experience
             </Button>
           </div>

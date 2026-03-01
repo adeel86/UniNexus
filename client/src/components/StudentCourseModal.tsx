@@ -183,12 +183,10 @@ export function StudentCourseModal({ open, onOpenChange, course, userId }: Stude
 
   const { data: allCourses = [] } = useQuery<Course[]>({
     queryKey: ['/api/courses'],
-    queryFn: async () => {
-      const response = await fetch('/api/courses');
-      if (!response.ok) return [];
-      const data = await response.json();
-      return data;
-    },
+    queryFn: async ({ queryKey }) => {
+      const res = await apiRequest("GET", queryKey[0] as string);
+      return res.json();
+    }
   });
 
   const selectedTeacherId = form.watch('assignedTeacherId');

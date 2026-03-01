@@ -138,37 +138,34 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    // Try dev login first (works for all seeded accounts with password "demo123")
-    try {
-      const response = await fetch('/api/auth/dev-login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
-      
-      if (response.ok) {
-        const { token, user } = await response.json();
+    // Development auth bypass is disabled in production
+    if (import.meta.env.VITE_DEV_AUTH_ENABLED === 'true') {
+      try {
+        const response = await fetch('/api/auth/dev-login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email, password }),
+        });
         
-        // Store the dev token in localStorage for subsequent requests
-        localStorage.setItem('dev_token', token);
-        
-        // Set user data directly (bypass Firebase)
-        setUserData(user);
-        setCurrentUser({
-          uid: user.firebaseUid,
-          email: user.email,
-          displayName: user.firstName + ' ' + user.lastName,
-        } as User);
-        
-        return;
+        if (response.ok) {
+          const { token, user } = await response.json();
+          localStorage.setItem('dev_token', token);
+          setUserData(user);
+          setCurrentUser({
+            uid: user.firebaseUid,
+            email: user.email,
+            displayName: user.firstName + ' ' + user.lastName,
+          } as User);
+          return;
+        }
+      } catch (error: any) {
+        console.log('Dev login error:', error.message);
       }
-    } catch (error: any) {
-      console.log('Dev login not available, trying Firebase...', error.message);
     }
     
-    // Fallback to Firebase authentication if dev login fails or is unavailable
+    // Use Firebase authentication
     if (!auth) {
       throw new Error('Firebase authentication is not configured');
     }

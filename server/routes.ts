@@ -24,6 +24,7 @@ import {
   aiRouter,
   qaRouter,
 } from "./routes/index";
+import { sharedRouter } from "./routes/shared";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
@@ -56,6 +57,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.use('/uploads', express.static(uploadsDir));
 
+  app.use(sharedRouter);
   app.use("/api/auth", authRouter);
   app.use("/api", feedRouter);
   app.use("/api", usersRouter);

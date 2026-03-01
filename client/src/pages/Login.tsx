@@ -45,7 +45,7 @@ export default function Login() {
         title: 'Welcome back!',
         description: 'You have successfully logged in.',
       });
-      navigate('/');
+      // Navigation will be handled by the useEffect or App.tsx routing
     } catch (error: any) {
       toast({
         title: 'Login failed',

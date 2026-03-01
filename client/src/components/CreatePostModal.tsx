@@ -66,15 +66,7 @@ export function CreatePostModal({
         formData.append('images', file);
       });
 
-      const response = await fetch('/api/upload/images', {
-        method: 'POST',
-        credentials: 'include',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to upload images');
-      }
+      const response = await apiRequest('POST', '/api/upload/images', formData);
 
       const data = await response.json();
       setMediaUrls(prev => [...prev, ...data.urls]);
@@ -96,15 +88,7 @@ export function CreatePostModal({
       const formData = new FormData();
       formData.append('video', file);
 
-      const response = await fetch('/api/upload/video', {
-        method: 'POST',
-        credentials: 'include',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to upload video');
-      }
+      const response = await apiRequest('POST', '/api/upload/video', formData);
 
       const data = await response.json();
       setVideoUrl(data.url);

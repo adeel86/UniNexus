@@ -161,15 +161,7 @@ export function useTeacherContent(teacherId: string) {
       formData.append("isPublic", isPublic.toString());
       formData.append("courseId", courseForMaterials.id);
 
-      const response = await fetch("/api/teacher-content/upload", {
-        method: "POST",
-        credentials: "include",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error("Upload failed");
-      }
+      const response = await apiRequest("POST", "/api/teacher-content/upload", formData);
 
       return response.json();
     },
@@ -191,13 +183,7 @@ export function useTeacherContent(teacherId: string) {
 
   const deleteMaterialMutation = useMutation({
     mutationFn: async (contentId: string) => {
-      const response = await fetch(`/api/teacher-content/${contentId}`, {
-        method: "DELETE",
-        credentials: "include",
-      });
-      if (!response.ok) {
-        throw new Error("Delete failed");
-      }
+      const response = await apiRequest("DELETE", `/api/teacher-content/${contentId}`);
       return response.json();
     },
     onSuccess: () => {
