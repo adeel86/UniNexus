@@ -11,6 +11,7 @@ import { RoleGuard } from "@/components/RoleGuard";
 import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
+import ForgotPassword from "@/pages/ForgotPassword";
 import StudentHome from "@/pages/StudentHome";
 import TeacherDashboard from "@/pages/TeacherDashboard";
 import UniversityDashboard from "@/pages/UniversityDashboard";
@@ -59,6 +60,7 @@ function Router() {
         <Route path="/" component={Landing} />
         <Route path="/login" component={Login} />
         <Route path="/register" component={Register} />
+        <Route path="/forgot-password" component={ForgotPassword} />
         {/* Public verification route */}
         <Route path="/verify/:hash" component={VerifyCertificate} />
         <Route component={Login} />

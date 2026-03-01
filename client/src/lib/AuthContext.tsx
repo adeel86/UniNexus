@@ -5,7 +5,8 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
-  updateProfile
+  updateProfile,
+  sendPasswordResetEmail
 } from 'firebase/auth';
 import { auth } from './firebase';
 import type { User as DBUser } from '@shared/schema';
@@ -15,6 +16,7 @@ interface AuthContextType {
   userData: DBUser | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   signUp: (email: string, password: string, displayName: string, role: string, additionalData: any) => Promise<void>;
   signOut: () => Promise<void>;
   refreshUserData: () => Promise<void>;
@@ -173,6 +175,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     await refreshUserData();
   };
 
+  const resetPassword = async (email: string) => {
+    if (!auth) {
+      throw new Error('Firebase authentication is not configured');
+    }
+    await sendPasswordResetEmail(auth, email);
+  };
+
   const signUp = async (
     email: string, 
     password: string, 
@@ -230,6 +239,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     userData,
     loading,
     signIn,
+    resetPassword,
     signUp,
     signOut,
     refreshUserData,

@@ -3,7 +3,7 @@ import admin from "firebase-admin";
 import jwt from "jsonwebtoken";
 import { storage } from "./storage";
 
-let firebaseAdmin: admin.app.App | null = null;
+export let firebaseAdmin: admin.app.App | null = null;
 
 // Development auth configuration
 // SECURITY: DEV_AUTH_ENABLED must be explicitly set to 'true' - no automatic enabling

@@ -1,4 +1,13 @@
 import {
+  eq,
+  or,
+  and,
+  sql,
+  desc,
+  isNull,
+  notExists,
+} from "drizzle-orm";
+import {
   users,
   type User,
   type UpsertUser,
@@ -48,7 +57,7 @@ import {
   aiChatMessages,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, desc, and, sql } from "drizzle-orm";
+import { studentCourses } from "@shared/schema/courses";
 
 // Interface for storage operations
 export interface IStorage {
@@ -379,13 +388,13 @@ export class DatabaseStorage implements IStorage {
         or(
           eq(userConnections.requesterId, userId),
           eq(userConnections.receiverId, userId)
-        )
+        )!
       );
       await tx.delete(followers).where(
         or(
-          eq(followers.userId, userId),
-          eq(followers.followerId, userId)
-        )
+          eq(followers.followerId, userId),
+          eq(followers.followingId, userId)
+        )!
       );
 
       // 3. Clean up gamification
@@ -394,8 +403,8 @@ export class DatabaseStorage implements IStorage {
       await tx.delete(endorsements).where(
         or(
           eq(endorsements.endorserId, userId),
-          eq(endorsements.endorsedId, userId)
-        )
+          eq(endorsements.endorsedUserId, userId)
+        )!
       );
       await tx.delete(challengeParticipants).where(eq(challengeParticipants.userId, userId));
 
@@ -413,7 +422,7 @@ export class DatabaseStorage implements IStorage {
           eq(studentCourses.userId, userId),
           eq(studentCourses.validatedBy, userId),
           eq(studentCourses.assignedTeacherId, userId)
-        )
+        )!
       );
       
       // Handle course forum data
@@ -422,10 +431,10 @@ export class DatabaseStorage implements IStorage {
       await tx.delete(courseDiscussions).where(eq(courseDiscussions.authorId, userId));
 
       // 5. Clean up AI and Tutor data
-      await tx.delete(studentPersonalTutorMessages).where(eq(studentPersonalTutorMessages.userId, userId));
+      await tx.delete(studentPersonalTutorMessages).where(eq(studentPersonalTutorMessages.sessionId, userId));
       await tx.delete(studentPersonalTutorSessions).where(eq(studentPersonalTutorSessions.studentId, userId));
       await tx.delete(studentPersonalTutorMaterials).where(eq(studentPersonalTutorMaterials.studentId, userId));
-      await tx.delete(aiChatMessages).where(eq(aiChatMessages.userId, userId));
+      await tx.delete(aiChatMessages).where(eq(aiChatMessages.sessionId, userId));
       await tx.delete(aiChatSessions).where(eq(aiChatSessions.userId, userId));
 
       // 6. Clean up profile and records
@@ -433,7 +442,12 @@ export class DatabaseStorage implements IStorage {
       await tx.delete(jobExperience).where(eq(jobExperience.userId, userId));
       await tx.delete(userProfiles).where(eq(userProfiles.userId, userId));
       await tx.delete(certifications).where(eq(certifications.userId, userId));
-      await tx.delete(recruiterFeedback).where(eq(recruiterFeedback.userId, userId));
+      await tx.delete(recruiterFeedback).where(
+        or(
+          eq(recruiterFeedback.recruiterId, userId),
+          eq(recruiterFeedback.studentId, userId)
+        )!
+      );
 
       // 7. Clean up group memberships
       await tx.delete(groupMembers).where(eq(groupMembers.userId, userId));

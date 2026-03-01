@@ -89,13 +89,13 @@ router.post("/api/upload/images", requireAuth, upload.array("images", 5), async 
   }
 
   try {
-    const uploadPromises = (req.files as Express.Multer.File[]).map(async (file) => {
+    const uploadPromises = ((req.files as Express.Multer.File[]) || []).map(async (file) => {
       const cloudResult = await uploadToCloud(file.buffer, {
-        folder: "posts",
+        folder: "images",
         contentType: file.mimetype,
         originalFilename: file.originalname,
       });
-      return cloudResult?.url || await saveFileLocally(file.buffer, "posts", file.originalname);
+      return cloudResult?.url || await saveFileLocally(file.buffer, "images", file.originalname);
     });
 
     const urls = await Promise.all(uploadPromises);

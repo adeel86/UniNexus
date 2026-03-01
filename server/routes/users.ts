@@ -45,7 +45,7 @@ router.delete("/users/me", requireAuth, async (req: Request, res: Response) => {
     if (user.firebaseUid) {
       try {
         // Ensure firebaseAdmin is available
-        const { firebaseAdmin } = await import("../firebaseAuth");
+        const { firebaseAdmin } = await import("../firebaseAuth") as any;
         if (firebaseAdmin) {
           await firebaseAdmin.auth().deleteUser(user.firebaseUid);
         }

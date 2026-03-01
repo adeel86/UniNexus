@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import type { CourseWithStats } from "./useTeacherContent";
 
 interface CourseFormModalProps {
@@ -64,7 +65,7 @@ export function CourseFormModal({
     queryFn: async () => {
       const response = await apiRequest("GET", '/api/users?role=university_admin');
       if (!response.ok) return [];
-      const admins: any[] = await response.json();
+      const admins = await response.json() as any[];
       return Array.from(new Set(admins.map((a: any) => a.university).filter(Boolean))) as string[];
     },
   });

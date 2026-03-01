@@ -18,10 +18,11 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function Login() {
-  const { signIn, currentUser, userData } = useAuth();
+  const { signIn, resetPassword, currentUser, userData } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
     if (currentUser && userData) {
@@ -54,6 +55,35 @@ export default function Login() {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const onForgotPassword = async () => {
+    const email = form.getValues('email');
+    if (!email) {
+      toast({
+        title: "Email required",
+        description: "Please enter your email address to reset your password.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsResetting(true);
+    try {
+      await resetPassword(email);
+      toast({
+        title: "Reset link sent",
+        description: "Check your email for the password reset link.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Reset failed",
+        description: error.message || "Could not send reset email.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -103,6 +133,18 @@ export default function Login() {
                       />
                     </FormControl>
                     <FormMessage />
+                    <div className="flex justify-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="px-0 font-normal h-auto text-primary hover:bg-transparent hover:underline"
+                        onClick={() => navigate("/forgot-password")}
+                        data-testid="button-forgot-password"
+                      >
+                        Forgot password?
+                      </Button>
+                    </div>
                   </FormItem>
                 )}
               />

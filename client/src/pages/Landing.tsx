@@ -73,7 +73,7 @@ export default function Landing() {
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 <GradientButton
-                  onClick={() => window.location.href = '/login'}
+                  onClick={() => window.location.href = '/register'}
                   className="text-lg px-8 py-7 rounded-2xl shadow-xl shadow-purple-500/20 hover:shadow-purple-500/40 transition-all"
                   data-testid="button-get-started"
                 >
@@ -178,7 +178,7 @@ export default function Landing() {
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-4xl font-bold mb-8">Ready to transform your future?</h2>
           <GradientButton
-            onClick={() => window.location.href = '/login'}
+            onClick={() => window.location.href = '/register'}
             className="bg-white text-white hover:bg-gray-100 px-10 py-8 rounded-2xl text-xl font-bold"
           >
             Get Started Now
