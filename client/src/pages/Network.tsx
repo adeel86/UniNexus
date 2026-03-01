@@ -28,31 +28,11 @@ export default function Network() {
   // Get all connections
   const { data: acceptedConnections = [] } = useQuery<ConnectionWithUser[]>({
     queryKey: ["/api/connections", "accepted"],
-    queryFn: async () => {
-      const res = await fetch("/api/connections?status=accepted", {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('dev_token')}`,
-        },
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to fetch connections");
-      return res.json();
-    },
   });
 
   // Get pending requests (received)
   const { data: pendingRequests = [] } = useQuery<ConnectionWithUser[]>({
     queryKey: ["/api/connections", "pending"],
-    queryFn: async () => {
-      const res = await fetch("/api/connections?status=pending", {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('dev_token')}`,
-        },
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Failed to fetch pending requests");
-      return res.json();
-    },
   });
 
   // Get followers (people following me)

@@ -113,7 +113,7 @@ export default function Landing() {
         <div className="container mx-auto px-4">
           <div className="text-center max-w-3xl mx-auto mb-16">
             <h2 className="font-heading text-4xl font-bold mb-4">Tailored for Every Stakeholder</h2>
-            <p className="text-gray-600 dark:text-gray-400">Our platform bridges the gap between education and industry, providing unique tools for everyone in the ecosystem.</p>
+            <p className="text-gray-600 dark:text-gray-400">This platform bridges the gap between education and industry, providing unique tools for everyone in the ecosystem.</p>
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-8">
