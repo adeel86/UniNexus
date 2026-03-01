@@ -96,12 +96,9 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
-    // Handle numeric IDs if passed as strings
-    const numericId = parseInt(id);
-    if (!isNaN(numericId) && numericId.toString() === id) {
-      const [user] = await db.select().from(users).where(eq(users.id, id));
-      return user;
-    }
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    if (user) return user;
+    
     // Otherwise treat as Firebase UID
     return this.getUserByFirebaseUid(id);
   }
