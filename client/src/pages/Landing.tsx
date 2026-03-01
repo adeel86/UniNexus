@@ -116,7 +116,7 @@ export default function Landing() {
             <p className="text-gray-600 dark:text-gray-400">This platform bridges the gap between education and industry, providing unique tools for everyone in the ecosystem.</p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
             {roleInfo.map((role) => {
               const Icon = role.icon;
               return (
