@@ -97,7 +97,7 @@ function Router() {
           <Route path="/" component={HomePage} />
           {/* ... existing routes ... */}
           <Route path="/master-admin-dashboard">
-            {import.meta.env.VITE_DEV_AUTH_ENABLED === 'true' ? (
+            {import.meta.env.DEV_AUTH_ENABLED === 'true' ? (
               <MasterAdminDashboard />
             ) : (
               <NotFound />

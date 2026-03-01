@@ -166,7 +166,7 @@ export default function Login() {
             </Link>
           </div>
 
-          {import.meta.env.VITE_DEV_AUTH_ENABLED === 'true' && (
+          {import.meta.env.DEV_AUTH_ENABLED === 'true' && (
             <div className="border-t pt-4" data-testid="master-demo-section">
               <p className="text-sm font-medium mb-2">Master Demo Access:</p>
               <div className="flex flex-wrap gap-2">
