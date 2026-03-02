@@ -56,7 +56,7 @@ export function AddSkillModal({ open, onOpenChange, userId, existingSkillIds }: 
       // Update the local cache immediately with the new skill
       queryClient.setQueryData([`/api/user-skills/${userId}`], (old: any[] = []) => {
         // Avoid duplicates if already present
-        if (old.some(us => us.id === data.id)) return old;
+        if (old.some(us => us.skillId === data.skillId)) return old;
         return [...old, data];
       });
 

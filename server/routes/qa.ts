@@ -18,11 +18,11 @@ router.get("/qa/questions", isAuthenticated, async (req: Request, res: Response)
   try {
     const { resolved } = req.query;
     
-    let whereClause = eq(courseDiscussions.isQuestion, true);
+    let whereClause: any = eq(courseDiscussions.isQuestion, true);
     if (resolved === "true") {
-      whereClause = and(whereClause, eq(courseDiscussions.isResolved, true))!;
+      whereClause = and(whereClause, eq(courseDiscussions.isResolved, true));
     } else if (resolved === "false") {
-      whereClause = and(whereClause, eq(courseDiscussions.isResolved, false))!;
+      whereClause = and(whereClause, eq(courseDiscussions.isResolved, false));
     }
 
     const questions = await db
@@ -37,35 +37,22 @@ router.get("/qa/questions", isAuthenticated, async (req: Request, res: Response)
         createdAt: courseDiscussions.createdAt,
         authorId: courseDiscussions.authorId,
         courseId: courseDiscussions.courseId,
+        author: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          displayName: users.displayName,
+          profileImageUrl: users.profileImageUrl,
+          rankTier: users.rankTier,
+        }
       })
       .from(courseDiscussions)
+      .leftJoin(users, eq(courseDiscussions.authorId, users.id))
       .where(whereClause)
       .orderBy(desc(courseDiscussions.createdAt))
       .limit(50);
 
-    if (questions.length === 0) {
-      return res.json([]);
-    }
-
-    const questionsWithAuthors = await Promise.all(
-      questions.map(async (q) => {
-        const [author] = await db
-          .select({
-            id: users.id,
-            firstName: users.firstName,
-            lastName: users.lastName,
-            displayName: users.displayName,
-            profileImageUrl: users.profileImageUrl,
-            rankTier: users.rankTier,
-          })
-          .from(users)
-          .where(eq(users.id, q.authorId))
-          .limit(1);
-        return { ...q, author: author || null };
-      })
-    );
-
-    res.json(questionsWithAuthors);
+    res.json(questions);
   } catch (error: any) {
     console.error("Error fetching questions:", error);
     res.status(500).json({ error: error.message });

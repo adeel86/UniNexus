@@ -68,7 +68,7 @@ export function CommentsSection({
                 <div className="flex-1 bg-muted rounded-lg p-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="font-medium text-sm">
-                      {comment.author ? `${comment.author.firstName} ${comment.author.lastName}` : "User"}
+                      {comment.author ? `${comment.author.firstName} ${comment.author.lastName}` : (comment.authorId === currentUser.id ? `${currentUser.firstName} ${currentUser.lastName}` : "User")}
                     </div>
                     {canDeleteComment && (
                       <Button

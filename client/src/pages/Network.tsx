@@ -118,7 +118,7 @@ export default function Network() {
 
   // Filter pending requests (only received ones)
   const receivedRequests = pendingRequests.filter(
-    req => req.receiverId === userData?.id
+    req => req.receiverId === auth.userData?.id
   );
 
   return (

@@ -186,7 +186,24 @@ export function usePostCard(initialPost: PostWithAuthor) {
       toast({ title: "Error", description: "Failed to post comment", variant: "destructive" });
     },
     onSettled: invalidateAllQueries,
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Update the cache with the real comment from the server
+      const updateWithRealComment = (oldData: any) => {
+        if (!oldData) return oldData;
+        return oldData.map((p: PostWithAuthor) => {
+          if (p.id !== post.id) return p;
+          return {
+            ...p,
+            comments: p.comments.map((c: any) => 
+              c.id.startsWith('temp-') && c.content === data.content ? data : c
+            )
+          };
+        });
+      };
+      queryClient.setQueryData(["/api/feed/personalized"], updateWithRealComment);
+      queryClient.setQueryData(["/api/feed/trending"], updateWithRealComment);
+      queryClient.setQueryData(["/api/feed/following"], updateWithRealComment);
+      
       toast({ title: "Comment posted!" });
     },
   });

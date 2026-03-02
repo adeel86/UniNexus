@@ -79,7 +79,7 @@ export default function ProblemSolving() {
   const [newAnswerContent, setNewAnswerContent] = useState("");
 
   const { data: questions = [], isLoading: loadingQuestions } = useQuery<Question[]>({
-    queryKey: ["/api/qa/questions", activeTab],
+    queryKey: ["/api/qa/questions", { resolved: activeTab === "all" ? undefined : activeTab === "resolved" }],
   });
 
   const { data: questionDetail, isLoading: loadingDetail } = useQuery<QuestionDetail>({

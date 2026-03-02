@@ -603,7 +603,7 @@ router.post("/discussions", isAuthenticated, async (req: Request, res: Response)
     const validatedData = insertCourseDiscussionSchema.parse({ ...req.body, authorId: req.user.id });
     const newDiscussion = await storage.createDiscussion(validatedData);
     await db.update(users).set({ engagementScore: sql`${users.engagementScore} + 5` }).where(eq(users.id, req.user.id));
-    await checkAndAwardCourseBadges(req.user.id, validatedData.courseId);
+    if (newDiscussion) await checkAndAwardCourseBadges(req.user.id, String(validatedData.courseId));
     res.json(newDiscussion);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
