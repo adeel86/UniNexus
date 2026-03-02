@@ -177,7 +177,35 @@ router.post("/user-skills", async (req: Request, res: Response) => {
   }
 
   try {
-    const { skillId, level } = req.body;
+    let { skillId, skillName, level } = req.body;
+
+    // If skillName is provided, it's a custom skill
+    if (!skillId && skillName) {
+      // Check if skill already exists
+      const [existingSkill] = await db
+        .select()
+        .from(skills)
+        .where(eq(sql`lower(${skills.name})`, skillName.toLowerCase()))
+        .limit(1);
+
+      if (existingSkill) {
+        skillId = existingSkill.id;
+      } else {
+        // Create new skill
+        const [newSkill] = await db
+          .insert(skills)
+          .values({
+            name: skillName,
+            category: "Custom",
+          })
+          .returning();
+        skillId = newSkill.id;
+      }
+    }
+
+    if (!skillId) {
+      return res.status(400).json({ error: "Skill ID or name is required" });
+    }
 
     const [newUserSkill] = await db
       .insert(userSkills)

@@ -46,11 +46,12 @@ export function AddSkillModal({ open, onOpenChange, userId, existingSkillIds }: 
   );
 
   const mutation = useMutation({
-    mutationFn: async (data: { skillId: string; level: string }) => {
+    mutationFn: async (data: { skillId?: string; skillName?: string; level: string }) => {
       return apiRequest("POST", "/api/users/skills", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/user-skills/${userId}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/skills"] });
       toast({ title: "Skill added successfully" });
       onOpenChange(false);
       setSelectedSkillId("");
@@ -69,64 +70,74 @@ export function AddSkillModal({ open, onOpenChange, userId, existingSkillIds }: 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!selectedSkillId) {
-      toast({ title: "Please select a skill", variant: "destructive" });
+    if (!selectedSkillId && !searchQuery) {
+      toast({ title: "Please select or enter a skill", variant: "destructive" });
       return;
     }
 
-    mutation.mutate({ skillId: selectedSkillId, level });
+    if (selectedSkillId) {
+      mutation.mutate({ skillId: selectedSkillId, level });
+    } else if (searchQuery) {
+      mutation.mutate({ skillName: searchQuery, level });
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Add Skill</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <Label htmlFor="search-skill">Search Skills</Label>
+            <Label htmlFor="search-skill">Search or Add New Skill</Label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 id="search-skill"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Type to search..."
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setSelectedSkillId(""); // Reset selection when searching
+                }}
+                placeholder="Search existing or type new skill..."
                 className="pl-10"
                 data-testid="input-search-skill"
               />
             </div>
           </div>
 
-          <div>
-            <Label htmlFor="skill">Skill *</Label>
-            <Select value={selectedSkillId} onValueChange={setSelectedSkillId}>
-              <SelectTrigger data-testid="select-skill">
-                <SelectValue placeholder="Select a skill" />
-              </SelectTrigger>
-              <SelectContent className="max-h-[300px]">
-                {availableSkills.length === 0 ? (
-                  <div className="p-4 text-center text-sm text-muted-foreground">
-                    {searchQuery ? "No skills found matching your search" : "All available skills have been added"}
-                  </div>
-                ) : (
-                  availableSkills.map((skill) => (
-                    <SelectItem key={skill.id} value={skill.id}>
-                      <div className="flex items-center gap-2">
-                        <Lightbulb className="h-3 w-3" />
-                        {skill.name}
-                        {skill.category && (
-                          <span className="text-xs text-muted-foreground">({skill.category})</span>
-                        )}
-                      </div>
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-          </div>
+          {searchQuery && availableSkills.length > 0 && (
+            <div className="border rounded-md max-h-[200px] overflow-y-auto p-1 bg-background/50 backdrop-blur-sm">
+              {availableSkills.map((skill) => (
+                <button
+                  key={skill.id}
+                  type="button"
+                  onClick={() => {
+                    setSelectedSkillId(skill.id);
+                    setSearchQuery(skill.name);
+                  }}
+                  className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-sm hover:bg-accent transition-colors ${
+                    selectedSkillId === skill.id ? "bg-accent" : ""
+                  }`}
+                >
+                  <Lightbulb className="h-4 w-4 text-yellow-500" />
+                  <span className="flex-1 text-left">{skill.name}</span>
+                  {skill.category && (
+                    <span className="text-xs text-muted-foreground">({skill.category})</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {searchQuery && availableSkills.length === 0 && !selectedSkillId && (
+            <div className="p-3 border border-dashed rounded-md bg-accent/20 flex items-center gap-2 text-sm">
+              <Lightbulb className="h-4 w-4 text-muted-foreground" />
+              <span>Skill not found. Press "Add Skill" to create <strong>"{searchQuery}"</strong></span>
+            </div>
+          )}
 
           <div>
             <Label htmlFor="level">Proficiency Level *</Label>
@@ -141,9 +152,6 @@ export function AddSkillModal({ open, onOpenChange, userId, existingSkillIds }: 
                 <SelectItem value="expert">Expert</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground mt-1">
-              You can change this later
-            </p>
           </div>
 
           <div className="flex justify-end gap-2 pt-4">
@@ -157,7 +165,7 @@ export function AddSkillModal({ open, onOpenChange, userId, existingSkillIds }: 
             </Button>
             <Button
               type="submit"
-              disabled={mutation.isPending || !selectedSkillId}
+              disabled={mutation.isPending || (!selectedSkillId && !searchQuery)}
               data-testid="button-save-skill"
             >
               {mutation.isPending ? "Adding..." : "Add Skill"}
