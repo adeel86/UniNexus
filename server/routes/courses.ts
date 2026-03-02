@@ -267,6 +267,25 @@ router.get("/teacher/pending-validations", isAuthenticated, async (req: Request,
 });
 
 // ========================================================================
+// COURSE ENROLLMENT
+// ========================================================================
+
+router.post("/courses/:id/enroll", isAuthenticated, async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = req.user as any;
+    
+    await storage.createEnrollment(id, user.id);
+    
+    // Fetch updated course to return the new enrollment count
+    const updatedCourse = await storage.getCourse(id);
+    res.json(updatedCourse);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================================================================
 // COURSE FORUMS & DISCUSSIONS ENDPOINTS
 // ========================================================================
 

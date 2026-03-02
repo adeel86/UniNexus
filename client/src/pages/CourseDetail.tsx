@@ -183,6 +183,29 @@ export default function CourseDetail() {
     careerBotMutation.mutate(careerBotInput);
   };
 
+  // Enrollment mutation
+  const enrollMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", `/api/courses/${courseId}/enroll`);
+      return await response.json();
+    },
+    onSuccess: (updatedCourse) => {
+      queryClient.setQueryData(["/api/courses", courseId], updatedCourse);
+      queryClient.invalidateQueries({ queryKey: ["/api/me/enrolled-courses"] });
+      toast({
+        title: "Enrolled successfully",
+        description: "You can now participate in discussions and access materials.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Enrollment failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   if (courseLoading) {
     return (
       <div className="flex items-center justify-center h-screen">

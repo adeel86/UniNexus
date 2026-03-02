@@ -263,11 +263,26 @@ export async function generateChatResponse(
     throw new Error("Course not found");
   }
   
-  const relevantChunks = await retrieveRelevantChunks(courseId, userMessage);
+  let relevantChunks = await retrieveRelevantChunks(courseId, userMessage);
   
   if (relevantChunks.length === 0) {
+    // Fallback: check if there is any content at all for this course
+    const [anyContent] = await db
+      .select()
+      .from(teacherContent)
+      .where(eq(teacherContent.courseId, courseId))
+      .limit(1);
+
+    if (!anyContent) {
+      return {
+        answer: `I don't have any course materials for ${courseInfo.name} yet. Please ask your teacher to upload content first.`,
+        citations: [],
+      };
+    }
+
+    // If there is content but no relevant chunks, it might not be indexed or semantically distant
     return {
-      answer: `I don't have any course materials for ${courseInfo.name} yet. Please ask your teacher to upload content first.`,
+      answer: `I found some materials for ${courseInfo.name}, but I couldn't find specific information related to your question. Try asking something else or check if the materials cover this topic.`,
       citations: [],
     };
   }
@@ -408,10 +423,18 @@ export async function getUserSessions(userId: string, courseId: string): Promise
 }
 
 export async function getContentChunkCount(courseId: string): Promise<number> {
-  const chunks = await db
-    .select({ id: teacherContentChunks.id })
+  // Check both chunks and raw content to be safe
+  const [chunkCount] = await db
+    .select({ count: sql<number>`count(*)` })
     .from(teacherContentChunks)
     .where(eq(teacherContentChunks.courseId, courseId));
   
-  return chunks.length;
+  if (Number(chunkCount?.count || 0) > 0) return Number(chunkCount.count);
+
+  const [contentCount] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(teacherContent)
+    .where(eq(teacherContent.courseId, courseId));
+
+  return Number(contentCount?.count || 0);
 }

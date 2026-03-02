@@ -154,6 +154,21 @@ router.post("/upload", requireAuth, requireRole('teacher', 'master_admin'), docu
       })
       .returning();
 
+    // Auto-index content if it's text-based
+    if (contentType === 'text' && req.file.buffer) {
+      try {
+        const textContent = req.file.buffer.toString('utf-8');
+        await db.update(teacherContent)
+          .set({ textContent })
+          .where(eq(teacherContent.id, content.id));
+        
+        const aiChatbot = await import("../aiChatbot");
+        await aiChatbot.indexTeacherContent(content.id);
+      } catch (indexError) {
+        console.error("Failed to auto-index content:", indexError);
+      }
+    }
+
     res.json({ url: fileUrl, content });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

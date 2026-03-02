@@ -112,6 +112,7 @@ export function StudentAITutor({ open, onOpenChange, courseId, courseName }: Stu
   };
 
   const isReady = status?.isReady ?? false;
+  const hasMaterialsButNotIndexed = !isReady && (status?.indexedChunks || 0) === 0 && status?.courseId;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -124,9 +125,9 @@ export function StudentAITutor({ open, onOpenChange, courseId, courseName }: Stu
           </DialogTitle>
           {status && (
             <div className="flex items-center gap-2 mt-2">
-              <Badge variant={isReady ? "default" : "secondary"}>
+              <Badge variant={isReady ? "default" : (status.indexedChunks > 0 ? "secondary" : "outline")}>
                 <BookOpen className="h-3 w-3 mr-1" />
-                {status.indexedChunks} materials indexed
+                {status.indexedChunks} materials {isReady ? "ready" : "found"}
               </Badge>
               <span className="text-xs text-muted-foreground">
                 Instructor: {status.instructorName}
@@ -143,7 +144,7 @@ export function StudentAITutor({ open, onOpenChange, courseId, courseName }: Stu
               <Skeleton className="h-4 w-1/2" />
             </div>
           </div>
-        ) : !isReady ? (
+        ) : !isReady && status?.indexedChunks === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
             <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="font-semibold text-lg mb-2">
@@ -157,6 +158,14 @@ export function StudentAITutor({ open, onOpenChange, courseId, courseName }: Stu
         ) : (
           <>
             <ScrollArea className="flex-1 pr-4" ref={scrollRef}>
+              {!isReady && status && status.indexedChunks > 0 && (
+                <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
+                  <div className="text-xs text-amber-800 dark:text-amber-200">
+                    <strong>Materials found but not yet indexed.</strong> The AI might have limited information until indexing is complete.
+                  </div>
+                </div>
+              )}
               {messages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center p-8">
                   <Sparkles className="h-12 w-12 text-purple-600 mb-4" />

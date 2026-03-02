@@ -167,6 +167,7 @@ export function useTeacherContent(teacherId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/teacher-content/teacher/${teacherId}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/me/created-courses"] });
       toast({ title: "Content uploaded successfully!" });
     },
     onError: (error: any) => {
@@ -188,6 +189,7 @@ export function useTeacherContent(teacherId: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/teacher-content/teacher/${teacherId}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/me/created-courses"] });
       toast({ title: "Content deleted successfully" });
     },
     onError: (error: any) => {
