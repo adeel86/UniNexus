@@ -43,6 +43,10 @@ router.get("/qa/questions", isAuthenticated, async (req: Request, res: Response)
       .orderBy(desc(courseDiscussions.createdAt))
       .limit(50);
 
+    if (questions.length === 0) {
+      return res.json([]);
+    }
+
     const questionsWithAuthors = await Promise.all(
       questions.map(async (q) => {
         const [author] = await db
@@ -160,7 +164,7 @@ router.post("/qa/questions", isAuthenticated, async (req: Request, res: Response
         title,
         content,
         authorId: req.user.id,
-        courseId: "general",
+        courseId: null,
         isQuestion: true,
         isResolved: false,
       })

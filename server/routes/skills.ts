@@ -12,6 +12,8 @@ import {
   insertEndorsementSchema,
 } from "@shared/schema";
 
+import { requireAuth } from "./shared";
+
 const router = Router();
 
 router.get("/user-badges/:userId", async (req: Request, res: Response) => {
@@ -171,7 +173,7 @@ router.get("/user-skills/:userId", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/user-skills", async (req: Request, res: Response) => {
+router.post("/users/skills", requireAuth, async (req: Request, res: Response) => {
   if (!req.user) {
     return res.status(401).send("Unauthorized");
   }
@@ -199,6 +201,9 @@ router.post("/user-skills", async (req: Request, res: Response) => {
             category: "Custom",
           })
           .returning();
+        
+        // Ensure the new skill is available for future dropdowns by returning it
+        // and also invalidating the skills query on the frontend
         skillId = newSkill.id;
       }
     }
@@ -207,6 +212,18 @@ router.post("/user-skills", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Skill ID or name is required" });
     }
 
+    // Check if user already has this skill
+    const [existingUserSkill] = await db
+      .select()
+      .from(userSkills)
+      .where(
+        and(
+          eq(userSkills.userId, req.user.id),
+          eq(userSkills.skillId, skillId)
+        )
+      )
+      .limit(1);
+
     const [newUserSkill] = await db
       .insert(userSkills)
       .values({
@@ -214,15 +231,34 @@ router.post("/user-skills", async (req: Request, res: Response) => {
         skillId,
         level: level || "beginner",
       })
+      .onConflictDoUpdate({
+        target: [userSkills.userId, userSkills.skillId],
+        set: { level: level || "beginner" }
+      })
       .returning();
 
-    res.json(newUserSkill);
+    // Fetch the full skill object to return to the frontend
+    const [fullUserSkill] = await db
+      .select({
+        id: userSkills.id,
+        userId: userSkills.userId,
+        skillId: userSkills.skillId,
+        level: userSkills.level,
+        addedAt: userSkills.addedAt,
+        skill: skills,
+      })
+      .from(userSkills)
+      .leftJoin(skills, eq(userSkills.skillId, skills.id))
+      .where(eq(userSkills.id, newUserSkill.id))
+      .limit(1);
+
+    res.json(fullUserSkill);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
   }
 });
 
-router.delete("/user-skills/:skillId", async (req: Request, res: Response) => {
+router.delete("/user-skills/:skillId", requireAuth, async (req: Request, res: Response) => {
   if (!req.user) {
     return res.status(401).send("Unauthorized");
   }
@@ -233,7 +269,10 @@ router.delete("/user-skills/:skillId", async (req: Request, res: Response) => {
     await db
       .delete(userSkills)
       .where(
-        eq(userSkills.userId, req.user.id) && eq(userSkills.skillId, skillId)
+        and(
+          eq(userSkills.userId, req.user.id),
+          eq(userSkills.skillId, skillId)
+        )
       );
 
     res.json({ success: true });

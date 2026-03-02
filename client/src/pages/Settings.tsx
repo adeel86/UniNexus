@@ -52,7 +52,7 @@ export default function Settings() {
         title: "Account deleted",
         description: "Your account has been permanently removed.",
       });
-      setLocation("/login");
+      window.location.href = "/";
     } catch (error: any) {
       toast({
         title: "Deletion failed",

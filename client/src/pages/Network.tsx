@@ -36,12 +36,12 @@ export default function Network() {
   });
 
   // Get followers (people following me)
-  const { data: followers = [] } = useQuery<FollowerWithUser[]>({
+  const { data: followers = [] } = useQuery<any[]>({
     queryKey: ["/api/followers/me"],
   });
 
   // Get following (people I'm following)
-  const { data: following = [] } = useQuery<FollowerWithUser[]>({
+  const { data: following = [] } = useQuery<any[]>({
     queryKey: ["/api/following/me"],
   });
 
@@ -118,7 +118,7 @@ export default function Network() {
 
   // Filter pending requests (only received ones)
   const receivedRequests = pendingRequests.filter(
-    req => req.receiverId !== req.user?.id
+    req => req.receiverId === userData?.id
   );
 
   return (
@@ -350,7 +350,7 @@ export default function Network() {
             )}
           </TabsContent>
 
-          {/* Followers Tab */}
+            {/* Followers Tab */}
           <TabsContent value="followers" className="mt-6">
             {followers.length === 0 ? (
               <Card className="p-8 text-center">
@@ -362,7 +362,7 @@ export default function Network() {
               </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {followers.map((follow) => (
+                {followers.map((follow) => follow.follower && (
                   <Card
                     key={follow.id}
                     className="p-4 hover-elevate"
@@ -426,7 +426,7 @@ export default function Network() {
               </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {following.map((follow) => (
+                {following.map((follow) => follow.following && (
                   <Card
                     key={follow.id}
                     className="p-4 hover-elevate"

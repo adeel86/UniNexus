@@ -49,9 +49,17 @@ export function AddSkillModal({ open, onOpenChange, userId, existingSkillIds }: 
     mutationFn: async (data: { skillId?: string; skillName?: string; level: string }) => {
       return apiRequest("POST", "/api/users/skills", data);
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [`/api/user-skills/${userId}`] });
       queryClient.invalidateQueries({ queryKey: ["/api/skills"] });
+      
+      // Update the local cache immediately with the new skill
+      queryClient.setQueryData([`/api/user-skills/${userId}`], (old: any[] = []) => {
+        // Avoid duplicates if already present
+        if (old.some(us => us.id === data.id)) return old;
+        return [...old, data];
+      });
+
       toast({ title: "Skill added successfully" });
       onOpenChange(false);
       setSelectedSkillId("");

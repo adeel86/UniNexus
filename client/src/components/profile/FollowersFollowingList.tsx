@@ -47,16 +47,21 @@ export function FollowersFollowingList({
       </div>
       {data.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {data.map((item: any) => item.user && (
-            <FollowerFollowingItem 
-              key={item.user.id}
-              user={item.user}
-              type={type}
-              currentUserId={currentUserId}
-              isOwnProfile={isOwnProfile}
-              profileUserId={profileUserId}
-            />
-          ))}
+          {data.map((item: any) => {
+            const displayUser = type === 'followers' ? item.follower : item.following;
+            if (!displayUser) return null;
+            
+            return (
+              <FollowerFollowingItem 
+                key={displayUser.id}
+                user={displayUser}
+                type={type}
+                currentUserId={currentUserId}
+                isOwnProfile={isOwnProfile}
+                profileUserId={profileUserId}
+              />
+            );
+          })}
         </div>
       ) : (
         <p className="text-center text-muted-foreground py-8">{emptyMessage}</p>

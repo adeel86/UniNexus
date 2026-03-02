@@ -77,7 +77,7 @@ export type CourseEnrollment = typeof courseEnrollments.$inferSelect;
 
 export const courseDiscussions = pgTable("course_discussions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  courseId: varchar("course_id").notNull().references(() => courses.id, { onDelete: 'cascade' }),
+  courseId: varchar("course_id").references(() => courses.id, { onDelete: 'cascade' }),
   authorId: varchar("author_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   title: varchar("title", { length: 200 }).notNull(),
   content: text("content").notNull(),

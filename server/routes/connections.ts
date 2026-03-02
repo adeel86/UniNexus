@@ -108,7 +108,7 @@ router.patch("/connections/:id", isAuthenticated, async (req: AuthRequest, res: 
       .where(eq(userConnections.id, id))
       .returning();
 
-    // Create notification for requester
+    // Create notification for requester and auto-follow if accepted
     if (status === 'accepted') {
       await db.insert(notifications).values({
         userId: connection.requesterId,
@@ -117,6 +117,23 @@ router.patch("/connections/:id", isAuthenticated, async (req: AuthRequest, res: 
         message: `${req.user!.firstName} ${req.user!.lastName} accepted your connection request`,
         link: '/network',
       });
+
+      // Auto-follow each other when connection is accepted
+      try {
+        // Requester follows receiver
+        await db.insert(followers).values({
+          followerId: connection.requesterId,
+          followingId: connection.receiverId,
+        }).onConflictDoNothing();
+
+        // Receiver follows requester
+        await db.insert(followers).values({
+          followerId: connection.receiverId,
+          followingId: connection.requesterId,
+        }).onConflictDoNothing();
+      } catch (followError) {
+        console.warn("Auto-follow failed during connection acceptance:", followError);
+      }
     }
 
     res.json(updated);
@@ -344,18 +361,26 @@ router.delete("/follow/:userId", isAuthenticated, async (req: AuthRequest, res: 
 router.get("/followers/:userId", isAuthenticated, async (req: AuthRequest, res: Response) => {
   try {
     const { userId } = req.params;
+    const targetUserId = userId === 'me' ? req.user!.id : userId;
 
     const results = await db
       .select({
-        follower: followers,
-        user: users,
+        follower: users,
+        followRecord: followers,
       })
       .from(followers)
       .leftJoin(users, eq(followers.followerId, users.id))
-      .where(eq(followers.followingId, userId))
+      .where(eq(followers.followingId, targetUserId))
       .orderBy(desc(followers.createdAt));
 
-    res.json(results);
+    // Format for frontend
+    const formatted = results.map(r => ({
+      ...r.followRecord,
+      follower: r.follower,
+      following: null // Not needed for followers list
+    }));
+
+    res.json(formatted);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -365,18 +390,26 @@ router.get("/followers/:userId", isAuthenticated, async (req: AuthRequest, res: 
 router.get("/following/:userId", isAuthenticated, async (req: AuthRequest, res: Response) => {
   try {
     const { userId } = req.params;
+    const targetUserId = userId === 'me' ? req.user!.id : userId;
 
     const results = await db
       .select({
-        follower: followers,
-        user: users,
+        following: users,
+        followRecord: followers,
       })
       .from(followers)
       .leftJoin(users, eq(followers.followingId, users.id))
-      .where(eq(followers.followerId, userId))
+      .where(eq(followers.followerId, targetUserId))
       .orderBy(desc(followers.createdAt));
 
-    res.json(results);
+    // Format for frontend
+    const formatted = results.map(r => ({
+      ...r.followRecord,
+      following: r.following,
+      follower: null // Not needed for following list
+    }));
+
+    res.json(formatted);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -454,7 +487,20 @@ router.get("/recommendations/friends", isAuthenticated, async (req: AuthRequest,
       )
     );
 
-    // Get all users except current user and existing connections
+    // Get pending sent requests to exclude
+    const myPendingSent = await db
+      .select()
+      .from(userConnections)
+      .where(
+        and(
+          eq(userConnections.requesterId, currentUserId),
+          eq(userConnections.status, 'pending')
+        )
+      );
+    
+    const pendingSentIds = new Set(myPendingSent.map(c => c.receiverId));
+
+    // Get all users except current user and existing connections/pending sent
     const allUsers = await db
       .select()
       .from(users)
@@ -482,7 +528,7 @@ router.get("/recommendations/friends", isAuthenticated, async (req: AuthRequest,
 
     // Filter out existing connections and calculate scores
     const recommendations = allUsers
-      .filter(user => !myConnectionIds.has(user.id))
+      .filter(user => !myConnectionIds.has(user.id) && !pendingSentIds.has(user.id))
       .map(user => {
         let score = 0;
         let mutualConnections = 0;

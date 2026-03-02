@@ -57,11 +57,13 @@ export function SkillsSection({ userSkills, isOwnProfile, userId }: SkillsSectio
   const { toast } = useToast();
 
   const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      return apiRequest("DELETE", `/api/users/skills/${id}`, {});
+    mutationFn: async (skillId: string) => {
+      return apiRequest("DELETE", `/api/user-skills/${skillId}`, {});
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/user-skills/${userId}`] });
+      // Also invalidate the main user query to ensure any cached skill counts or lists are updated
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}`] });
       toast({ title: "Skill removed" });
     },
     onError: () => {
