@@ -86,11 +86,29 @@ export function usePostCard(initialPost: PostWithAuthor) {
 
       const updatePosts = (oldData: any) => {
         if (!oldData) return oldData;
-        return oldData.map((p: PostWithAuthor) =>
-          p.id === post.id
-            ? { ...p, reactions: [...p.reactions, optimisticReaction] }
-            : p
-        );
+        return oldData.map((p: PostWithAuthor) => {
+          if (p.id !== post.id) return p;
+          
+          const existingReaction = p.reactions.find(
+            (r: Reaction) => r.userId === auth.userData?.id && r.type === type
+          );
+
+          if (existingReaction) {
+            return {
+              ...p,
+              reactions: p.reactions.filter((r: Reaction) => r.id !== existingReaction.id)
+            };
+          } else {
+            // Remove any other reaction type by the same user if necessary
+            const filteredReactions = p.reactions.filter(
+              (r: Reaction) => r.userId !== auth.userData?.id
+            );
+            return {
+              ...p,
+              reactions: [...filteredReactions, optimisticReaction]
+            };
+          }
+        });
       };
 
       queryClient.setQueryData(["/api/feed/personalized"], updatePosts);
@@ -109,48 +127,7 @@ export function usePostCard(initialPost: PostWithAuthor) {
       if (context?.previousFollowing) {
         queryClient.setQueryData(["/api/feed/following"], context.previousFollowing);
       }
-      toast({ title: "Error", description: "Failed to add reaction", variant: "destructive" });
-    },
-    onSettled: invalidateAllQueries,
-  });
-
-  const removeReactionMutation = useMutation({
-    mutationFn: async (reactionId: string) => {
-      return apiRequest("DELETE", `/api/reactions/${reactionId}`, {});
-    },
-    onMutate: async (reactionId: string) => {
-      await cancelAllQueries();
-
-      const previousPersonalized = queryClient.getQueryData(["/api/feed/personalized"]);
-      const previousTrending = queryClient.getQueryData(["/api/feed/trending"]);
-      const previousFollowing = queryClient.getQueryData(["/api/feed/following"]);
-
-      const updatePosts = (oldData: PostWithAuthor[] | undefined) => {
-        if (!oldData) return oldData;
-        return oldData.map((p: PostWithAuthor) =>
-          p.id === post.id
-            ? { ...p, reactions: p.reactions.filter((r: Reaction) => r.id !== reactionId) }
-            : p
-        );
-      };
-
-      queryClient.setQueryData(["/api/feed/personalized"], updatePosts);
-      queryClient.setQueryData(["/api/feed/trending"], updatePosts);
-      queryClient.setQueryData(["/api/feed/following"], updatePosts);
-
-      return { previousPersonalized, previousTrending, previousFollowing };
-    },
-    onError: (err, reactionId, context) => {
-      if (context?.previousPersonalized) {
-        queryClient.setQueryData(["/api/feed/personalized"], context.previousPersonalized);
-      }
-      if (context?.previousTrending) {
-        queryClient.setQueryData(["/api/feed/trending"], context.previousTrending);
-      }
-      if (context?.previousFollowing) {
-        queryClient.setQueryData(["/api/feed/following"], context.previousFollowing);
-      }
-      toast({ title: "Error", description: "Failed to remove reaction", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to update reaction", variant: "destructive" });
     },
     onSettled: invalidateAllQueries,
   });
@@ -169,9 +146,10 @@ export function usePostCard(initialPost: PostWithAuthor) {
       const optimisticComment = {
         id: `temp-${Date.now()}`,
         postId: post.id,
-        userId: auth.userData!.id,
+        authorId: auth.userData!.id,
         content: commentText,
         createdAt: new Date(),
+        author: auth.userData,
       };
 
       const updatePosts = (oldData: any) => {
@@ -289,22 +267,7 @@ export function usePostCard(initialPost: PostWithAuthor) {
 
   const handleReaction = (type: string) => {
     if (!auth.userData) return;
-    
-    const existingReaction = post.reactions.find(
-      (r: Reaction) => r.userId === auth.userData?.id && r.type === type
-    );
-    
-    if (existingReaction) {
-      removeReactionMutation.mutate(existingReaction.id);
-    } else {
-      const otherReaction = post.reactions.find(
-        (r: Reaction) => r.userId === auth.userData?.id && r.type !== type
-      );
-      if (otherReaction) {
-        removeReactionMutation.mutate(otherReaction.id);
-      }
-      reactionMutation.mutate(type);
-    }
+    reactionMutation.mutate(type);
   };
 
   const getReactionCount = (type: string) => {

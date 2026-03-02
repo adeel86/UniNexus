@@ -516,7 +516,23 @@ router.post("/comments", async (req: Request, res: Response) => {
       authorId: req.user.id,
     });
 
-    const [newComment] = await db.insert(comments).values(validatedData).returning();
+    const [newComment] = await db
+      .insert(comments)
+      .values(validatedData)
+      .returning();
+
+    const [commentWithAuthor] = await db
+      .select({
+        id: comments.id,
+        postId: comments.postId,
+        authorId: comments.authorId,
+        content: comments.content,
+        createdAt: comments.createdAt,
+        author: users,
+      })
+      .from(comments)
+      .leftJoin(users, eq(comments.authorId, users.id))
+      .where(eq(comments.id, newComment.id));
 
     await db
       .update(users)
@@ -540,7 +556,7 @@ router.post("/comments", async (req: Request, res: Response) => {
       });
     }
 
-    res.json(newComment);
+    res.json(commentWithAuthor);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
   }
