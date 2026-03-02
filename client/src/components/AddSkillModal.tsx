@@ -47,7 +47,8 @@ export function AddSkillModal({ open, onOpenChange, userId, existingSkillIds }: 
 
   const mutation = useMutation({
     mutationFn: async (data: { skillId?: string; skillName?: string; level: string }) => {
-      return apiRequest("POST", "/api/users/skills", data);
+      const res = await apiRequest("POST", "/api/users/skills", data);
+      return res.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [`/api/user-skills/${userId}`] });

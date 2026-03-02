@@ -12,6 +12,8 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 
+import { useAuth } from "@/hooks/useAuth";
+
 interface ConnectionWithUser extends UserConnection {
   user: User;
 }
@@ -22,6 +24,7 @@ interface FollowerWithUser extends Follower {
 }
 
 export default function Network() {
+  const auth = useAuth();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
 

@@ -637,7 +637,7 @@ router.post("/replies", isAuthenticated, async (req: Request, res: Response) => 
         link: `/forums/${discussion.courseId}/${discussion.id}`,
       });
     }
-    if (discussion) await checkAndAwardCourseBadges(req.user.id, discussion.courseId);
+    if (discussion && discussion.courseId) await checkAndAwardCourseBadges(req.user.id, discussion.courseId);
     res.json(newReply);
   } catch (error: any) {
     res.status(400).json({ error: error.message });

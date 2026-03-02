@@ -11,13 +11,6 @@ export type PostWithAuthor = Post & {
   reactions: Reaction[];
 };
 
-const FEED_KEYS = [
-  ["/api/feed/personalized"],
-  ["/api/feed/trending"],
-  ["/api/feed/following"],
-  ["/api/posts"],
-] as const;
-
 export function usePostCard(initialPost: PostWithAuthor) {
   const auth = useAuth();
   const { toast } = useToast();
@@ -30,38 +23,57 @@ export function usePostCard(initialPost: PostWithAuthor) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
 
+  // Find post from cache by searching all feed queries with partial keys
   const post = useMemo(() => {
-    const feedCaches = [
-      queryClient.getQueryData(["/api/feed/personalized"]),
-      queryClient.getQueryData(["/api/feed/trending"]),
-      queryClient.getQueryData(["/api/feed/following"]),
-    ];
-
-    for (const cache of feedCaches) {
-      if (Array.isArray(cache)) {
-        const cachedPost = cache.find((p: PostWithAuthor) => p.id === initialPost.id);
+    const cache = queryClient.getQueryCache();
+    const allQueries = cache.findAll();
+    
+    for (const query of allQueries) {
+      const data = query.state.data;
+      if (Array.isArray(data)) {
+        const cachedPost = data.find((p: PostWithAuthor) => p.id === initialPost.id);
         if (cachedPost) return cachedPost;
       }
     }
 
     return initialPost;
-  }, [
-    queryClient,
-    initialPost,
-    queryClient.getQueryState(["/api/feed/personalized"])?.dataUpdateCount,
-    queryClient.getQueryState(["/api/feed/trending"])?.dataUpdateCount,
-    queryClient.getQueryState(["/api/feed/following"])?.dataUpdateCount,
-  ]);
+  }, [queryClient, initialPost]);
 
-  const cancelAllQueries = async () => {
-    for (const key of FEED_KEYS) {
-      await queryClient.cancelQueries({ queryKey: key });
+  // Update all feed queries that contain this post
+  const updateAllFeedQueries = (updateFn: (oldData: any) => any) => {
+    const cache = queryClient.getQueryCache();
+    const allQueries = cache.findAll();
+    
+    for (const query of allQueries) {
+      const queryKey = query.queryKey;
+      const isRelevantQuery = 
+        (typeof queryKey[0] === 'string' && (
+          queryKey[0].includes('/api/feed/') ||
+          queryKey[0].includes('/api/posts')
+        ));
+      
+      if (isRelevantQuery) {
+        const oldData = queryClient.getQueryData(queryKey);
+        queryClient.setQueryData(queryKey, updateFn);
+      }
     }
   };
 
-  const invalidateAllQueries = () => {
-    for (const key of FEED_KEYS) {
-      queryClient.invalidateQueries({ queryKey: key });
+  const cancelAllQueries = async () => {
+    const cache = queryClient.getQueryCache();
+    const allQueries = cache.findAll();
+    
+    for (const query of allQueries) {
+      const queryKey = query.queryKey;
+      const isRelevantQuery = 
+        (typeof queryKey[0] === 'string' && (
+          queryKey[0].includes('/api/feed/') ||
+          queryKey[0].includes('/api/posts')
+        ));
+      
+      if (isRelevantQuery) {
+        await queryClient.cancelQueries({ queryKey });
+      }
     }
   };
 
@@ -72,9 +84,23 @@ export function usePostCard(initialPost: PostWithAuthor) {
     onMutate: async (type: string) => {
       await cancelAllQueries();
 
-      const previousPersonalized = queryClient.getQueryData(["/api/feed/personalized"]);
-      const previousTrending = queryClient.getQueryData(["/api/feed/trending"]);
-      const previousFollowing = queryClient.getQueryData(["/api/feed/following"]);
+      // Save all previous data for rollback
+      const cache = queryClient.getQueryCache();
+      const previousData = new Map();
+      const allQueries = cache.findAll();
+      
+      for (const query of allQueries) {
+        const queryKey = query.queryKey;
+        const isRelevantQuery = 
+          (typeof queryKey[0] === 'string' && (
+            queryKey[0].includes('/api/feed/') ||
+            queryKey[0].includes('/api/posts')
+          ));
+        
+        if (isRelevantQuery) {
+          previousData.set(JSON.stringify(queryKey), queryClient.getQueryData(queryKey));
+        }
+      }
 
       const optimisticReaction = {
         id: `temp-${Date.now()}`,
@@ -99,7 +125,6 @@ export function usePostCard(initialPost: PostWithAuthor) {
               reactions: p.reactions.filter((r: Reaction) => r.id !== existingReaction.id)
             };
           } else {
-            // Remove any other reaction type by the same user if necessary
             const filteredReactions = p.reactions.filter(
               (r: Reaction) => r.userId !== auth.userData?.id
             );
@@ -111,43 +136,54 @@ export function usePostCard(initialPost: PostWithAuthor) {
         });
       };
 
-      queryClient.setQueryData(["/api/feed/personalized"], updatePosts);
-      queryClient.setQueryData(["/api/feed/trending"], updatePosts);
-      queryClient.setQueryData(["/api/feed/following"], updatePosts);
+      updateAllFeedQueries(updatePosts);
 
-      return { previousPersonalized, previousTrending, previousFollowing };
+      return { previousData };
     },
     onError: (err, type, context) => {
-      if (context?.previousPersonalized) {
-        queryClient.setQueryData(["/api/feed/personalized"], context.previousPersonalized);
-      }
-      if (context?.previousTrending) {
-        queryClient.setQueryData(["/api/feed/trending"], context.previousTrending);
-      }
-      if (context?.previousFollowing) {
-        queryClient.setQueryData(["/api/feed/following"], context.previousFollowing);
+      if (context?.previousData) {
+        context.previousData.forEach((data, keyString) => {
+          queryClient.setQueryData(JSON.parse(keyString), data);
+        });
       }
       toast({ title: "Error", description: "Failed to update reaction", variant: "destructive" });
     },
-    onSettled: invalidateAllQueries,
   });
 
   const commentMutation = useMutation({
-    mutationFn: async () => {
-      return apiRequest("POST", "/api/comments", { postId: post.id, content: commentText });
+    mutationFn: async (textToSubmit: string) => {
+      const res = await apiRequest("POST", "/api/comments", { postId: post.id, content: textToSubmit });
+      const data = await res.json();
+      return data;
     },
     onMutate: async () => {
       await cancelAllQueries();
 
-      const previousPersonalized = queryClient.getQueryData(["/api/feed/personalized"]);
-      const previousTrending = queryClient.getQueryData(["/api/feed/trending"]);
-      const previousFollowing = queryClient.getQueryData(["/api/feed/following"]);
+      const textBeforeClear = commentText;
+      
+      // Save all previous data for rollback
+      const cache = queryClient.getQueryCache();
+      const previousData = new Map();
+      const allQueries = cache.findAll();
+      
+      for (const query of allQueries) {
+        const queryKey = query.queryKey;
+        const isRelevantQuery = 
+          (typeof queryKey[0] === 'string' && (
+            queryKey[0].includes('/api/feed/') ||
+            queryKey[0].includes('/api/posts')
+          ));
+        
+        if (isRelevantQuery) {
+          previousData.set(JSON.stringify(queryKey), queryClient.getQueryData(queryKey));
+        }
+      }
 
       const optimisticComment = {
         id: `temp-${Date.now()}`,
         postId: post.id,
         authorId: auth.userData!.id,
-        content: commentText,
+        content: textBeforeClear,
         createdAt: new Date(),
         author: auth.userData,
       };
@@ -161,31 +197,23 @@ export function usePostCard(initialPost: PostWithAuthor) {
         );
       };
 
-      queryClient.setQueryData(["/api/feed/personalized"], updatePosts);
-      queryClient.setQueryData(["/api/feed/trending"], updatePosts);
-      queryClient.setQueryData(["/api/feed/following"], updatePosts);
+      updateAllFeedQueries(updatePosts);
 
-      const previousText = commentText;
       setCommentText("");
 
-      return { previousPersonalized, previousTrending, previousFollowing, previousText };
+      return { previousData, previousText: textBeforeClear };
     },
     onError: (err, variables, context) => {
-      if (context?.previousPersonalized) {
-        queryClient.setQueryData(["/api/feed/personalized"], context.previousPersonalized);
-      }
-      if (context?.previousTrending) {
-        queryClient.setQueryData(["/api/feed/trending"], context.previousTrending);
-      }
-      if (context?.previousFollowing) {
-        queryClient.setQueryData(["/api/feed/following"], context.previousFollowing);
+      if (context?.previousData) {
+        context.previousData.forEach((data, keyString) => {
+          queryClient.setQueryData(JSON.parse(keyString), data);
+        });
       }
       if (context?.previousText) {
         setCommentText(context.previousText);
       }
       toast({ title: "Error", description: "Failed to post comment", variant: "destructive" });
     },
-    onSettled: invalidateAllQueries,
     onSuccess: (data) => {
       // Update the cache with the real comment from the server
       const updateWithRealComment = (oldData: any) => {
@@ -200,9 +228,8 @@ export function usePostCard(initialPost: PostWithAuthor) {
           };
         });
       };
-      queryClient.setQueryData(["/api/feed/personalized"], updateWithRealComment);
-      queryClient.setQueryData(["/api/feed/trending"], updateWithRealComment);
-      queryClient.setQueryData(["/api/feed/following"], updateWithRealComment);
+      
+      updateAllFeedQueries(updateWithRealComment);
       
       toast({ title: "Comment posted!" });
     },
@@ -212,13 +239,48 @@ export function usePostCard(initialPost: PostWithAuthor) {
     mutationFn: async (content: string) => {
       return apiRequest("PATCH", `/api/posts/${post.id}`, { content });
     },
+    onMutate: async (content: string) => {
+      await cancelAllQueries();
+
+      const cache = queryClient.getQueryCache();
+      const previousData = new Map();
+      const allQueries = cache.findAll();
+      
+      for (const query of allQueries) {
+        const queryKey = query.queryKey;
+        const isRelevantQuery = 
+          (typeof queryKey[0] === 'string' && (
+            queryKey[0].includes('/api/feed/') ||
+            queryKey[0].includes('/api/posts')
+          ));
+        
+        if (isRelevantQuery) {
+          previousData.set(JSON.stringify(queryKey), queryClient.getQueryData(queryKey));
+        }
+      }
+
+      const updatePosts = (oldData: any) => {
+        if (!oldData) return oldData;
+        return oldData.map((p: PostWithAuthor) =>
+          p.id === post.id ? { ...p, content } : p
+        );
+      };
+
+      updateAllFeedQueries(updatePosts);
+
+      return { previousData };
+    },
+    onError: (err, content, context) => {
+      if (context?.previousData) {
+        context.previousData.forEach((data, keyString) => {
+          queryClient.setQueryData(JSON.parse(keyString), data);
+        });
+      }
+      toast({ title: "Failed to update post", variant: "destructive" });
+    },
     onSuccess: () => {
-      invalidateAllQueries();
       setIsEditing(false);
       toast({ title: "Post updated!" });
-    },
-    onError: () => {
-      toast({ title: "Failed to update post", variant: "destructive" });
     },
   });
 
@@ -227,7 +289,23 @@ export function usePostCard(initialPost: PostWithAuthor) {
       return apiRequest("DELETE", `/api/posts/${post.id}`, {});
     },
     onSuccess: () => {
-      invalidateAllQueries();
+      // For delete, we need to refetch since the post is removed
+      const cache = queryClient.getQueryCache();
+      const allQueries = cache.findAll();
+      
+      for (const query of allQueries) {
+        const queryKey = query.queryKey;
+        const isRelevantQuery = 
+          (typeof queryKey[0] === 'string' && (
+            queryKey[0].includes('/api/feed/') ||
+            queryKey[0].includes('/api/posts')
+          ));
+        
+        if (isRelevantQuery) {
+          queryClient.invalidateQueries({ queryKey });
+        }
+      }
+      
       toast({ title: "Post deleted" });
     },
     onError: () => {
@@ -242,9 +320,22 @@ export function usePostCard(initialPost: PostWithAuthor) {
     onMutate: async (commentId: string) => {
       await cancelAllQueries();
 
-      const previousPersonalized = queryClient.getQueryData(["/api/feed/personalized"]);
-      const previousTrending = queryClient.getQueryData(["/api/feed/trending"]);
-      const previousFollowing = queryClient.getQueryData(["/api/feed/following"]);
+      const cache = queryClient.getQueryCache();
+      const previousData = new Map();
+      const allQueries = cache.findAll();
+      
+      for (const query of allQueries) {
+        const queryKey = query.queryKey;
+        const isRelevantQuery = 
+          (typeof queryKey[0] === 'string' && (
+            queryKey[0].includes('/api/feed/') ||
+            queryKey[0].includes('/api/posts')
+          ));
+        
+        if (isRelevantQuery) {
+          previousData.set(JSON.stringify(queryKey), queryClient.getQueryData(queryKey));
+        }
+      }
 
       const updatePosts = (oldData: PostWithAuthor[] | undefined) => {
         if (!oldData) return oldData;
@@ -255,30 +346,21 @@ export function usePostCard(initialPost: PostWithAuthor) {
         );
       };
 
-      queryClient.setQueryData(["/api/feed/personalized"], updatePosts);
-      queryClient.setQueryData(["/api/feed/trending"], updatePosts);
-      queryClient.setQueryData(["/api/feed/following"], updatePosts);
+      updateAllFeedQueries(updatePosts);
 
-      return { previousPersonalized, previousTrending, previousFollowing };
+      return { previousData };
     },
     onError: (err, commentId, context) => {
-      if (context?.previousPersonalized) {
-        queryClient.setQueryData(["/api/feed/personalized"], context.previousPersonalized);
-      }
-      if (context?.previousTrending) {
-        queryClient.setQueryData(["/api/feed/trending"], context.previousTrending);
-      }
-      if (context?.previousFollowing) {
-        queryClient.setQueryData(["/api/feed/following"], context.previousFollowing);
+      if (context?.previousData) {
+        context.previousData.forEach((data, keyString) => {
+          queryClient.setQueryData(JSON.parse(keyString), data);
+        });
       }
       toast({ title: "Failed to delete comment", variant: "destructive" });
     },
-    onSettled: () => {
-      invalidateAllQueries();
-      setCommentToDelete(null);
-    },
     onSuccess: () => {
       toast({ title: "Comment deleted" });
+      setCommentToDelete(null);
     },
   });
 

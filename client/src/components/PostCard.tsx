@@ -87,7 +87,7 @@ export function PostCard({ post: initialPost }: PostCardProps) {
           isAdmin={isAdmin}
           commentText={commentText}
           onCommentTextChange={setCommentText}
-          onSubmitComment={() => commentMutation.mutate()}
+          onSubmitComment={() => commentMutation.mutate(commentText)}
           onDeleteComment={(id) => setCommentToDelete(id)}
           isSubmitting={commentMutation.isPending}
         />

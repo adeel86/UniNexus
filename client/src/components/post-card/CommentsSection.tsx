@@ -82,7 +82,7 @@ export function CommentsSection({
                       </Button>
                     )}
                   </div>
-                  <p className="text-sm">{comment.content}</p>
+                  <p className="text-sm whitespace-pre-wrap break-words">{comment.content || "(no text)"}</p>
                   <div className="text-xs text-muted-foreground mt-1">
                     {comment.createdAt && formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
                   </div>
