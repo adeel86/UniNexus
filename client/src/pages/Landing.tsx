@@ -68,7 +68,7 @@ export default function Landing() {
               </h1>
               
               <p className="text-lg md:text-xl text-gray-600 dark:text-gray-400 mb-10 leading-relaxed max-w-2xl">
-                UniNexus is the future of learning, an all-in-one ecosystem where students, educators, and industry leaders connect through AI, gamification, and meaningful networking.
+                UniNexus is an all-in-one ecosystem where students, educators, and industry leaders connect through AI, gamification, and meaningful networking to deliver the future of learning.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
