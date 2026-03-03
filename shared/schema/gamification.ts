@@ -61,7 +61,9 @@ export const userSkills = pgTable("user_skills", {
   skillId: varchar("skill_id").notNull().references(() => skills.id, { onDelete: 'cascade' }),
   level: varchar("level", { length: 20 }).notNull().default('beginner'),
   addedAt: timestamp("added_at").defaultNow(),
-});
+}, (table) => ({
+  userSkillUnique: uniqueIndex("idx_user_skill_unique").on(table.userId, table.skillId),
+}));
 
 export const userSkillsRelations = relations(userSkills, ({ one }) => ({
   user: one(users, {

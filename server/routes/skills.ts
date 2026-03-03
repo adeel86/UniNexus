@@ -202,8 +202,6 @@ router.post("/users/skills", requireAuth, async (req: Request, res: Response) =>
           })
           .returning();
         
-        // Ensure the new skill is available for future dropdowns by returning it
-        // and also invalidating the skills query on the frontend
         skillId = newSkill.id;
       }
     }
@@ -212,18 +210,7 @@ router.post("/users/skills", requireAuth, async (req: Request, res: Response) =>
       return res.status(400).json({ error: "Skill ID or name is required" });
     }
 
-    // Check if user already has this skill
-    const [existingUserSkill] = await db
-      .select()
-      .from(userSkills)
-      .where(
-        and(
-          eq(userSkills.userId, req.user.id),
-          eq(userSkills.skillId, skillId)
-        )
-      )
-      .limit(1);
-
+    // Insert or update the user skill
     const [newUserSkill] = await db
       .insert(userSkills)
       .values({
@@ -265,18 +252,62 @@ router.delete("/user-skills/:skillId", requireAuth, async (req: Request, res: Re
 
   try {
     const { skillId } = req.params;
+    const userId = (req.user as any).id;
 
-    await db
+    const result = await db
       .delete(userSkills)
       .where(
         and(
-          eq(userSkills.userId, req.user.id),
-          eq(userSkills.skillId, skillId)
+          eq(userSkills.id, skillId),
+          eq(userSkills.userId, userId)
         )
-      );
+      )
+      .returning();
 
-    res.json({ success: true });
+    if (result.length === 0) {
+      return res.status(404).json({ error: "Skill not found" });
+    }
+
+    res.json({ success: true, deletedCount: result.length });
   } catch (error: any) {
+    console.error("DELETE /api/user-skills error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.patch("/users/skills/:id", requireAuth, async (req: Request, res: Response) => {
+  if (!req.user) {
+    return res.status(401).send("Unauthorized");
+  }
+
+  try {
+    const { id } = req.params;
+    const { level } = req.body;
+    const userId = (req.user as any).id;
+
+    if (!level) {
+      return res.status(400).json({ error: "Level is required" });
+    }
+
+    const updateResult = await db
+      .update(userSkills)
+      .set({ level })
+      .where(
+        and(
+          eq(userSkills.id, id),
+          eq(userSkills.userId, userId)
+        )
+      )
+      .returning();
+
+    if (!updateResult || updateResult.length === 0) {
+      return res.status(404).json({ error: "Skill not found" });
+    }
+
+    // Return the first updated item
+    res.json(updateResult[0]);
+  } catch (error: any) {
+    console.error("PATCH /api/users/skills error:", error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -58,29 +58,83 @@ export function SkillsSection({ userSkills, isOwnProfile, userId }: SkillsSectio
 
   const deleteMutation = useMutation({
     mutationFn: async (skillId: string) => {
-      return apiRequest("DELETE", `/api/user-skills/${skillId}`, {});
+      const url = `/api/user-skills/${skillId}`;
+      const response = await apiRequest("DELETE", url, {});
+      try {
+        const data = await response.json();
+        return data;
+      } catch (e) {
+        return { success: true };
+      }
+    },
+    onMutate: async (skillId: string) => {
+      console.log("Client: onMutate - Deleting skill:", skillId);
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: [`/api/user-skills/${userId}`] });
+
+      // Snapshot the previous value
+      const previousSkills = queryClient.getQueryData([`/api/user-skills/${userId}`]);
+
+      // Optimistically update to the new value
+      queryClient.setQueryData([`/api/user-skills/${userId}`], (old: any) => 
+        old?.filter((skill: any) => skill.id !== skillId) ?? []
+      );
+
+      return { previousSkills };
+    },
+    onError: (err, skillId, context) => {
+      if (context?.previousSkills) {
+        queryClient.setQueryData([`/api/user-skills/${userId}`], context.previousSkills);
+      }
+      toast({ title: "Failed to remove skill", variant: "destructive" });
     },
     onSuccess: () => {
+      console.log("Client: Skill deleted successfully");
+      // Refetch to confirm deletion persisted
       queryClient.invalidateQueries({ queryKey: [`/api/user-skills/${userId}`] });
-      // Also invalidate the main user query to ensure any cached skill counts or lists are updated
-      queryClient.invalidateQueries({ queryKey: [`/api/users/${userId}`] });
       toast({ title: "Skill removed" });
-    },
-    onError: () => {
-      toast({ title: "Failed to remove skill", variant: "destructive" });
     },
   });
 
   const updateLevelMutation = useMutation({
     mutationFn: async ({ id, level }: { id: string; level: string }) => {
-      return apiRequest("PATCH", `/api/users/skills/${id}`, { level });
+      const url = `/api/users/skills/${id}`;
+      const response = await apiRequest("PATCH", url, { level });
+      try {
+        const data = await response.json();
+        return data;
+      } catch (e) {
+        throw e;
+      }
+    },
+    onMutate: async ({ id, level }) => {
+      console.log("Client: onMutate - Updating skill:", id, "to level:", level);
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: [`/api/user-skills/${userId}`] });
+
+      // Snapshot the previous value
+      const previousSkills = queryClient.getQueryData([`/api/user-skills/${userId}`]);
+
+      // Optimistically update to the new value
+      queryClient.setQueryData([`/api/user-skills/${userId}`], (old: any) =>
+        old?.map((skill: any) =>
+          skill.id === id ? { ...skill, level } : skill
+        ) ?? []
+      );
+
+      return { previousSkills };
+    },
+    onError: (err, variables, context) => {
+      if (context?.previousSkills) {
+        queryClient.setQueryData([`/api/user-skills/${userId}`], context.previousSkills);
+      }
+      toast({ title: "Failed to update skill level", variant: "destructive" });
     },
     onSuccess: () => {
+      console.log("Client: Skill updated successfully");
+      // Refetch to confirm update persisted
       queryClient.invalidateQueries({ queryKey: [`/api/user-skills/${userId}`] });
       toast({ title: "Skill level updated" });
-    },
-    onError: () => {
-      toast({ title: "Failed to update skill level", variant: "destructive" });
     },
   });
 
