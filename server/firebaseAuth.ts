@@ -88,6 +88,9 @@ export interface AuthRequest extends Request {
     engagementScore: number;
     problemSolverScore: number;
     endorsementScore: number;
+    challengePoints: number;
+    totalPoints: number;
+    rankTier: string;
   };
 }
 
@@ -167,6 +170,9 @@ export async function setupAuth(app: Express): Promise<void> {
             engagementScore: user.engagementScore,
             problemSolverScore: user.problemSolverScore,
             endorsementScore: user.endorsementScore,
+            challengePoints: user.challengePoints,
+            totalPoints: user.totalPoints,
+            rankTier: user.rankTier,
           };
         }
 
@@ -291,6 +297,9 @@ export const verifyToken = async (
         engagementScore: user.engagementScore,
         problemSolverScore: user.problemSolverScore,
         endorsementScore: user.endorsementScore,
+        challengePoints: user.challengePoints,
+        totalPoints: user.totalPoints,
+        rankTier: user.rankTier,
       };
 
       return next();
@@ -315,6 +324,9 @@ export const verifyToken = async (
       engagementScore: 0,
       problemSolverScore: 0,
       endorsementScore: 0,
+      challengePoints: 0,
+      totalPoints: 0,
+      rankTier: 'bronze',
     };
 
     const user = await storage.getUserByFirebaseUid(decodedToken.uid);
@@ -334,6 +346,9 @@ export const verifyToken = async (
         engagementScore: user.engagementScore,
         problemSolverScore: user.problemSolverScore,
         endorsementScore: user.endorsementScore,
+        challengePoints: user.challengePoints,
+        totalPoints: user.totalPoints,
+        rankTier: user.rankTier,
       };
     }
 

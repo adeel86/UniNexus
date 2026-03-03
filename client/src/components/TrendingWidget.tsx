@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Post, User, Comment, Reaction } from "@shared/schema";
 import { Card } from "@/components/ui/card";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -16,16 +16,33 @@ type PostWithAuthor = Post & {
 export function TrendingWidget() {
   const [selectedPost, setSelectedPost] = useState<PostWithAuthor | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: trendingPosts = [], isLoading } = useQuery<PostWithAuthor[]>({
     queryKey: ["/api/feed/trending?limit=5"],
-    refetchInterval: 5 * 60 * 1000,
+    refetchInterval: 30000, // Refetch every 30 seconds to catch updates
+    refetchOnWindowFocus: true, // Refetch when window regains focus
   });
 
   const handlePostClick = (post: PostWithAuthor) => {
     setSelectedPost(post);
     setDialogOpen(true);
   };
+
+  const handleDialogOpenChange = (open: boolean) => {
+    setDialogOpen(open);
+    // When dialog closes, refetch to get latest data
+    if (!open) {
+      setSelectedPost(null);
+      // Explicitly refetch trending posts to get updated comments/reactions
+      queryClient.invalidateQueries({ queryKey: ["/api/feed/trending?limit=5"] });
+    }
+  };
+
+  // Use the latest post from cache instead of stale selectedPost
+  const displayPost = selectedPost
+    ? trendingPosts.find(p => p.id === selectedPost.id) || selectedPost
+    : null;
 
   return (
     <>
@@ -109,9 +126,9 @@ export function TrendingWidget() {
       </Card>
 
       <PostDetailDialog
-        post={selectedPost}
+        post={displayPost}
         open={dialogOpen}
-        onOpenChange={setDialogOpen}
+        onOpenChange={handleDialogOpenChange}
       />
     </>
   );

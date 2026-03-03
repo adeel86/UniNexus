@@ -2,7 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "./UserAvatar";
-import { Bell, LogOut, Menu, Trophy, Target, MessageCircle, Users, UsersRound, Compass, Lightbulb, GraduationCap, BrainCircuit } from "lucide-react";
+import { Bell, LogOut, Menu, Trophy, Target, MessageCircle, Users, UsersRound, Compass, Lightbulb, GraduationCap, BrainCircuit, Check } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,8 +12,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import type { Notification } from "@shared/schema";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 
 interface NavbarProps {
   onMenuClick?: () => void;
@@ -27,11 +28,22 @@ export function Navbar({ onMenuClick }: NavbarProps) {
     queryKey: ["/api/notifications"],
     enabled: !!user,
     refetchInterval: 5000, // Poll every 5 seconds for real-time updates
+    refetchOnWindowFocus: true, // Refetch when window regains focus
+    refetchOnReconnect: true, // Refetch when reconnected
   });
 
   const { data: conversations = [] } = useQuery<any[]>({
     queryKey: ["/api/conversations"],
     enabled: !!user,
+  });
+
+  const markAsReadMutation = useMutation({
+    mutationFn: async (notificationId: string) => {
+      return apiRequest("PATCH", `/api/notifications/${notificationId}/read`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+    },
   });
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
@@ -240,14 +252,24 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                 ) : (
                   <div className="max-h-96 overflow-y-auto">
                     {notifications.slice(0, 5).map((notification) => (
-                      <DropdownMenuItem
+                      <div
                         key={notification.id}
-                        className={`flex flex-col items-start gap-1 p-3 ${!notification.isRead ? 'bg-primary/5' : ''}`}
+                        className={`flex items-start justify-between gap-2 p-3 cursor-pointer hover:bg-secondary/50 transition-colors ${!notification.isRead ? 'bg-primary/5' : ''}`}
                         data-testid={`notification-${notification.id}`}
+                        onClick={() => {
+                          if (!notification.isRead) {
+                            markAsReadMutation.mutate(notification.id);
+                          }
+                        }}
                       >
-                        <div className="font-medium text-sm">{notification.title}</div>
-                        <div className="text-xs text-muted-foreground line-clamp-2">{notification.message}</div>
-                      </DropdownMenuItem>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm">{notification.title}</div>
+                          <div className="text-xs text-muted-foreground line-clamp-2">{notification.message}</div>
+                        </div>
+                        {!notification.isRead && (
+                          <Check className="h-4 w-4 text-primary flex-shrink-0 mt-1" />
+                        )}
+                      </div>
                     ))}
                   </div>
                 )}

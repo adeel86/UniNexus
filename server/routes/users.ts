@@ -8,6 +8,7 @@ import { db } from "../db";
 import { storage as dbStorage } from "../storage";
 import { uploadToCloud } from "../cloudStorage";
 import { requireAuth } from "./shared";
+import { recalculateUserRank } from "../pointsHelper";
 import {
   users,
   courses,
@@ -813,6 +814,36 @@ router.patch("/users/:userId/profile", async (req: Request, res: Response) => {
     res.json(updated);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
+  }
+});
+
+// Recalculate a user's total points from component scores
+router.post("/users/:userId/recalculate-points", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.params.userId;
+    const currentUser = req.user!;
+
+    // Only allow users to recalculate their own points or admins
+    if (currentUser.id !== userId && currentUser.role !== 'admin') {
+      return res.status(403).json({ error: "Not authorized to recalculate this user's points" });
+    }
+
+    const user = await dbStorage.getUser(userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    await recalculateUserRank(userId);
+
+    const updated = await dbStorage.getUser(userId);
+    res.json({
+      message: "Points recalculated successfully",
+      totalPoints: updated?.totalPoints,
+      rankTier: updated?.rankTier,
+    });
+  } catch (error: any) {
+    console.error("Error recalculating points:", error);
+    res.status(500).json({ error: error.message || "Failed to recalculate points" });
   }
 });
 

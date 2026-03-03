@@ -11,6 +11,16 @@ export type PostWithAuthor = Post & {
   reactions: Reaction[];
 };
 
+// Helper function to check if a query key is related to posts/feed
+function isPostRelatedQuery(queryKey: any): boolean {
+  return (
+    typeof queryKey[0] === 'string' && (
+      queryKey[0].includes('/api/feed') ||
+      queryKey[0].includes('/api/posts')
+    )
+  );
+}
+
 export function usePostCard(initialPost: PostWithAuthor) {
   const auth = useAuth();
   const { toast } = useToast();
@@ -23,8 +33,9 @@ export function usePostCard(initialPost: PostWithAuthor) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
 
-  // Find post from cache by searching all feed queries with partial keys
-  const post = useMemo(() => {
+  // Find post from cache by searching all feed queries - update on every render
+  // so we always get the latest version from cache
+  const post = (() => {
     const cache = queryClient.getQueryCache();
     const allQueries = cache.findAll();
     
@@ -37,7 +48,7 @@ export function usePostCard(initialPost: PostWithAuthor) {
     }
 
     return initialPost;
-  }, [queryClient, initialPost]);
+  })();
 
   // Update all feed queries that contain this post
   const updateAllFeedQueries = (updateFn: (oldData: any) => any) => {
@@ -45,16 +56,9 @@ export function usePostCard(initialPost: PostWithAuthor) {
     const allQueries = cache.findAll();
     
     for (const query of allQueries) {
-      const queryKey = query.queryKey;
-      const isRelevantQuery = 
-        (typeof queryKey[0] === 'string' && (
-          queryKey[0].includes('/api/feed/') ||
-          queryKey[0].includes('/api/posts')
-        ));
-      
-      if (isRelevantQuery) {
-        const oldData = queryClient.getQueryData(queryKey);
-        queryClient.setQueryData(queryKey, updateFn);
+      if (isPostRelatedQuery(query.queryKey)) {
+        const oldData = queryClient.getQueryData(query.queryKey);
+        queryClient.setQueryData(query.queryKey, updateFn);
       }
     }
   };
@@ -64,15 +68,8 @@ export function usePostCard(initialPost: PostWithAuthor) {
     const allQueries = cache.findAll();
     
     for (const query of allQueries) {
-      const queryKey = query.queryKey;
-      const isRelevantQuery = 
-        (typeof queryKey[0] === 'string' && (
-          queryKey[0].includes('/api/feed/') ||
-          queryKey[0].includes('/api/posts')
-        ));
-      
-      if (isRelevantQuery) {
-        await queryClient.cancelQueries({ queryKey });
+      if (isPostRelatedQuery(query.queryKey)) {
+        await queryClient.cancelQueries({ queryKey: query.queryKey });
       }
     }
   };
@@ -90,15 +87,8 @@ export function usePostCard(initialPost: PostWithAuthor) {
       const allQueries = cache.findAll();
       
       for (const query of allQueries) {
-        const queryKey = query.queryKey;
-        const isRelevantQuery = 
-          (typeof queryKey[0] === 'string' && (
-            queryKey[0].includes('/api/feed/') ||
-            queryKey[0].includes('/api/posts')
-          ));
-        
-        if (isRelevantQuery) {
-          previousData.set(JSON.stringify(queryKey), queryClient.getQueryData(queryKey));
+        if (isPostRelatedQuery(query.queryKey)) {
+          previousData.set(JSON.stringify(query.queryKey), queryClient.getQueryData(query.queryKey));
         }
       }
 
@@ -167,15 +157,8 @@ export function usePostCard(initialPost: PostWithAuthor) {
       const allQueries = cache.findAll();
       
       for (const query of allQueries) {
-        const queryKey = query.queryKey;
-        const isRelevantQuery = 
-          (typeof queryKey[0] === 'string' && (
-            queryKey[0].includes('/api/feed/') ||
-            queryKey[0].includes('/api/posts')
-          ));
-        
-        if (isRelevantQuery) {
-          previousData.set(JSON.stringify(queryKey), queryClient.getQueryData(queryKey));
+        if (isPostRelatedQuery(query.queryKey)) {
+          previousData.set(JSON.stringify(query.queryKey), queryClient.getQueryData(query.queryKey));
         }
       }
 
@@ -247,15 +230,8 @@ export function usePostCard(initialPost: PostWithAuthor) {
       const allQueries = cache.findAll();
       
       for (const query of allQueries) {
-        const queryKey = query.queryKey;
-        const isRelevantQuery = 
-          (typeof queryKey[0] === 'string' && (
-            queryKey[0].includes('/api/feed/') ||
-            queryKey[0].includes('/api/posts')
-          ));
-        
-        if (isRelevantQuery) {
-          previousData.set(JSON.stringify(queryKey), queryClient.getQueryData(queryKey));
+        if (isPostRelatedQuery(query.queryKey)) {
+          previousData.set(JSON.stringify(query.queryKey), queryClient.getQueryData(query.queryKey));
         }
       }
 
@@ -294,15 +270,8 @@ export function usePostCard(initialPost: PostWithAuthor) {
       const allQueries = cache.findAll();
       
       for (const query of allQueries) {
-        const queryKey = query.queryKey;
-        const isRelevantQuery = 
-          (typeof queryKey[0] === 'string' && (
-            queryKey[0].includes('/api/feed/') ||
-            queryKey[0].includes('/api/posts')
-          ));
-        
-        if (isRelevantQuery) {
-          queryClient.invalidateQueries({ queryKey });
+        if (isPostRelatedQuery(query.queryKey)) {
+          queryClient.invalidateQueries({ queryKey: query.queryKey });
         }
       }
       
@@ -325,15 +294,8 @@ export function usePostCard(initialPost: PostWithAuthor) {
       const allQueries = cache.findAll();
       
       for (const query of allQueries) {
-        const queryKey = query.queryKey;
-        const isRelevantQuery = 
-          (typeof queryKey[0] === 'string' && (
-            queryKey[0].includes('/api/feed/') ||
-            queryKey[0].includes('/api/posts')
-          ));
-        
-        if (isRelevantQuery) {
-          previousData.set(JSON.stringify(queryKey), queryClient.getQueryData(queryKey));
+        if (isPostRelatedQuery(query.queryKey)) {
+          previousData.set(JSON.stringify(query.queryKey), queryClient.getQueryData(query.queryKey));
         }
       }
 
