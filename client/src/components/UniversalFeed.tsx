@@ -6,7 +6,7 @@ import { CreatePostModal } from "@/components/CreatePostModal";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, TrendingUp, Users } from "lucide-react";
+import { Plus, TrendingUp, Users, Trophy, Play } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 type PostWithAuthor = Post & {
@@ -71,6 +71,8 @@ export function UniversalFeed({
     { value: "academic", label: "Academic" },
     { value: "social", label: "Social" },
     { value: "project", label: "Projects" },
+    { value: "achievement", label: "Achievement", icon: Trophy },
+    { value: "reel", label: "Reel", icon: Play },
   ];
 
   return (

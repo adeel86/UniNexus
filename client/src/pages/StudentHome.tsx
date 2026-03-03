@@ -10,7 +10,7 @@ import { ChallengeMilestonesCard } from "@/components/ChallengeMilestonesCard";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, TrendingUp, Users, Target, Sparkles, MessageCircle } from "lucide-react";
+import { Plus, TrendingUp, Users, Target, Sparkles, MessageCircle, Trophy, Play } from "lucide-react";
 import { useState } from "react";
 import { Badge as BadgePill } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -81,6 +81,8 @@ export default function StudentHome() {
     { value: "academic", label: "Academic", icon: Target },
     { value: "social", label: "Social", icon: Users },
     { value: "project", label: "Projects", icon: Sparkles },
+    { value: "achievement", label: "Achievement", icon: Trophy },
+    { value: "reel", label: "Reel", icon: Play },
   ];
 
   return (
