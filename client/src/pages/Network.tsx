@@ -30,12 +30,12 @@ export default function Network() {
 
   // Get all connections
   const { data: acceptedConnections = [] } = useQuery<ConnectionWithUser[]>({
-    queryKey: ["/api/connections", "accepted"],
+    queryKey: ["/api/connections", { status: "accepted" }],
   });
 
   // Get pending requests (received)
   const { data: pendingRequests = [] } = useQuery<ConnectionWithUser[]>({
-    queryKey: ["/api/connections", "pending"],
+    queryKey: ["/api/connections", { status: "pending" }],
   });
 
   // Get followers (people following me)
@@ -82,6 +82,8 @@ export default function Network() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/connections"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/followers/me"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/following/me"] });
       toast({
         title: "Request updated",
         description: "Connection request has been updated",
@@ -95,8 +97,8 @@ export default function Network() {
       return await apiRequest("POST", "/api/follow", { followingId });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/followers"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/following"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/followers/me"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/following/me"] });
       toast({
         title: "Following",
         description: "You are now following this user",
@@ -110,8 +112,8 @@ export default function Network() {
       return await apiRequest("DELETE", `/api/follow/${userId}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/followers"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/following"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/followers/me"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/following/me"] });
       toast({
         title: "Unfollowed",
         description: "You have unfollowed this user",

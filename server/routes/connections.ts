@@ -98,7 +98,22 @@ router.patch("/connections/:id", isAuthenticated, async (req: AuthRequest, res: 
       return res.status(403).json({ error: "You can only respond to requests sent to you" });
     }
 
-    // Update connection status
+    // Create followers relationships FIRST if accepting (before updating status)
+    if (status === 'accepted') {
+      // Auto-follow each other when connection is accepted
+      await db.insert(followers).values({
+        followerId: connection.requesterId,
+        followingId: connection.receiverId,
+      }).onConflictDoNothing();
+
+      // Receiver follows requester
+      await db.insert(followers).values({
+        followerId: connection.receiverId,
+        followingId: connection.requesterId,
+      }).onConflictDoNothing();
+    }
+
+    // Now update connection status
     const [updated] = await db
       .update(userConnections)
       .set({ 
@@ -108,7 +123,7 @@ router.patch("/connections/:id", isAuthenticated, async (req: AuthRequest, res: 
       .where(eq(userConnections.id, id))
       .returning();
 
-    // Create notification for requester and auto-follow if accepted
+    // Create notification for requester if accepted
     if (status === 'accepted') {
       await db.insert(notifications).values({
         userId: connection.requesterId,
@@ -117,23 +132,6 @@ router.patch("/connections/:id", isAuthenticated, async (req: AuthRequest, res: 
         message: `${req.user!.firstName} ${req.user!.lastName} accepted your connection request`,
         link: '/network',
       });
-
-      // Auto-follow each other when connection is accepted
-      try {
-        // Requester follows receiver
-        await db.insert(followers).values({
-          followerId: connection.requesterId,
-          followingId: connection.receiverId,
-        }).onConflictDoNothing();
-
-        // Receiver follows requester
-        await db.insert(followers).values({
-          followerId: connection.receiverId,
-          followingId: connection.requesterId,
-        }).onConflictDoNothing();
-      } catch (followError) {
-        console.warn("Auto-follow failed during connection acceptance:", followError);
-      }
     }
 
     res.json(updated);
@@ -148,19 +146,10 @@ router.get("/connections", isAuthenticated, async (req: AuthRequest, res: Respon
     const { status } = req.query;
     const userId = req.user!.id;
 
-    let query = db
-      .select({
-        connection: userConnections,
-        user: users,
-      })
+    // Get all connections where user is either requester or receiver
+    const allConnections = await db
+      .select()
       .from(userConnections)
-      .leftJoin(
-        users,
-        or(
-          eq(userConnections.requesterId, users.id),
-          eq(userConnections.receiverId, users.id)
-        )
-      )
       .where(
         and(
           or(
@@ -171,15 +160,32 @@ router.get("/connections", isAuthenticated, async (req: AuthRequest, res: Respon
         )
       );
 
-    const results = await query;
+    // Handle empty results
+    if (allConnections.length === 0) {
+      return res.json([]);
+    }
 
-    // Filter to show only the other user in the connection
-    const connections = results
-      .map(r => ({
-        ...r.connection,
-        user: r.user!.id === userId ? null : r.user,
-      }))
-      .filter(c => c.user !== null);
+    // For each connection, get the "other user" (not the current user)
+    const otherUserIds = allConnections.map(conn =>
+      conn.requesterId === userId ? conn.receiverId : conn.requesterId
+    );
+
+    const otherUsers = await db
+      .select()
+      .from(users)
+      .where(inArray(users.id, otherUserIds));
+
+    // Build map of user ID to user object
+    const userMap = new Map(otherUsers.map(u => [u.id, u]));
+
+    // Combine connections with their corresponding user objects
+    const connections = allConnections.map(conn => {
+      const otherUserId = conn.requesterId === userId ? conn.receiverId : conn.requesterId;
+      return {
+        ...conn,
+        user: userMap.get(otherUserId),
+      };
+    });
 
     res.json(connections);
   } catch (error: any) {
@@ -357,7 +363,7 @@ router.delete("/follow/:userId", isAuthenticated, async (req: AuthRequest, res: 
   }
 });
 
-// Get followers for a user
+// Get followers for a user (people who follow me)
 router.get("/followers/:userId", isAuthenticated, async (req: AuthRequest, res: Response) => {
   try {
     const { userId } = req.params;
@@ -365,28 +371,24 @@ router.get("/followers/:userId", isAuthenticated, async (req: AuthRequest, res: 
 
     const results = await db
       .select({
+        id: followers.id,
         follower: users,
-        followRecord: followers,
+        followerId: followers.followerId,
+        followingId: followers.followingId,
+        createdAt: followers.createdAt,
       })
       .from(followers)
-      .leftJoin(users, eq(followers.followerId, users.id))
+      .innerJoin(users, eq(followers.followerId, users.id))
       .where(eq(followers.followingId, targetUserId))
       .orderBy(desc(followers.createdAt));
 
-    // Format for frontend
-    const formatted = results.map(r => ({
-      ...r.followRecord,
-      follower: r.follower,
-      following: null // Not needed for followers list
-    }));
-
-    res.json(formatted);
+    res.json(results);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Get following for a user
+// Get following for a user (people I'm following)
 router.get("/following/:userId", isAuthenticated, async (req: AuthRequest, res: Response) => {
   try {
     const { userId } = req.params;
@@ -394,22 +396,18 @@ router.get("/following/:userId", isAuthenticated, async (req: AuthRequest, res: 
 
     const results = await db
       .select({
+        id: followers.id,
         following: users,
-        followRecord: followers,
+        followerId: followers.followerId,
+        followingId: followers.followingId,
+        createdAt: followers.createdAt,
       })
       .from(followers)
-      .leftJoin(users, eq(followers.followingId, users.id))
+      .innerJoin(users, eq(followers.followingId, users.id))
       .where(eq(followers.followerId, targetUserId))
       .orderBy(desc(followers.createdAt));
 
-    // Format for frontend
-    const formatted = results.map(r => ({
-      ...r.followRecord,
-      following: r.following,
-      follower: null // Not needed for following list
-    }));
-
-    res.json(formatted);
+    res.json(results);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

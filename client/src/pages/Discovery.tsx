@@ -89,7 +89,7 @@ export default function Discovery() {
       return await apiRequest("POST", "/api/follow", { followingId });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/followers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/following/me"] });
       toast({
         title: "Following",
         description: "You are now following this user",
