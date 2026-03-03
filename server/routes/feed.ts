@@ -132,8 +132,6 @@ router.get("/feed/personalized", async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 20;
     const category = req.query.category as string;
     
-    console.log(`[Personalized Feed] User: ${currentUser.id}, Category: ${category || 'undefined'}, Limit: ${limit}`);
-    
     // If no category filter is applied, fetch more posts to ensure variety
     const fetchLimit = (!category || category === 'all') ? Math.max(limit * 3, 60) : limit;
     
@@ -143,8 +141,6 @@ router.get("/feed/personalized", async (req: Request, res: Response) => {
       .where(eq(followers.followerId, currentUser.id));
     
     const followedIds = followedUsers.map(f => f.followingId);
-    
-    console.log(`[Personalized Feed] User follows: ${followedIds.length} users`, followedIds);
     
     // For You includes network (following) and own posts
     const allowedIds = [...followedIds, currentUser.id];
@@ -180,11 +176,6 @@ router.get("/feed/personalized", async (req: Request, res: Response) => {
     
     const allPosts = await query;
     const validPosts = allPosts.filter(post => post.createdAt != null);
-    
-    console.log(`[Personalized Feed] Retrieved ${validPosts.length} posts, Categories:`, validPosts.map(p => p.category).reduce((acc: any, cat: any) => {
-      acc[cat || 'none'] = (acc[cat || 'none'] || 0) + 1;
-      return acc;
-    }, {}));
     
     const postsWithDetails = await Promise.all(
       validPosts.map(async (post) => {
@@ -243,8 +234,6 @@ router.get("/feed/personalized", async (req: Request, res: Response) => {
     
     scoredPosts.sort((a, b) => b.score - a.score);
     
-    console.log(`[Personalized Feed] Scored posts:`, scoredPosts.map(p => ({ id: p.id, category: p.category, author: p.authorId, score: p.score.toFixed(2) })));
-    
     const selectedPosts: typeof scoredPosts = [];
     const authorCount = new Map<string, number>();
     
@@ -260,8 +249,6 @@ router.get("/feed/personalized", async (req: Request, res: Response) => {
       }
       if (selectedPosts.length >= limit) break;
     }
-    
-    console.log(`[Personalized Feed] Selected ${selectedPosts.length} posts from ${scoredPosts.length} scored posts (max ${maxPostsPerAuthor} per author)`);
     
     const finalPosts = selectedPosts.map(({ score, ...post }) => post);
     
