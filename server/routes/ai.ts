@@ -28,6 +28,103 @@ import { uploadToCloud, isCloudStorageAvailable } from "../cloudStorage";
 
 const router = Router();
 
+// Helper function to extract text from PDF
+async function extractTextFromPDF(buffer: Buffer): Promise<string | null> {
+  try {
+    // Dynamically import pdf-parse if available (optional dependency)
+    const pdfParse = await (async () => {
+      try {
+        // @ts-ignore - optional dependency
+        return (await import('pdf-parse')).default;
+      } catch {
+        return null;
+      }
+    })();
+    
+    if (!pdfParse) {
+      console.debug("pdf-parse not installed, PDF text extraction skipped. Install with: npm install pdf-parse");
+      return null;
+    }
+    
+    const pdfData = await pdfParse(buffer);
+    // Extract and clean text from PDF
+    const text = pdfData.text
+      .split('\n')
+      .map((line: string) => line.trim())
+      .filter((line: string) => line.length > 0)
+      .join('\n')
+      .substring(0, 8000); // Increased limit to first 8000 chars for more context
+    
+    if (!text || text.length === 0) {
+      console.debug("PDF has no extractable text");
+      return null;
+    }
+    
+    return text;
+  } catch (error) {
+    // Error parsing PDF - return null
+    console.error("PDF text extraction failed:", error instanceof Error ? error.message : 'unknown error');
+    return null;
+  }
+}
+
+// Helper function to extract text from Word documents (.docx, .doc)
+async function extractTextFromWord(buffer: Buffer, filename: string): Promise<string | null> {
+  try {
+    // Try to extract from .docx files using mammoth
+    if (filename.endsWith('.docx')) {
+      const mammoth = await (async () => {
+        try {
+          // @ts-ignore - optional dependency
+          return (await import('mammoth')).default;
+        } catch {
+          return null;
+        }
+      })();
+      
+      if (mammoth) {
+        const result = await mammoth.extractRawText({ buffer });
+        const text = result.value
+          .split('\n')
+          .map((line: string) => line.trim())
+          .filter((line: string) => line.length > 0)
+          .join('\n')
+          .substring(0, 8000);
+        
+        if (text && text.length > 0) {
+          return text;
+        }
+      }
+    }
+    
+    // For .doc files or fallback: try to extract basic text by converting to string
+    // This is a simple approach that may not work perfectly for all Word documents
+    if (filename.endsWith('.doc') || filename.endsWith('.docx')) {
+      // Basic text extraction: Look for readable text patterns in the binary
+      const text = buffer
+        .toString('latin1')
+        .replace(/[^\x20-\x7E\n\r]/g, ' ') // Keep only printable ASCII
+        .split('\n')
+        .map((line: string) => line.trim())
+        .filter((line: string) => line.length > 10) // Filter out noise (lines < 10 chars)
+        .slice(0, 200) // Limit to first 200 lines
+        .join('\n')
+        .substring(0, 8000);
+      
+      if (text && text.length > 100) {
+        console.debug("Word document: basic text extraction successful");
+        return text;
+      }
+    }
+    
+    console.debug("Word document text extraction returned no usable text");
+    return null;
+  } catch (error) {
+    console.error("Word document text extraction failed:", error instanceof Error ? error.message : 'unknown error');
+    return null;
+  }
+}
+
 // Personal Tutor Routes
 router.get("/api/ai/personal-tutor/materials", requireAuth, async (req: Request, res: Response) => {
   try {
@@ -56,19 +153,77 @@ router.post("/api/ai/personal-tutor/materials", requireAuth, upload.single('file
       fileUrl = await saveFileLocally(req.file.buffer, 'documents', req.file.originalname);
     }
 
+    // Extract text content from file
+    let textContent: string | null = null;
+    
+    if (req.file.mimetype.startsWith('text/')) {
+      // For text files, directly convert buffer to string
+      textContent = req.file.buffer.toString();
+      console.log(`[AI Tutor] Text file uploaded: ${req.file.originalname}, size: ${textContent.length} chars`);
+    } else if (req.file.mimetype === 'application/pdf' || req.file.originalname.endsWith('.pdf')) {
+      // For PDFs, try to extract text using pdf-parse if available
+      console.log(`[AI Tutor] PDF file uploaded: ${req.file.originalname}, attempting text extraction...`);
+      textContent = await extractTextFromPDF(req.file.buffer);
+      if (textContent) {
+        console.log(`[AI Tutor] PDF text extracted successfully: ${textContent.length} chars from ${req.file.originalname}`);
+      } else {
+        console.log(`[AI Tutor] PDF text extraction failed or returned null: ${req.file.originalname}`);
+      }
+    } else if (
+      req.file.mimetype === 'application/msword' ||
+      req.file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+      req.file.originalname.endsWith('.doc') ||
+      req.file.originalname.endsWith('.docx')
+    ) {
+      // For Word documents, try to extract text
+      console.log(`[AI Tutor] Word document uploaded: ${req.file.originalname}, attempting text extraction...`);
+      textContent = await extractTextFromWord(req.file.buffer, req.file.originalname);
+      if (textContent) {
+        console.log(`[AI Tutor] Word document text extracted successfully: ${textContent.length} chars from ${req.file.originalname}`);
+      } else {
+        console.log(`[AI Tutor] Word document text extraction failed or returned null: ${req.file.originalname}`);
+      }
+    } else {
+      console.log(`[AI Tutor] File uploaded: ${req.file.originalname} (${req.file.mimetype}), no text extraction attempted`);
+    }
+
     const data = insertStudentPersonalTutorMaterialSchema.parse({
       ...req.body,
       studentId: req.user!.id,
       fileName: req.file.originalname,
       fileUrl: fileUrl,
-      fileType: req.file.mimetype,
-      fileSize: req.file.size,
-      textContent: req.file.mimetype.startsWith('text/') ? req.file.buffer.toString() : null
+      fileType: req.file.originalname.split('.').pop()?.toLowerCase() || req.file.mimetype.substring(0, 50),
+      textContent: textContent
     });
     const material = await storage.createPersonalTutorMaterial(data);
     res.json(material);
   } catch (error: any) {
+    console.error(`[AI Tutor] Material upload error:`, error);
     res.status(400).json({ error: error.message || "Invalid material data" });
+  }
+});
+
+router.delete("/api/ai/personal-tutor/materials/:materialId", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { materialId } = req.params;
+    
+    // Get the material to verify ownership
+    const material = await storage.getPersonalTutorMaterial(materialId);
+    if (!material) {
+      return res.status(404).json({ error: "Material not found" });
+    }
+    
+    // Verify the material belongs to the current user
+    if (material.studentId !== req.user!.id) {
+      return res.status(403).json({ error: "Not authorized to delete this material" });
+    }
+    
+    // Delete the material
+    await storage.deletePersonalTutorMaterial(materialId);
+    
+    res.json({ success: true, message: "Material deleted successfully" });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || "Failed to delete material" });
   }
 });
 
@@ -91,6 +246,34 @@ router.post("/api/ai/personal-tutor/sessions", requireAuth, async (req: Request,
     res.json(session);
   } catch (error) {
     res.status(400).json({ error: "Invalid session data" });
+  }
+});
+
+router.delete("/api/ai/personal-tutor/sessions/:sessionId", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { sessionId } = req.params;
+    
+    // Get the session to verify ownership
+    const session = await db
+      .select()
+      .from(studentPersonalTutorSessions)
+      .where(eq(studentPersonalTutorSessions.id, sessionId));
+    
+    if (session.length === 0) {
+      return res.status(404).json({ error: "Session not found" });
+    }
+    
+    // Verify the session belongs to the current user
+    if (session[0].studentId !== req.user!.id) {
+      return res.status(403).json({ error: "Not authorized to delete this session" });
+    }
+    
+    // Delete the session (messages will be deleted via cascade)
+    await storage.deletePersonalTutorSession(sessionId);
+    
+    res.json({ success: true, message: "Session deleted successfully" });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || "Failed to delete session" });
   }
 });
 
@@ -123,25 +306,43 @@ router.post("/api/ai/personal-tutor/chat", requireAuth, async (req: Request, res
 
     // Get context: Student profile and materials
     const materials = await storage.getPersonalTutorMaterials(req.user!.id);
-    const contextText = materials
-      .filter(m => m.textContent)
-      .map(m => `Material (${m.fileName}): ${m.textContent?.substring(0, 2000)}`)
-      .join('\n\n');
+    console.log(`[AI Tutor] Chat request - Found ${materials.length} materials for user ${req.user!.id}`);
+    materials.forEach(m => {
+      console.log(`[AI Tutor]   Material: ${m.fileName}, textContent length: ${m.textContent ? m.textContent.length : 0} chars`);
+    });
+    
+    // Build context including both text-extracted and non-extracted materials
+    const materialsContext = materials
+      .map(m => {
+        if (m.textContent && m.textContent.trim().length > 0) {
+          return `\n📄 Material: ${m.fileName}\n${m.textContent.substring(0, 3000)}`;
+        } else {
+          return `\n📄 Document uploaded: ${m.fileName} (${m.fileType || 'document'})`;
+        }
+      })
+      .join('\n');
+    
+    const hasExtractedContent = materials.some(m => m.textContent && m.textContent.trim().length > 0);
+    const contextText = materialsContext || '\nNo materials uploaded yet.';
+    
+    console.log(`[AI Tutor] Has extracted content: ${hasExtractedContent}, context length: ${contextText.length} chars`);
 
     const systemPrompt = `You are a Personal Academic Tutor for ${req.user!.firstName} ${req.user!.lastName}.
 Level: ${req.user!.major || 'Student'} at ${req.user!.university || 'University'}.
 Mode: ${mode || 'Explain'}
 
-Your goal is to be a private tutor, not a generic chatbot. 
-1. Adapt to the student's level.
-2. Use uploaded materials as context if relevant.
-3. If the mode is "Explain", break down concepts.
-4. If "Practice", provide exercises.
-5. If "Quiz", test their knowledge.
-6. If "Revision", provide summaries.
+IMPORTANT: You have access to the student's uploaded materials provided below. When the student asks you to summarize, explain, or work with these materials, YOU CAN AND SHOULD USE THEM DIRECTLY.
 
-Context from uploaded materials:
-${contextText || 'No specific materials uploaded yet.'}`;
+Your goal is to be a private, knowledgeable tutor. Adapt to the student's level and learning mode.
+
+Respond according to the current mode:
+- Explain: Break down concepts clearly with examples
+- Practice: Provide exercises and problems related to the topic
+- Quiz: Test the student's knowledge with questions
+- Revision: Provide summaries and key points
+
+STUDENT'S UPLOADED MATERIALS (use these to answer questions):${contextText}`;
+
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
@@ -161,7 +362,10 @@ ${contextText || 'No specific materials uploaded yet.'}`;
       content: assistantContent
     });
 
-    res.json(savedMessage);
+    // Return all messages in this session so frontend has complete conversation
+    const allMessages = await storage.getPersonalTutorMessages(sessionId);
+    console.log(`[AI Tutor] Returning ${allMessages.length} messages for session ${sessionId}`);
+    res.json(allMessages);
   } catch (error) {
     console.error("Personal Tutor error:", error);
     res.status(500).json({ error: "Failed to get response from Personal Tutor" });

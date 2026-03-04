@@ -6,7 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen, Upload, Send, MessageSquare, BrainCircuit, GraduationCap } from "lucide-react";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import { BookOpen, Upload, Send, MessageSquare, BrainCircuit, GraduationCap, Trash2 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { StudentPersonalTutorMaterial, StudentPersonalTutorSession, StudentPersonalTutorMessage } from "@shared/schema";
@@ -28,9 +34,13 @@ export function PersonalTutor() {
     queryKey: ["/api/ai/personal-tutor/sessions"],
   });
 
-  const { data: messages = [] } = useQuery<StudentPersonalTutorMessage[]>({
+  // Filter sessions by current mode to keep tabs separate
+  const filteredSessions = sessions.filter(s => s.mode === mode);
+
+  const { data: messages = [], refetch: refetchMessages } = useQuery<StudentPersonalTutorMessage[]>({
     queryKey: ["/api/ai/personal-tutor/sessions", activeSessionId, "messages"],
     enabled: !!activeSessionId,
+    staleTime: 0, // Always consider data stale, allow refetch
   });
 
   const createSessionMutation = useMutation({
@@ -45,18 +55,29 @@ export function PersonalTutor() {
   });
 
   const sendMessageMutation = useMutation({
-    mutationFn: async (message: string) => {
-      if (!activeSessionId) return;
+    mutationFn: async (params: { message: string; sessionId: string }) => {
+      const { message, sessionId } = params;
       const res = await apiRequest("POST", "/api/ai/personal-tutor/chat", {
-        sessionId: activeSessionId,
+        sessionId,
         message,
         mode,
       });
       return res.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/ai/personal-tutor/sessions", activeSessionId, "messages"] });
+    onSuccess: (messages: StudentPersonalTutorMessage[], variables) => {
+      // Update the cache with all messages from the server
+      queryClient.setQueryData(
+        ["/api/ai/personal-tutor/sessions", variables.sessionId, "messages"],
+        messages
+      );
       setInput("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to send message",
+        variant: "destructive",
+      });
     },
   });
 
@@ -85,17 +106,64 @@ export function PersonalTutor() {
     onSettled: () => setIsUploading(false),
   });
 
+  const deleteMaterialMutation = useMutation({
+    mutationFn: async (materialId: string) => {
+      const res = await apiRequest("DELETE", `/api/ai/personal-tutor/materials/${materialId}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ai/personal-tutor/materials"] });
+      toast({
+        title: "Success",
+        description: "Material deleted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Delete failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteSessionMutation = useMutation({
+    mutationFn: async (sessionId: string) => {
+      const res = await apiRequest("DELETE", `/api/ai/personal-tutor/sessions/${sessionId}`);
+      return res.json();
+    },
+    onSuccess: (data, deletedSessionId) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ai/personal-tutor/sessions"] });
+      // Clear active session if the deleted one was active
+      if (activeSessionId === deletedSessionId) {
+        setActiveSessionId(null);
+      }
+      toast({
+        title: "Success",
+        description: "Chat deleted successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Delete failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleSend = () => {
     if (!input.trim() || sendMessageMutation.isPending) return;
     
     if (!activeSessionId) {
       createSessionMutation.mutate(input.substring(0, 30) + "...", {
         onSuccess: (session) => {
-          sendMessageMutation.mutate(input);
+          // Send message with the new session ID
+          sendMessageMutation.mutate({ message: input, sessionId: session.id });
         }
       });
     } else {
-      sendMessageMutation.mutate(input);
+      sendMessageMutation.mutate({ message: input, sessionId: activeSessionId });
     }
   };
 
@@ -141,9 +209,23 @@ export function PersonalTutor() {
                     <p className="text-sm text-muted-foreground italic">No materials uploaded</p>
                   ) : (
                     materials.map((m) => (
-                      <div key={m.id} className="text-sm p-2 hover:bg-accent rounded-md cursor-pointer mb-1 border">
-                        {m.fileName}
-                      </div>
+                      <ContextMenu key={m.id}>
+                        <ContextMenuTrigger asChild>
+                          <div className="text-sm p-2 rounded-md mb-1 border hover:bg-accent transition-colors cursor-context-menu">
+                            <span className="text-xs" title={m.fileName}>{m.fileName}</span>
+                          </div>
+                        </ContextMenuTrigger>
+                        <ContextMenuContent>
+                          <ContextMenuItem
+                            onClick={() => deleteMaterialMutation.mutate(m.id)}
+                            disabled={deleteMaterialMutation.isPending}
+                            className="text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete Material
+                          </ContextMenuItem>
+                        </ContextMenuContent>
+                      </ContextMenu>
                     ))
                   )}
                 </ScrollArea>
@@ -154,16 +236,29 @@ export function PersonalTutor() {
                   Recent Chats
                 </h3>
                 <ScrollArea className="flex-1">
-                  {sessions.map((s) => (
-                    <div
-                      key={s.id}
-                      onClick={() => setActiveSessionId(s.id)}
-                      className={`text-sm p-2 rounded-md cursor-pointer mb-1 border ${
-                        activeSessionId === s.id ? "bg-primary text-primary-foreground" : "hover:bg-accent"
-                      }`}
-                    >
-                      {s.title || "Untitled Chat"}
-                    </div>
+                  {filteredSessions.map((s) => (
+                    <ContextMenu key={s.id}>
+                      <ContextMenuTrigger asChild>
+                        <div
+                          className={`text-sm p-2 rounded-md mb-1 border cursor-context-menu ${
+                            activeSessionId === s.id ? "bg-primary text-primary-foreground" : "hover:bg-accent"
+                          }`}
+                          onClick={() => setActiveSessionId(s.id)}
+                        >
+                          <span className="text-xs">{s.title || "Untitled Chat"}</span>
+                        </div>
+                      </ContextMenuTrigger>
+                      <ContextMenuContent>
+                        <ContextMenuItem
+                          onClick={() => deleteSessionMutation.mutate(s.id)}
+                          disabled={deleteSessionMutation.isPending}
+                          className="text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete Chat
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    </ContextMenu>
                   ))}
                 </ScrollArea>
               </div>
@@ -194,7 +289,10 @@ export function PersonalTutor() {
                     key={m}
                     size="sm"
                     variant={mode === m ? "default" : "outline"}
-                    onClick={() => setMode(m)}
+                    onClick={() => {
+                      setMode(m);
+                      setActiveSessionId(null);
+                    }}
                     className="h-8"
                   >
                     {m}
@@ -245,16 +343,23 @@ export function PersonalTutor() {
                         </div>
                       </div>
                     ))}
-                    {sendMessageMutation.isPending && (
-                      <div className="flex justify-start">
-                        <div className="bg-muted border rounded-lg p-3">
-                          <div className="flex gap-1">
-                            <div className="h-2 w-2 bg-foreground/30 rounded-full animate-bounce" />
-                            <div className="h-2 w-2 bg-foreground/30 rounded-full animate-bounce delay-75" />
-                            <div className="h-2 w-2 bg-foreground/30 rounded-full animate-bounce delay-150" />
+                    {sendMessageMutation.isPending && input && (
+                      <>
+                        <div className="flex justify-end">
+                          <div className="max-w-[80%] rounded-lg p-3 bg-primary text-primary-foreground">
+                            <p className="text-sm whitespace-pre-wrap">{input}</p>
                           </div>
                         </div>
-                      </div>
+                        <div className="flex justify-start">
+                          <div className="bg-muted border rounded-lg p-3">
+                            <div className="flex gap-1">
+                              <div className="h-2 w-2 bg-foreground/30 rounded-full animate-bounce" />
+                              <div className="h-2 w-2 bg-foreground/30 rounded-full animate-bounce delay-75" />
+                              <div className="h-2 w-2 bg-foreground/30 rounded-full animate-bounce delay-150" />
+                            </div>
+                          </div>
+                        </div>
+                      </>
                     )}
                   </div>
                 )}

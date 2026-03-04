@@ -81,9 +81,12 @@ export interface IStorage {
 
   // Personal Tutor
   getPersonalTutorMaterials(studentId: string): Promise<StudentPersonalTutorMaterial[]>;
+  getPersonalTutorMaterial(id: string): Promise<StudentPersonalTutorMaterial | undefined>;
   createPersonalTutorMaterial(material: InsertStudentPersonalTutorMaterial): Promise<StudentPersonalTutorMaterial>;
+  deletePersonalTutorMaterial(id: string): Promise<void>;
   getPersonalTutorSessions(studentId: string): Promise<StudentPersonalTutorSession[]>;
   createPersonalTutorSession(session: InsertStudentPersonalTutorSession): Promise<StudentPersonalTutorSession>;
+  deletePersonalTutorSession(id: string): Promise<void>;
   getPersonalTutorMessages(sessionId: string): Promise<StudentPersonalTutorMessage[]>;
   createPersonalTutorMessage(message: InsertStudentPersonalTutorMessage): Promise<StudentPersonalTutorMessage>;
   
@@ -321,6 +324,20 @@ export class DatabaseStorage implements IStorage {
     return newMaterial;
   }
 
+  async getPersonalTutorMaterial(id: string): Promise<StudentPersonalTutorMaterial | undefined> {
+    const [material] = await db
+      .select()
+      .from(studentPersonalTutorMaterials)
+      .where(eq(studentPersonalTutorMaterials.id, id));
+    return material;
+  }
+
+  async deletePersonalTutorMaterial(id: string): Promise<void> {
+    await db
+      .delete(studentPersonalTutorMaterials)
+      .where(eq(studentPersonalTutorMaterials.id, id));
+  }
+
   async getPersonalTutorSessions(studentId: string): Promise<StudentPersonalTutorSession[]> {
     return await db
       .select()
@@ -335,6 +352,18 @@ export class DatabaseStorage implements IStorage {
       .values(session)
       .returning();
     return newSession;
+  }
+
+  async deletePersonalTutorSession(id: string): Promise<void> {
+    // Delete all messages in this session first
+    await db
+      .delete(studentPersonalTutorMessages)
+      .where(eq(studentPersonalTutorMessages.sessionId, id));
+    
+    // Then delete the session
+    await db
+      .delete(studentPersonalTutorSessions)
+      .where(eq(studentPersonalTutorSessions.id, id));
   }
 
   async getPersonalTutorMessages(sessionId: string): Promise<StudentPersonalTutorMessage[]> {
