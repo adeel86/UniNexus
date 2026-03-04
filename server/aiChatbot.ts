@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import { db } from "./db";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, or } from "drizzle-orm";
 import {
   teacherContent,
   teacherContentChunks,
@@ -9,6 +9,7 @@ import {
   courseEnrollments,
   courses,
   users,
+  studentCourses,
   type TeacherContentChunk,
 } from "@shared/schema";
 
@@ -33,6 +34,96 @@ interface ChunkWithScore {
   chunk: TeacherContentChunk;
   score: number;
   contentTitle: string;
+}
+
+// Helper function to extract text from PDF documents
+export async function extractTextFromPDF(buffer: Buffer): Promise<string | null> {
+  try {
+    // Dynamically import pdf-parse if available (optional dependency)
+    const pdfParse = await (async () => {
+      try {
+        // @ts-ignore - optional dependency
+        return (await import('pdf-parse')).default;
+      } catch {
+        return null;
+      }
+    })();
+    
+    if (!pdfParse) {
+      console.debug("pdf-parse not installed, PDF text extraction skipped");
+      return null;
+    }
+    
+    const pdfData = await pdfParse(buffer);
+    const text = pdfData.text
+      .split('\n')
+      .map((line: string) => line.trim())
+      .filter((line: string) => line.length > 0)
+      .join('\n')
+      .substring(0, 8000);
+    
+    if (!text || text.length === 0) {
+      console.debug("PDF has no extractable text");
+      return null;
+    }
+    
+    return text;
+  } catch (error) {
+    console.error("PDF text extraction failed:", error instanceof Error ? error.message : 'unknown error');
+    return null;
+  }
+}
+
+// Helper function to extract text from Word documents (.docx, .doc)
+export async function extractTextFromWord(buffer: Buffer, filename: string): Promise<string | null> {
+  try {
+    if (filename.endsWith('.docx')) {
+      const mammoth = await (async () => {
+        try {
+          // @ts-ignore - optional dependency
+          return (await import('mammoth')).default;
+        } catch {
+          return null;
+        }
+      })();
+      
+      if (mammoth) {
+        const result = await mammoth.extractRawText({ buffer });
+        const text = result.value
+          .split('\n')
+          .map((line: string) => line.trim())
+          .filter((line: string) => line.length > 0)
+          .join('\n')
+          .substring(0, 8000);
+        
+        if (text && text.length > 0) {
+          return text;
+        }
+      }
+    }
+    
+    // Fallback for .doc files
+    if (filename.endsWith('.doc') || filename.endsWith('.docx')) {
+      const text = buffer
+        .toString('latin1')
+        .replace(/[^\x20-\x7E\n\r]/g, ' ')
+        .split('\n')
+        .map((line: string) => line.trim())
+        .filter((line: string) => line.length > 10)
+        .slice(0, 200)
+        .join('\n')
+        .substring(0, 8000);
+      
+      if (text && text.length > 100) {
+        return text;
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error("Word document text extraction failed:", error instanceof Error ? error.message : 'unknown error');
+    return null;
+  }
 }
 
 function splitLongSentence(sentence: string, maxLength: number): string[] {
@@ -92,14 +183,14 @@ function estimateTokenCount(text: string): number {
 }
 
 export async function extractTextFromContent(content: { textContent?: string | null; fileUrl?: string | null; contentType: string }): Promise<string> {
+  // If text is already extracted and stored, use it
   if (content.textContent) {
     return content.textContent;
   }
   
-  if (content.contentType === 'text' && content.textContent) {
-    return content.textContent;
-  }
-  
+  // For non-text types, we need to extract from the file
+  // This is handled in the upload endpoint by extracting during upload
+  // For now, return empty string if no text content
   return "";
 }
 
@@ -132,36 +223,43 @@ export async function indexTeacherContent(contentId: string): Promise<number> {
     throw new Error("Content not found");
   }
   
+  // Delete existing chunks for this content
   await db.delete(teacherContentChunks).where(eq(teacherContentChunks.contentId, contentId));
   
   const text = await extractTextFromContent(content);
   
   if (!text || text.length < 50) {
-    console.log(`Content ${contentId} has no indexable text`);
     return 0;
   }
   
   const chunks = chunkText(text);
+  
   let indexedCount = 0;
   
   for (let i = 0; i < chunks.length; i++) {
     const chunkText = chunks[i];
     const embedding = await generateEmbedding(chunkText);
     
-    await db.insert(teacherContentChunks).values({
-      contentId: content.id,
-      courseId: content.courseId,
-      teacherId: content.teacherId,
-      chunkIndex: i,
-      text: chunkText,
-      embedding: embedding,
-      tokenCount: estimateTokenCount(chunkText),
-    });
+    if (!embedding) {
+      continue;
+    }
     
-    indexedCount++;
+    try {
+      await db.insert(teacherContentChunks).values({
+        contentId: content.id,
+        courseId: content.courseId,
+        teacherId: content.teacherId,
+        chunkIndex: i,
+        text: chunkText,
+        embedding: embedding,
+        tokenCount: estimateTokenCount(chunkText),
+      });
+      indexedCount++;
+    } catch (dbError) {
+      console.error(`[IndexTeacherContent] Failed to insert chunk for content ${contentId}:`, dbError);
+    }
   }
   
-  console.log(`Indexed ${indexedCount} chunks for content ${contentId}`);
   return indexedCount;
 }
 
@@ -197,6 +295,10 @@ export async function retrieveRelevantChunks(
     .innerJoin(teacherContent, eq(teacherContentChunks.contentId, teacherContent.id))
     .where(eq(teacherContentChunks.courseId, courseId));
   
+  if (chunks.length === 0) {
+    return [];
+  }
+  
   if (!queryEmbedding) {
     return chunks.slice(0, topK).map(c => ({
       chunk: c.chunk,
@@ -205,12 +307,22 @@ export async function retrieveRelevantChunks(
     }));
   }
   
+  // Check for chunks with missing embeddings
+  const chunksWithoutEmbeddings = chunks.filter(c => !c.chunk.embedding);
+  if (chunksWithoutEmbeddings.length > 0) {
+    console.warn(`[RetrieveChunks] Found ${chunksWithoutEmbeddings.length}/${chunks.length} chunks without embeddings for course ${courseId}`);
+  }
+  
   const scoredChunks: ChunkWithScore[] = chunks
-    .map(c => ({
-      chunk: c.chunk,
-      score: cosineSimilarity(queryEmbedding, c.chunk.embedding as number[] || []),
-      contentTitle: c.contentTitle,
-    }))
+    .map(c => {
+      const embeddingArray = Array.isArray(c.chunk.embedding) ? c.chunk.embedding : (typeof c.chunk.embedding === 'string' ? JSON.parse(c.chunk.embedding) : []);
+      const score = embeddingArray.length > 0 ? cosineSimilarity(queryEmbedding, embeddingArray as number[]) : 0;
+      return {
+        chunk: c.chunk,
+        score,
+        contentTitle: c.contentTitle,
+      };
+    })
     .sort((a, b) => b.score - a.score)
     .slice(0, topK);
   
@@ -229,6 +341,48 @@ export async function verifyStudentEnrollment(userId: string, courseId: string):
     );
   
   return !!enrollment;
+}
+
+export async function verifyCourseAccess(userId: string, courseId: string): Promise<boolean> {
+  // Check if user is enrolled in the course via courseEnrollments
+  const [enrollment] = await db
+    .select()
+    .from(courseEnrollments)
+    .where(
+      and(
+        eq(courseEnrollments.studentId, userId),
+        eq(courseEnrollments.courseId, courseId)
+      )
+    );
+  
+  if (enrollment) return true;
+  
+  // Check if user has a validated/enrolled studentCourse linked to this courseId
+  const [studentCourse] = await db
+    .select()
+    .from(studentCourses)
+    .where(
+      and(
+        eq(studentCourses.userId, userId),
+        eq(studentCourses.courseId, courseId),
+        or(
+          eq(studentCourses.validationStatus, "validated"),
+          eq(studentCourses.isValidated, true)
+        )
+      )
+    );
+  
+  if (studentCourse) return true;
+  
+  // Check if user is the instructor of the course
+  const [course] = await db
+    .select()
+    .from(courses)
+    .where(eq(courses.id, courseId));
+  
+  if (course && course.instructorId === userId) return true;
+  
+  return false;
 }
 
 export async function getCourseInfo(courseId: string): Promise<{ name: string; code: string; instructorName: string } | null> {
@@ -263,26 +417,38 @@ export async function generateChatResponse(
     throw new Error("Course not found");
   }
   
+  // First check if there's any content for this course
+  const allContent = await db
+    .select()
+    .from(teacherContent)
+    .where(eq(teacherContent.courseId, courseId));
+  
+  // Check chunks in database
+  const allChunks = await db
+    .select()
+    .from(teacherContentChunks)
+    .where(eq(teacherContentChunks.courseId, courseId));
+  
   let relevantChunks = await retrieveRelevantChunks(courseId, userMessage);
   
   if (relevantChunks.length === 0) {
-    // Fallback: check if there is any content at all for this course
-    const [anyContent] = await db
-      .select()
-      .from(teacherContent)
-      .where(eq(teacherContent.courseId, courseId))
-      .limit(1);
-
-    if (!anyContent) {
+    if (!allContent || allContent.length === 0) {
       return {
         answer: `I don't have any course materials for ${courseInfo.name} yet. Please ask your teacher to upload content first.`,
         citations: [],
       };
     }
 
-    // If there is content but no relevant chunks, it might not be indexed or semantically distant
+    if (allChunks.length === 0) {
+      return {
+        answer: `I found materials for ${courseInfo.name}, but they are not yet indexed for searching. Please ask your teacher to re-upload the materials or wait for them to be indexed.`,
+        citations: [],
+      };
+    }
+
+    // If there is content and chunks but no relevant matches
     return {
-      answer: `I found some materials for ${courseInfo.name}, but I couldn't find specific information related to your question. Try asking something else or check if the materials cover this topic.`,
+      answer: `I found some materials for ${courseInfo.name}, but I couldn't find specific information related to your question: "${userMessage}". Try asking something else or check if the materials cover this topic.`,
       citations: [],
     };
   }

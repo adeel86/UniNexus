@@ -224,13 +224,16 @@ export function useTeacherContent(teacherId: string) {
   });
 
   const validateStudentMutation = useMutation({
-    mutationFn: async ({ id, note }: { id: string; note?: string }) => {
+    mutationFn: async ({ id, note, action = "approve" }: { id: string; note?: string; action?: string }) => {
       return apiRequest("POST", `/api/student-courses/${id}/validate`, {
+        action,
         validationNote: note,
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/teacher/pending-validations"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/me/created-courses"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/teacher/courses"] });
       toast({
         title: "Course validated!",
         description: "Student has been auto-enrolled and can now access AI tutoring.",

@@ -61,7 +61,7 @@ export function StudentAITutor({ open, onOpenChange, courseId, courseName }: Stu
         message,
         sessionId,
       });
-      return response as unknown as ChatResponse;
+      return await response.json();
     },
     onSuccess: (data) => {
       setSessionId(data.sessionId);

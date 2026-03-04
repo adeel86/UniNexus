@@ -160,6 +160,7 @@ router.post("/student-courses/:id/validate", isAuthenticated, async (req: Reques
       return res.json(updated);
     }
 
+    // Validate course (when action is 'approve' or no action specified)
     const validated = await validateStudentCourse(
       req.params.id,
       req.user.id,

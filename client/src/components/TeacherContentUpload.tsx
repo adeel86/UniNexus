@@ -327,7 +327,7 @@ export function TeacherContentUpload({ teacherId }: TeacherContentUploadProps) {
                       validation={validation}
                       courseName={getCourseNameById(validation.courseId as string) || ""}
                       isPending={mutations.validateStudent.isPending}
-                      onValidate={(id, note) => mutations.validateStudent.mutate({ id, note })}
+                      onValidate={(id, note) => mutations.validateStudent.mutate({ id, note, action: 'approve' })}
                     />
                   ))}
                 </div>

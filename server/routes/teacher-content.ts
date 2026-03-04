@@ -154,19 +154,45 @@ router.post("/upload", requireAuth, requireRole('teacher', 'master_admin'), docu
       })
       .returning();
 
-    // Auto-index content if it's text-based
-    if (contentType === 'text' && req.file.buffer) {
-      try {
-        const textContent = req.file.buffer.toString('utf-8');
+    // Extract and auto-index content for all file types
+    try {
+      let textContent: string | null = null;
+      
+      if (contentType === 'text') {
+        textContent = req.file.buffer.toString('utf-8');
+      } else if (contentType === 'pdf') {
+        try {
+          const aiChatbot = await import("../aiChatbot");
+          textContent = await (aiChatbot as any).extractTextFromPDF(req.file.buffer);
+        } catch (pdfError) {
+          console.error(`[TeacherContent] PDF extraction error:`, pdfError);
+        }
+      } else if (contentType === 'doc') {
+        try {
+          const aiChatbot = await import("../aiChatbot");
+          textContent = await (aiChatbot as any).extractTextFromWord(req.file.buffer, req.file.originalname);
+        } catch (docError) {
+          console.error(`[TeacherContent] Word doc extraction error:`, docError);
+        }
+      }
+      
+      if (textContent && textContent.length > 0) {
+        // Save extracted text
         await db.update(teacherContent)
           .set({ textContent })
           .where(eq(teacherContent.id, content.id));
         
-        const aiChatbot = await import("../aiChatbot");
-        await aiChatbot.indexTeacherContent(content.id);
-      } catch (indexError) {
-        console.error("Failed to auto-index content:", indexError);
+        // Index the content
+        try {
+          const aiChatbot = await import("../aiChatbot");
+          await (aiChatbot as any).indexTeacherContent(content.id);
+        } catch (indexError: any) {
+          console.error(`[TeacherContent] Indexing failed:`, indexError?.message || indexError);
+        }
       }
+    } catch (extractError) {
+      console.error("[TeacherContent] Failed to extract/index content:", extractError);
+      // Don't fail the upload if indexing fails
     }
 
     res.json({ url: fileUrl, content });

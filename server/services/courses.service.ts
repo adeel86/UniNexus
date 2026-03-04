@@ -152,31 +152,35 @@ export async function validateStudentCourse(
 
   // Handle enrollment and count update
   if (validated.courseId) {
-    await db.transaction(async (tx) => {
-      // 1. Create enrollment record if it doesn't exist
-      await tx.insert(courseEnrollments).values({
-        courseId: validated.courseId!,
-        studentId: validated.userId,
-        enrolledAt: new Date(),
-      }).onConflictDoNothing();
+    try {
+      await db.transaction(async (tx) => {
+        // 1. Create enrollment record if it doesn't exist
+        await tx.insert(courseEnrollments).values({
+          courseId: validated.courseId!,
+          studentId: validated.userId,
+          enrolledAt: new Date(),
+        }).onConflictDoNothing();
 
-      // 2. Get fresh count from enrollment table
-      const [countResult] = await tx
-        .select({ count: sql<number>`count(*)` })
-        .from(courseEnrollments)
-        .where(eq(courseEnrollments.courseId, validated.courseId!));
-      
-      const newCount = Number(countResult?.count || 0);
+        // 2. Get fresh count from enrollment table
+        const [countResult] = await tx
+          .select({ count: sql<number>`count(*)` })
+          .from(courseEnrollments)
+          .where(eq(courseEnrollments.courseId, validated.courseId!));
+        
+        const newCount = Number(countResult?.count || 0);
 
-      // 3. Update the course table with the real-time count
-      await tx
-        .update(courses)
-        .set({
-          enrollmentCount: newCount,
-          updatedAt: new Date(),
-        })
-        .where(eq(courses.id, validated.courseId!));
-    });
+        // 3. Update the course table with the real-time count
+        await tx
+          .update(courses)
+          .set({
+            enrollmentCount: newCount,
+            updatedAt: new Date(),
+          })
+          .where(eq(courses.id, validated.courseId!));
+      });
+    } catch (error) {
+      throw error;
+    }
   }
 
   // Create notification for student

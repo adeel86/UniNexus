@@ -807,9 +807,9 @@ router.post("/api/ai/course-chat", requireAuth, async (req: Request, res: Respon
 
     const aiChatbot = await getAiChatbot();
 
-    const isEnrolled = await aiChatbot.verifyStudentEnrollment(req.user!.id, courseId);
-    if (!isEnrolled) {
-      return res.status(403).json({ error: "You must be enrolled in this course to use the AI tutor" });
+    const hasAccess = await aiChatbot.verifyCourseAccess(req.user!.id, courseId);
+    if (!hasAccess) {
+      return res.status(403).json({ error: "You must be enrolled in this course or be the instructor to use the AI tutor" });
     }
 
     const activeSessionId = sessionId || await aiChatbot.createOrGetSession(req.user!.id, courseId);
@@ -841,9 +841,9 @@ router.get("/api/ai/course-chat/:courseId/history", requireAuth, async (req: Req
     const { courseId } = req.params;
     const aiChatbot = await getAiChatbot();
 
-    const isEnrolled = await aiChatbot.verifyStudentEnrollment(req.user!.id, courseId);
-    if (!isEnrolled) {
-      return res.status(403).json({ error: "You must be enrolled in this course" });
+    const hasAccess = await aiChatbot.verifyCourseAccess(req.user!.id, courseId);
+    if (!hasAccess) {
+      return res.status(403).json({ error: "You must be enrolled in this course or be the instructor" });
     }
 
     const sessions = await aiChatbot.getUserSessions(req.user!.id, courseId);
@@ -869,9 +869,9 @@ router.get("/api/ai/course-chat/:courseId/status", requireAuth, async (req: Requ
     const { courseId } = req.params;
     const aiChatbot = await getAiChatbot();
 
-    const isEnrolled = await aiChatbot.verifyStudentEnrollment(req.user!.id, courseId);
-    if (!isEnrolled) {
-      return res.status(403).json({ error: "You must be enrolled in this course" });
+    const hasAccess = await aiChatbot.verifyCourseAccess(req.user!.id, courseId);
+    if (!hasAccess) {
+      return res.status(403).json({ error: "You must be enrolled in this course or be the instructor" });
     }
 
     const chunkCount = await aiChatbot.getContentChunkCount(courseId);

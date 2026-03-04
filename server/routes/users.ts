@@ -737,54 +737,6 @@ router.delete("/student-courses/:id", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/student-courses/:id/validate", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
-  if (req.user.role !== 'teacher') {
-    return res.status(403).json({ error: "Only teachers can validate courses" });
-  }
-
-  try {
-    const { id } = req.params;
-    const { validationNote } = req.body;
-
-    const [existing] = await db
-      .select()
-      .from(studentCourses)
-      .where(eq(studentCourses.id, id))
-      .limit(1);
-
-    if (!existing) {
-      return res.status(404).json({ error: "Course not found" });
-    }
-
-    const [updated] = await db
-      .update(studentCourses)
-      .set({
-        isValidated: true,
-        validatedBy: req.user.id,
-        validatedAt: new Date(),
-        validationNote: validationNote || null,
-        updatedAt: new Date(),
-      })
-      .where(eq(studentCourses.id, id))
-      .returning();
-
-    await db.insert(notifications).values({
-      userId: existing.userId,
-      type: "validation",
-      title: "Course Validated!",
-      message: `Your course "${existing.courseName}" was validated by ${req.user.firstName} ${req.user.lastName}`,
-      link: "/profile",
-    });
-
-    res.json(updated);
-  } catch (error: any) {
-    res.status(400).json({ error: error.message });
-  }
-});
 
 router.patch("/users/:userId/profile", async (req: Request, res: Response) => {
   if (!req.user) {

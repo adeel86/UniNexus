@@ -63,8 +63,8 @@ export function TeacherCoursesSection() {
   });
 
   const validateMutation = useMutation({
-    mutationFn: async ({ courseId, validationNote }: { courseId: string; validationNote?: string }) => {
-      return apiRequest("POST", `/api/student-courses/${courseId}/validate`, { validationNote });
+    mutationFn: async ({ courseId, validationNote, action = "approve" }: { courseId: string; validationNote?: string; action?: string }) => {
+      return apiRequest("POST", `/api/student-courses/${courseId}/validate`, { action, validationNote });
     },
     onMutate: async ({ courseId }) => {
       await queryClient.cancelQueries({ queryKey: ['/api/teacher/courses'] });
@@ -83,6 +83,7 @@ export function TeacherCoursesSection() {
       toast({ title: "Course validated successfully" });
       queryClient.invalidateQueries({ queryKey: ['/api/teacher/courses'] });
       queryClient.invalidateQueries({ queryKey: ['/api/teacher/pending-validations'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/me/created-courses"] });
       setValidateDialogOpen(false);
       setSelectedCourse(null);
       setValidationNote("");
@@ -117,6 +118,7 @@ export function TeacherCoursesSection() {
     onSuccess: () => {
       toast({ title: "Validation removed" });
       queryClient.invalidateQueries({ queryKey: ['/api/teacher/courses'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/me/created-courses"] });
     },
     onError: (err: any, variables, context) => {
       queryClient.setQueryData(['/api/teacher/courses'], context?.previousCourses);
