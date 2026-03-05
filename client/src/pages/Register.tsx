@@ -11,6 +11,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Users, GraduationCap, Building2, Briefcase, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Autocomplete, type AutocompleteOption } from '@/components/Autocomplete';
 
 const registerSchema = z.object({
   email: z.string().email('Please enter a valid email'),
@@ -18,8 +19,8 @@ const registerSchema = z.object({
   confirmPassword: z.string(),
   displayName: z.string().min(2, 'Name must be at least 2 characters'),
   role: z.enum(['student', 'teacher', 'industry_professional', 'university_admin', 'master_admin']),
-  university: z.string().optional(),
-  major: z.string().optional(),
+  university: z.any().optional(), // Will accept AutocompleteOption or string
+  major: z.any().optional(), // Will accept AutocompleteOption or string
   company: z.string().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match",
@@ -72,12 +73,13 @@ export default function Register() {
       const additionalData: any = {};
       
       if (data.role === 'student') {
-        additionalData.university = data.university || '';
-        additionalData.major = data.major || '';
+        // Pass the full AutocompleteOption object or null
+        additionalData.university = data.university || null;
+        additionalData.major = data.major || null;
       } else if (data.role === 'industry_professional') {
         additionalData.company = data.company || '';
       } else if (data.role === 'teacher' || data.role === 'university_admin') {
-        additionalData.university = data.university || '';
+        additionalData.university = data.university || null;
       }
 
       await signUp(data.email, data.password, data.displayName, data.role, additionalData);
@@ -230,10 +232,17 @@ export default function Register() {
                     <FormItem>
                       <FormLabel>University</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="University name" 
-                          data-testid="input-university"
-                          {...field} 
+                        <Autocomplete
+                          placeholder="Search your university..."
+                          value={field.value as AutocompleteOption | null}
+                          onChange={(option) => field.onChange(option)}
+                          onCustomEntry={(text) => {
+                            // Store as object with name property
+                            field.onChange({ id: text, name: text });
+                          }}
+                          searchEndpoint="/api/courses/universities/search"
+                          allowCustomEntry={true}
+                          testId="autocomplete-university"
                         />
                       </FormControl>
                       <FormMessage />
@@ -250,10 +259,17 @@ export default function Register() {
                     <FormItem>
                       <FormLabel>Major / Field of Study</FormLabel>
                       <FormControl>
-                        <Input 
-                          placeholder="Computer Science" 
-                          data-testid="input-major"
-                          {...field} 
+                        <Autocomplete
+                          placeholder="Search your major..."
+                          value={field.value as AutocompleteOption | null}
+                          onChange={(option) => field.onChange(option)}
+                          onCustomEntry={(text) => {
+                            // Store as object with name property
+                            field.onChange({ id: text, name: text });
+                          }}
+                          searchEndpoint="/api/courses/majors/search"
+                          allowCustomEntry={true}
+                          testId="autocomplete-major"
                         />
                       </FormControl>
                       <FormMessage />

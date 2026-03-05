@@ -11,6 +11,12 @@ import {
   users,
   type User,
   type UpsertUser,
+  universities,
+  type University,
+  type InsertUniversity,
+  majors,
+  type Major,
+  type InsertMajor,
   courses,
   type Course,
   courseDiscussions,
@@ -545,6 +551,77 @@ export class DatabaseStorage implements IStorage {
       // 10. Finally delete the user
       await tx.delete(users).where(eq(users.id, userId));
     });
+  }
+
+  // ========================================================================
+  // UNIVERSITY AND MAJOR OPERATIONS
+  // ========================================================================
+
+  async getOrCreateUniversity(name: string): Promise<University> {
+    const trimmed = name.trim();
+    
+    // Check if university already exists
+    const existing = await db
+      .select()
+      .from(universities)
+      .where(eq(universities.name, trimmed))
+      .limit(1);
+
+    if (existing.length > 0) {
+      return existing[0];
+    }
+
+    // Create new university
+    const inserted = await db
+      .insert(universities)
+      .values({
+        name: trimmed,
+        location: null,
+      })
+      .returning();
+
+    return inserted[0];
+  }
+
+  async getOrCreateMajor(name: string, category?: string): Promise<Major> {
+    const trimmed = name.trim();
+    
+    // Check if major already exists
+    const existing = await db
+      .select()
+      .from(majors)
+      .where(eq(majors.name, trimmed))
+      .limit(1);
+
+    if (existing.length > 0) {
+      return existing[0];
+    }
+
+    // Create new major
+    const inserted = await db
+      .insert(majors)
+      .values({
+        name: trimmed,
+        category: category || null,
+        isVerified: false, // Custom entries are not verified initially
+      })
+      .returning();
+
+    return inserted[0];
+  }
+
+  async getUniversities(): Promise<University[]> {
+    return await db
+      .select()
+      .from(universities)
+      .orderBy(universities.name);
+  }
+
+  async getMajors(): Promise<Major[]> {
+    return await db
+      .select()
+      .from(majors)
+      .orderBy(majors.name);
   }
 }
 

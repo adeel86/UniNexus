@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import { eq } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { db } from "../db";
-import { users } from "@shared/schema";
+import { users, universities, majors } from "@shared/schema";
 import { verifyToken, isAuthenticated, type AuthRequest } from "../firebaseAuth";
 import { storage } from "../storage";
 import { getUniversityByEmail } from "@shared/universities";
@@ -94,15 +94,121 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
 
     const autoUniversity = getUniversityByEmail(email);
 
+    // Process university - either fetch existing or create new
+    let universityId: string | null = null;
+    let universityName: string | null = null;
+    
+    if (university) {
+      // Check if it's an ID (from autocomplete selection)
+      const possibleId = typeof university === 'object' ? university.id : university;
+      
+      // Check if university with this ID exists
+      const existingUniversity = await db
+        .select()
+        .from(universities)
+        .where(eq(universities.id, possibleId))
+        .limit(1);
+      
+      if (existingUniversity.length > 0) {
+        // Use existing university
+        universityId = existingUniversity[0].id;
+        universityName = existingUniversity[0].name;
+      } else {
+        // Create new university (treat as custom entry)
+        const univName = typeof university === 'object' ? university.name : university;
+        const [newUniversity] = await db
+          .insert(universities)
+          .values({ name: univName, location: null })
+          .onConflictDoNothing()
+          .returning();
+        
+        if (newUniversity) {
+          universityId = newUniversity.id;
+          universityName = newUniversity.name;
+        } else {
+          // University name already exists, fetch it
+          const [existingByName] = await db
+            .select()
+            .from(universities)
+            .where(eq(universities.name, univName))
+            .limit(1);
+          if (existingByName) {
+            universityId = existingByName.id;
+            universityName = existingByName.name;
+          }
+        }
+      }
+    } else if (autoUniversity) {
+      universityName = autoUniversity;
+      // Try to fetch auto-detected university
+      const [autoUniv] = await db
+        .select()
+        .from(universities)
+        .where(eq(universities.name, autoUniversity))
+        .limit(1);
+      if (autoUniv) {
+        universityId = autoUniv.id;
+      }
+    }
+
+    // Process major - either fetch existing or create new
+    let majorId: string | null = null;
+    let majorName: string | null = null;
+    
+    if (major) {
+      // Check if it's an ID (from autocomplete selection)
+      const possibleId = typeof major === 'object' ? major.id : major;
+      
+      // Check if major with this ID exists
+      const existingMajor = await db
+        .select()
+        .from(majors)
+        .where(eq(majors.id, possibleId))
+        .limit(1);
+      
+      if (existingMajor.length > 0) {
+        // Use existing major
+        majorId = existingMajor[0].id;
+        majorName = existingMajor[0].name;
+      } else {
+        // Create new major (treat as custom entry)
+        const majName = typeof major === 'object' ? major.name : major;
+        const [newMajor] = await db
+          .insert(majors)
+          .values({ name: majName, category: null, isVerified: false })
+          .onConflictDoNothing()
+          .returning();
+        
+        if (newMajor) {
+          majorId = newMajor.id;
+          majorName = newMajor.name;
+        } else {
+          // Major name already exists, fetch it
+          const [existingByName] = await db
+            .select()
+            .from(majors)
+            .where(eq(majors.name, majName))
+            .limit(1);
+          if (existingByName) {
+            majorId = existingByName.id;
+            majorName = existingByName.name;
+          }
+        }
+      }
+    }
+
     const user = await storage.createUserFromFirebase(effectiveUid, {
       email,
       displayName,
       firstName,
       lastName,
       role: role || 'student',
-      university: autoUniversity || university || null,
-      institution: autoUniversity || university || null,
-      major: major || null,
+      universityId: universityId || null,
+      majorId: majorId || null,
+      // Keep legacy fields for backward compatibility
+      university: universityName || null,
+      institution: universityName || null,
+      major: majorName || null,
       company: company || null,
       position: position || null,
       bio: bio || null,

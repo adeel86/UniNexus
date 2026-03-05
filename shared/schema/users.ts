@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { relations } from 'drizzle-orm';
-import { pgTable, timestamp, varchar, text, integer, boolean, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, timestamp, varchar, text, integer, boolean, uniqueIndex, foreignKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -14,6 +14,10 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role", { length: 50 }).notNull().default('student'),
   bio: text("bio"),
+  // Structured university and major references (new)
+  universityId: varchar("university_id"),
+  majorId: varchar("major_id"),
+  // Legacy fields for backward compatibility (deprecated)
   university: varchar("university"),
   major: varchar("major"),
   graduationYear: integer("graduation_year"),
@@ -36,6 +40,9 @@ export const users = pgTable("users", {
 
 export type User = typeof users.$inferSelect;
 export type UpsertUser = typeof users.$inferInsert;
+
+// Relations will be defined after imports are available
+// (defined in courses.ts to avoid circular dependencies)
 
 export const userProfiles = pgTable("user_profiles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

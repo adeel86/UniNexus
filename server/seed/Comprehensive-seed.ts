@@ -56,7 +56,13 @@ import { eq } from "drizzle-orm";
 const CONFIG = {
   STUDENTS_PER_UNIVERSITY: 10,
   TEACHERS_PER_UNIVERSITY: 2,
-  UNIVERSITIES: ["MIT", "Stanford", "UC Berkeley", "Carnegie Mellon", "Georgia Tech"],
+  UNIVERSITIES: [
+    "Massachusetts Institute of Technology",
+    "Stanford University",
+    "University of California, Berkeley",
+    "Harvard University",
+    "Oxford University",
+  ],
   INDUSTRY_PROFESSIONALS: 8,
   UNIVERSITY_ADMINS: 3,
   COURSES_PER_UNIVERSITY: 4,

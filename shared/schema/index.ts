@@ -107,6 +107,7 @@ export type {
 // Courses
 export {
   universities,
+  majors,
   courses,
   courseEnrollments,
   courseEnrollmentsRelations,
@@ -116,6 +117,7 @@ export {
   courseMilestones,
   studentCourses,
   insertUniversitySchema,
+  insertMajorSchema,
   insertCourseSchema,
   insertCourseDiscussionSchema,
   insertDiscussionReplySchema,
@@ -126,6 +128,8 @@ export {
 export type {
   University,
   InsertUniversity,
+  Major,
+  InsertMajor,
   Course,
   InsertCourse,
   CourseEnrollment,

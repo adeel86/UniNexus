@@ -1,11 +1,12 @@
 import { Router, Request, Response } from "express";
-import { eq, desc, sql, and } from "drizzle-orm";
+import { eq, desc, sql, and, ilike, or } from "drizzle-orm";
 import { db } from "../db";
 import { storage } from "../storage";
-import { isAuthenticated } from "../firebaseAuth";
+import { isAuthenticated, type AuthRequest } from "../firebaseAuth";
 import {
   users,
   universities,
+  majors,
   courses,
   courseEnrollments,
   courseDiscussions,
@@ -43,6 +44,141 @@ router.get("/universities", async (_req: Request, res: Response) => {
   try {
     const allUniversities = await db.select().from(universities).orderBy(universities.name);
     res.json(allUniversities);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Search universities by name (for autocomplete)
+router.get("/universities/search", async (req: Request, res: Response) => {
+  try {
+    const query = (req.query.q as string || '').trim();
+    
+    if (!query) {
+      return res.json([]);
+    }
+
+    // Search using case-insensitive LIKE
+    const searchResults = await db
+      .select()
+      .from(universities)
+      .where(ilike(universities.name, `%${query}%`))
+      .orderBy(universities.name)
+      .limit(10);
+
+    res.json(searchResults);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create or get university
+router.post("/universities", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  try {
+    const { name } = req.body;
+    
+    if (!name || typeof name !== 'string') {
+      return res.status(400).json({ error: "University name is required" });
+    }
+
+    const university = await storage.getOrCreateUniversity(name);
+    res.json(university);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Search majors by name (for autocomplete)
+router.get("/majors/search", async (req: Request, res: Response) => {
+  try {
+    const query = (req.query.q as string || '').trim();
+    
+    if (!query) {
+      return res.json([]);
+    }
+
+    // Search using case-insensitive LIKE
+    const searchResults = await db
+      .select()
+      .from(majors)
+      .where(ilike(majors.name, `%${query}%`))
+      .orderBy(majors.name)
+      .limit(15);
+
+    res.json(searchResults);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create or get major
+router.post("/majors", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  try {
+    const { name, category } = req.body;
+    
+    if (!name || typeof name !== 'string') {
+      return res.status(400).json({ error: "Major name is required" });
+    }
+
+    const major = await storage.getOrCreateMajor(name, category);
+    res.json(major);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/universities/search", async (req: Request, res: Response) => {
+  try {
+    const query = (req.query.q as string || "").toLowerCase();
+    
+    if (!query || query.length < 1) {
+      return res.json([]);
+    }
+
+    // Fuzzy search using ILIKE for substring matching
+    const results = await db
+      .select()
+      .from(universities)
+      .where(sql`LOWER(${universities.name}) ILIKE ${`%${query}%`}`)
+      .orderBy(universities.name)
+      .limit(10);
+
+    res.json(results);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================================================================
+// MAJORS ENDPOINTS
+// ========================================================================
+
+router.get("/majors/search", async (req: Request, res: Response) => {
+  try {
+    const query = (req.query.q as string || "").toLowerCase();
+    
+    if (!query || query.length < 1) {
+      return res.json([]);
+    }
+
+    // Fuzzy search using ILIKE for substring matching
+    const results = await db
+      .select()
+      .from(majors)
+      .where(sql`LOWER(${majors.name}) ILIKE ${`%${query}%`}`)
+      .orderBy(majors.name)
+      .limit(10);
+
+    res.json(results);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/majors", async (_req: Request, res: Response) => {
+  try {
+    const allMajors = await db.select().from(majors).orderBy(majors.name);
+    res.json(allMajors);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

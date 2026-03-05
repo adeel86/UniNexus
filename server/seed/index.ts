@@ -6,6 +6,7 @@ import { seedBadges, seedUserBadges } from "./data/badges";
 import { seedSkills, seedUserSkills } from "./data/skills";
 import { seedEducation, seedUserProfiles } from "./data/education";
 import { seedPosts, seedCommentsAndReactions } from "./data/posts";
+import { seedUniversities, seedMajors } from "./data/institution";
 import { seedCourses, seedEnrollmentsAndDiscussions, seedTeacherContent } from "./data/courses";
 import { seedConnections, seedFollowers, seedEndorsements, seedConversations, seedMessages } from "./data/social";
 import { seedChallenges, seedChallengeParticipants, seedGroups, seedGroupMembers, seedGroupPosts, seedNotifications, seedAnnouncements, seedCertifications } from "./data/gamification";
@@ -15,10 +16,14 @@ export async function seedDatabase(profileName?: string) {
   const config = getSeedProfile(profileName);
   console.log(`\n🌱 Starting database seed with profile: ${config.profile.toUpperCase()}`);
   
-  // 1. Users - foundational data
+  // 1. Universities and Majors - foundational data
+  await seedUniversities();
+  await seedMajors();
+  
+  // 2. Users - foundational data
   const insertedUsers = await seedUsers(config);
   
-  // 2. Badges and user badge assignments
+  // 3. Badges and user badge assignments
   const insertedBadges = await seedBadges();
   if (insertedUsers.length > 0 && insertedBadges.length > 0) {
     await seedUserBadges(insertedUsers, insertedBadges);
