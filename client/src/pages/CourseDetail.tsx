@@ -98,7 +98,7 @@ export default function CourseDetail() {
 
   // Fetch all discussions for this course
   const { data: discussions = [], isLoading: discussionsLoading } = useQuery<Discussion[]>({
-    queryKey: ["/api/discussions", courseId],
+    queryKey: [`/api/courses/${courseId}/discussions`],
     enabled: !!courseId,
   });
 
@@ -109,7 +109,7 @@ export default function CourseDetail() {
       return await response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/discussions", courseId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/courses/${courseId}/discussions`] });
       queryClient.invalidateQueries({ queryKey: ["/api/courses", courseId] });
       setNewDiscussionTitle("");
       setNewDiscussionContent("");
@@ -431,7 +431,7 @@ export default function CourseDetail() {
                             </Badge>
                           )}
                         </div>
-                        <CardDescription className="line-clamp-2">
+                        <CardDescription className="mt-2 whitespace-pre-wrap">
                           {discussion.content}
                         </CardDescription>
                       </div>

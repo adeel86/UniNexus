@@ -24,6 +24,7 @@ import GlobalChallengeMap from "@/pages/GlobalChallengeMap";
 import Profile from "@/pages/Profile";
 import CourseDetail from "@/pages/CourseDetail";
 import Courses from "@/pages/Courses";
+import DiscussionDetail from "@/pages/DiscussionDetail";
 import VerifyCertificate from "@/pages/VerifyCertificate";
 import Network from "@/pages/Network";
 import Messages from "@/pages/Messages";
@@ -158,6 +159,7 @@ function Router() {
             </RoleGuard>
           </Route>
           <Route path="/courses/:courseId" component={CourseDetail} />
+          <Route path="/forums/:courseId/:discussionId" component={DiscussionDetail} />
           
           {/* Public verification route */}
           <Route path="/verify/:hash" component={VerifyCertificate} />

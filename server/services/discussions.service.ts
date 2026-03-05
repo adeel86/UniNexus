@@ -30,7 +30,7 @@ export async function getCourseDetails(courseId: string) {
 
   const enrolledCount = Number(enrolledStudentsResult[0]?.count || 0);
 
-  const topDiscussions = await db
+  const topDiscussionsData = await db
     .select({
       discussion: courseDiscussions,
       author: users,
@@ -44,6 +44,16 @@ export async function getCourseDetails(courseId: string) {
     )
     .limit(5);
 
+  const topDiscussions = topDiscussionsData.map((result) => ({
+    ...result.discussion,
+    author: result.author ? {
+      id: result.author.id,
+      firstName: result.author.firstName,
+      lastName: result.author.lastName,
+      avatarUrl: result.author.profileImageUrl,
+    } : null,
+  }));
+
   return {
     ...courseData[0].course,
     instructor: courseData[0].instructor,
@@ -53,7 +63,7 @@ export async function getCourseDetails(courseId: string) {
 }
 
 export async function getCourseDiscussions(courseId: string) {
-  return db
+  const results = await db
     .select({
       discussion: courseDiscussions,
       author: users,
@@ -66,10 +76,48 @@ export async function getCourseDiscussions(courseId: string) {
       desc(courseDiscussions.createdAt)
     )
     .limit(50);
+
+  // Format the response to match expected structure
+  return results.map((result) => ({
+    ...result.discussion,
+    author: result.author ? {
+      id: result.author.id,
+      firstName: result.author.firstName,
+      lastName: result.author.lastName,
+      avatarUrl: result.author.profileImageUrl,
+    } : null,
+  }));
+}
+
+export async function getDiscussionById(discussionId: string) {
+  const [result] = await db
+    .select({
+      discussion: courseDiscussions,
+      author: users,
+    })
+    .from(courseDiscussions)
+    .leftJoin(users, eq(courseDiscussions.authorId, users.id))
+    .where(eq(courseDiscussions.id, discussionId))
+    .limit(1);
+  
+  if (!result) {
+    return null;
+  }
+
+  // Format the response to match expected structure
+  return {
+    ...result.discussion,
+    author: result.author ? {
+      id: result.author.id,
+      firstName: result.author.firstName,
+      lastName: result.author.lastName,
+      avatarUrl: result.author.profileImageUrl,
+    } : null,
+  };
 }
 
 export async function getDiscussionReplies(discussionId: string) {
-  return db
+  const results = await db
     .select({
       reply: discussionReplies,
       author: users,
@@ -82,4 +130,15 @@ export async function getDiscussionReplies(discussionId: string) {
       desc(discussionReplies.createdAt)
     )
     .limit(100);
+
+  // Format the response to match expected structure
+  return results.map((result) => ({
+    ...result.reply,
+    author: result.author ? {
+      id: result.author.id,
+      firstName: result.author.firstName,
+      lastName: result.author.lastName,
+      avatarUrl: result.author.profileImageUrl,
+    } : null,
+  }));
 }

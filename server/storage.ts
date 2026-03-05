@@ -74,8 +74,12 @@ export interface IStorage {
   getDiscussions(courseId: string): Promise<CourseDiscussion[]>;
   getDiscussion(id: string): Promise<CourseDiscussion | undefined>;
   createDiscussion(discussion: InsertCourseDiscussion): Promise<CourseDiscussion>;
+  updateDiscussion(id: string, updates: Partial<InsertCourseDiscussion>): Promise<CourseDiscussion | null>;
+  deleteDiscussion(id: string): Promise<boolean>;
   getReplies(discussionId: string): Promise<DiscussionReply[]>;
   createReply(reply: InsertDiscussionReply): Promise<DiscussionReply>;
+  updateReply(id: string, content: string): Promise<DiscussionReply | null>;
+  deleteReply(id: string): Promise<boolean>;
   toggleDiscussionUpvote(userId: string, discussionId: string): Promise<boolean>;
   toggleReplyUpvote(userId: string, replyId: string): Promise<boolean>;
 
@@ -183,6 +187,25 @@ export class DatabaseStorage implements IStorage {
     return newDiscussion;
   }
 
+  async updateDiscussion(id: string, updates: Partial<InsertCourseDiscussion>): Promise<CourseDiscussion | null> {
+    const [updated] = await db
+      .update(courseDiscussions)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(eq(courseDiscussions.id, id))
+      .returning();
+    return updated || null;
+  }
+
+  async deleteDiscussion(id: string): Promise<boolean> {
+    const result = await db
+      .delete(courseDiscussions)
+      .where(eq(courseDiscussions.id, id));
+    return (result.rowCount && result.rowCount > 0) || false;
+  }
+
   async getReplies(discussionId: string): Promise<DiscussionReply[]> {
     return await db
       .select()
@@ -204,6 +227,40 @@ export class DatabaseStorage implements IStorage {
       .where(eq(courseDiscussions.id, reply.discussionId));
     
     return newReply;
+  }
+
+  async updateReply(id: string, content: string): Promise<DiscussionReply | null> {
+    const [updated] = await db
+      .update(discussionReplies)
+      .set({ content })
+      .where(eq(discussionReplies.id, id))
+      .returning();
+    return updated || null;
+  }
+
+  async deleteReply(id: string): Promise<boolean> {
+    // Get the reply first to get discussionId
+    const [reply] = await db
+      .select()
+      .from(discussionReplies)
+      .where(eq(discussionReplies.id, id));
+    
+    if (!reply) return false;
+
+    // Delete the reply
+    const result = await db
+      .delete(discussionReplies)
+      .where(eq(discussionReplies.id, id));
+
+    // Decrement reply count in discussion
+    if (result.rowCount && result.rowCount > 0) {
+      await db
+        .update(courseDiscussions)
+        .set({ replyCount: sql`GREATEST(${courseDiscussions.replyCount} - 1, 0)` })
+        .where(eq(courseDiscussions.id, reply.discussionId));
+    }
+
+    return (result.rowCount && result.rowCount > 0) || false;
   }
 
   async toggleDiscussionUpvote(userId: string, discussionId: string): Promise<boolean> {

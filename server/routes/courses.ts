@@ -9,6 +9,7 @@ import {
   courses,
   courseEnrollments,
   courseDiscussions,
+  discussionReplies,
   studentCourses,
   notifications,
   insertCourseSchema,
@@ -29,6 +30,7 @@ import {
   getCourseDetails,
   getCourseDiscussions,
   getDiscussionReplies,
+  getDiscussionById,
 } from "../services";
 
 const router = Router();
@@ -597,6 +599,18 @@ router.get("/courses/:courseId/discussions", async (req: Request, res: Response)
   }
 });
 
+router.get("/discussions/:discussionId", async (req: Request, res: Response) => {
+  try {
+    const discussion = await getDiscussionById(req.params.discussionId);
+    if (!discussion) {
+      return res.status(404).json({ error: "Discussion not found" });
+    }
+    res.json(discussion);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.post("/discussions", isAuthenticated, async (req: Request, res: Response) => {
   if (!req.user) return res.status(401).send("Unauthorized");
 
@@ -608,6 +622,76 @@ router.post("/discussions", isAuthenticated, async (req: Request, res: Response)
     res.json(newDiscussion);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
+  }
+});
+
+router.put("/discussions/:discussionId", isAuthenticated, async (req: Request, res: Response) => {
+  if (!req.user) return res.status(401).send("Unauthorized");
+
+  try {
+    const { discussionId } = req.params;
+    const { title, content, isResolved } = req.body;
+
+    // Get the discussion to check authorization
+    const [discussion] = await db
+      .select()
+      .from(courseDiscussions)
+      .where(eq(courseDiscussions.id, discussionId));
+
+    if (!discussion) {
+      return res.status(404).json({ error: "Discussion not found" });
+    }
+
+    // Only the author or master_admin can update
+    if (discussion.authorId !== req.user.id && req.user.role !== 'master_admin') {
+      return res.status(403).json({ error: "Not authorized to update this discussion" });
+    }
+
+    const updates: any = {};
+    if (title !== undefined) updates.title = title;
+    if (content !== undefined) updates.content = content;
+    if (isResolved !== undefined) updates.isResolved = isResolved;
+
+    const updated = await storage.updateDiscussion(discussionId, updates);
+    if (!updated) {
+      return res.status(404).json({ error: "Failed to update discussion" });
+    }
+
+    res.json(updated);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.delete("/discussions/:discussionId", isAuthenticated, async (req: Request, res: Response) => {
+  if (!req.user) return res.status(401).send("Unauthorized");
+
+  try {
+    const { discussionId } = req.params;
+
+    // Get the discussion to check authorization
+    const [discussion] = await db
+      .select()
+      .from(courseDiscussions)
+      .where(eq(courseDiscussions.id, discussionId));
+
+    if (!discussion) {
+      return res.status(404).json({ error: "Discussion not found" });
+    }
+
+    // Only the author or master_admin can delete
+    if (discussion.authorId !== req.user.id && req.user.role !== 'master_admin') {
+      return res.status(403).json({ error: "Not authorized to delete this discussion" });
+    }
+
+    const deleted = await storage.deleteDiscussion(discussionId);
+    if (!deleted) {
+      return res.status(500).json({ error: "Failed to delete discussion" });
+    }
+
+    res.json({ success: true, message: "Discussion deleted successfully" });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });
 
@@ -642,6 +726,75 @@ router.post("/replies", isAuthenticated, async (req: Request, res: Response) => 
     res.json(newReply);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
+  }
+});
+
+router.put("/replies/:replyId", isAuthenticated, async (req: Request, res: Response) => {
+  if (!req.user) return res.status(401).send("Unauthorized");
+
+  try {
+    const { replyId } = req.params;
+    const { content } = req.body;
+
+    if (!content || typeof content !== "string") {
+      return res.status(400).json({ error: "Content is required" });
+    }
+
+    // Get the reply to check authorization
+    const [reply] = await db
+      .select()
+      .from(discussionReplies)
+      .where(eq(discussionReplies.id, replyId));
+
+    if (!reply) {
+      return res.status(404).json({ error: "Reply not found" });
+    }
+
+    // Only the author or master_admin can update
+    if (reply.authorId !== req.user.id && req.user.role !== 'master_admin') {
+      return res.status(403).json({ error: "Not authorized to update this reply" });
+    }
+
+    const updated = await storage.updateReply(replyId, content);
+    if (!updated) {
+      return res.status(404).json({ error: "Failed to update reply" });
+    }
+
+    res.json(updated);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.delete("/replies/:replyId", isAuthenticated, async (req: Request, res: Response) => {
+  if (!req.user) return res.status(401).send("Unauthorized");
+
+  try {
+    const { replyId } = req.params;
+
+    // Get the reply to check authorization
+    const [reply] = await db
+      .select()
+      .from(discussionReplies)
+      .where(eq(discussionReplies.id, replyId));
+
+    if (!reply) {
+      return res.status(404).json({ error: "Reply not found" });
+    }
+
+    // Only the author or master_admin can delete
+    if (reply.authorId !== req.user.id && req.user.role !== 'master_admin') {
+      return res.status(403).json({ error: "Not authorized to delete this reply" });
+    }
+
+    const deleted = await storage.deleteReply(replyId);
+    if (!deleted) {
+      return res.status(500).json({ error: "Failed to delete reply" });
+    }
+
+    res.json({ success: true, message: "Reply deleted successfully" });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });
 
