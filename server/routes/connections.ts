@@ -8,6 +8,7 @@ import {
   users,
   notifications,
 } from "@shared/schema";
+import { updateUserStreakForActivity } from "../streakHelper";
 
 const router = Router();
 
@@ -66,6 +67,11 @@ router.post("/connections/request", isAuthenticated, async (req: AuthRequest, re
       title: 'New Connection Request',
       message: `${req.user!.firstName} ${req.user!.lastName} wants to connect with you`,
       link: '/network',
+    });
+
+    // Track streak for sending a connection request
+    await updateUserStreakForActivity(req.user!.id, 'CONNECTION_REQUEST').catch((error) => {
+      console.error('Failed to update streak for connection request:', error);
     });
 
     res.json(connection);
@@ -131,6 +137,11 @@ router.patch("/connections/:id", isAuthenticated, async (req: AuthRequest, res: 
         title: 'Connection Accepted',
         message: `${req.user!.firstName} ${req.user!.lastName} accepted your connection request`,
         link: '/network',
+      });
+
+      // Track streak for accepting a connection (receiver gets the streak)
+      await updateUserStreakForActivity(req.user!.id, 'CONNECTION_ACCEPT').catch((error) => {
+        console.error('Failed to update streak for connection accept:', error);
       });
     }
 
@@ -335,6 +346,11 @@ router.post("/follow", isAuthenticated, async (req: AuthRequest, res: Response) 
       title: 'New Follower',
       message: `${req.user!.firstName} ${req.user!.lastName} started following you`,
       link: `/profile?userId=${req.user!.id}`,
+    });
+
+    // Track streak for following a user
+    await updateUserStreakForActivity(req.user!.id, 'USER_FOLLOW').catch((error) => {
+      console.error('Failed to update streak for user follow:', error);
     });
 
     res.json(follow);

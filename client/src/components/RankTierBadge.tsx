@@ -114,7 +114,7 @@ export function RankTierBadge({
           {tierInfo.label}
         </Badge>
         {totalPoints > 0 && (
-          <span className="text-xs text-muted-foreground" data-testid="text-total-points">
+          <span className="text-xs text-xs text-white" data-testid="text-total-points">
             {totalPoints.toLocaleString()} pts
           </span>
         )}

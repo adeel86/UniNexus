@@ -13,6 +13,7 @@ import {
 } from "@shared/schema";
 import { applyPointDelta, recalculateUserRank } from "../pointsHelper";
 import { calculateChallengePoints } from "../rankTiers";
+import { updateUserStreakForActivity } from "../streakHelper";
 
 const router = Router();
 
@@ -235,6 +236,11 @@ router.post("/challenges/:challengeId/join", isAuthenticated, async (req: Reques
       link: '/challenges',
     });
 
+    // Track streak for joining a challenge
+    await updateUserStreakForActivity(req.user.id, 'CHALLENGE_JOIN').catch((error) => {
+      console.error('Failed to update streak for challenge join:', error);
+    });
+
     res.json(participant);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -327,6 +333,11 @@ router.post("/challenges/:challengeId/submit", isAuthenticated, async (req: Requ
       title: 'Submission Received!',
       message: 'Your challenge submission has been recorded successfully.',
       link: '/challenges',
+    });
+
+    // Track streak for submitting a challenge
+    await updateUserStreakForActivity(req.user.id, 'CHALLENGE_SUBMIT').catch((error) => {
+      console.error('Failed to update streak for challenge submit:', error);
     });
 
     res.json(updatedParticipant);

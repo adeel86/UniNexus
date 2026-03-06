@@ -91,6 +91,7 @@ export interface AuthRequest extends Request {
     challengePoints: number;
     totalPoints: number;
     rankTier: string;
+    streak: number;
   };
 }
 
@@ -173,6 +174,7 @@ export async function setupAuth(app: Express): Promise<void> {
             challengePoints: user.challengePoints,
             totalPoints: user.totalPoints,
             rankTier: user.rankTier,
+            streak: user.streak || 0,
           };
         }
 
@@ -300,6 +302,7 @@ export const verifyToken = async (
         challengePoints: user.challengePoints,
         totalPoints: user.totalPoints,
         rankTier: user.rankTier,
+        streak: user.streak || 0,
       };
 
       return next();
@@ -327,6 +330,7 @@ export const verifyToken = async (
       challengePoints: 0,
       totalPoints: 0,
       rankTier: 'bronze',
+      streak: 0,
     };
 
     const user = await storage.getUserByFirebaseUid(decodedToken.uid);
@@ -349,6 +353,7 @@ export const verifyToken = async (
         challengePoints: user.challengePoints,
         totalPoints: user.totalPoints,
         rankTier: user.rankTier,
+        streak: user.streak || 0,
       };
     }
 

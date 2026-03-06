@@ -33,6 +33,7 @@ import {
   getDiscussionReplies,
   getDiscussionById,
 } from "../services";
+import { updateUserStreakForActivity } from "../streakHelper";
 
 const router = Router();
 
@@ -416,6 +417,11 @@ router.post("/courses/:id/enroll", isAuthenticated, async (req: Request, res: Re
     
     await storage.createEnrollment(id, user.id);
     
+    // Track streak for course enrollment
+    await updateUserStreakForActivity(user.id, 'COURSE_ENROLLMENT').catch((error) => {
+      console.error('Failed to update streak for course enrollment:', error);
+    });
+    
     // Fetch updated course to return the new enrollment count
     const updatedCourse = await storage.getCourse(id);
     res.json(updatedCourse);
@@ -513,6 +519,12 @@ router.post("/courses", isAuthenticated, async (req: Request, res: Response) => 
         semester: semester || null,
       })
       .returning();
+    
+    // Track streak for course creation
+    await updateUserStreakForActivity(req.user.id, 'COURSE_CREATION').catch((error) => {
+      console.error('Failed to update streak for course creation:', error);
+    });
+    
     res.json(newCourse);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -755,6 +767,12 @@ router.post("/discussions", isAuthenticated, async (req: Request, res: Response)
     const newDiscussion = await storage.createDiscussion(validatedData);
     await db.update(users).set({ engagementScore: sql`${users.engagementScore} + 5` }).where(eq(users.id, req.user.id));
     if (newDiscussion) await checkAndAwardCourseBadges(req.user.id, String(validatedData.courseId));
+    
+    // Track streak for course discussion
+    await updateUserStreakForActivity(req.user.id, 'COURSE_DISCUSSION').catch((error) => {
+      console.error('Failed to update streak for course discussion:', error);
+    });
+    
     res.json(newDiscussion);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
@@ -859,6 +877,12 @@ router.post("/replies", isAuthenticated, async (req: Request, res: Response) => 
       });
     }
     if (discussion && discussion.courseId) await checkAndAwardCourseBadges(req.user.id, discussion.courseId);
+    
+    // Track streak for course reply
+    await updateUserStreakForActivity(req.user.id, 'COURSE_REPLY').catch((error) => {
+      console.error('Failed to update streak for course reply:', error);
+    });
+    
     res.json(newReply);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
@@ -939,6 +963,14 @@ router.post("/discussions/:discussionId/upvote", isAuthenticated, async (req: Re
 
   try {
     const upvoted = await storage.toggleDiscussionUpvote(req.user.id, req.params.discussionId);
+    
+    // Track streak for upvoting a discussion (only if newly upvoted)
+    if (upvoted) {
+      await updateUserStreakForActivity(req.user.id, 'COURSE_UPVOTE').catch((error) => {
+        console.error('Failed to update streak for course upvote:', error);
+      });
+    }
+    
     res.json({ upvoted });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -950,6 +982,14 @@ router.post("/replies/:replyId/upvote", isAuthenticated, async (req: Request, re
 
   try {
     const upvoted = await storage.toggleReplyUpvote(req.user.id, req.params.replyId);
+    
+    // Track streak for upvoting a reply (only if newly upvoted)
+    if (upvoted) {
+      await updateUserStreakForActivity(req.user.id, 'COURSE_REPLY_UPVOTE').catch((error) => {
+        console.error('Failed to update streak for course reply upvote:', error);
+      });
+    }
+    
     res.json({ upvoted });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

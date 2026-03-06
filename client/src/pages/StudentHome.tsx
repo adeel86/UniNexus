@@ -120,10 +120,10 @@ export default function StudentHome() {
                 <div className="text-2xl font-bold">{userBadges.length}</div>
                 <div className="text-xs text-purple-100">Badges</div>
               </div>
-              <div className="bg-white/20 backdrop-blur rounded-lg px-4 py-2">
+              {/* <div className="bg-white/20 backdrop-blur rounded-lg px-4 py-2">
                 <div className="text-2xl font-bold">{user?.challengePoints || 0}</div>
                 <div className="text-xs text-purple-100">Challenge Pts</div>
-              </div>
+              </div> */}
             </div>
           </Card>
 

@@ -55,7 +55,7 @@ export default function DiscussionDetail() {
   const { courseId, discussionId } = useParams<{ courseId: string; discussionId: string }>();
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { userData } = useAuth();
+  const { userData, refreshUserData } = useAuth();
   const [newReplyContent, setNewReplyContent] = useState("");
   const [isEditingDiscussion, setIsEditingDiscussion] = useState(false);
   const [editingDiscussionTitle, setEditingDiscussionTitle] = useState("");
@@ -88,6 +88,12 @@ export default function DiscussionDetail() {
       queryClient.invalidateQueries({ queryKey: ["/api/discussions", discussionId, "replies"] });
       queryClient.invalidateQueries({ queryKey: [`/api/courses/${courseId}/discussions`] });
       setNewReplyContent("");
+      
+      // Refresh user data to update streak
+      refreshUserData().catch((error: any) => {
+        console.error('Failed to refresh user data after reply:', error);
+      });
+      
       toast({
         title: "Reply posted",
         description: "Your reply has been posted successfully!",

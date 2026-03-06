@@ -34,6 +34,7 @@ export const users = pgTable("users", {
   totalPoints: integer("total_points").notNull().default(0),
   rankTier: varchar("rank_tier", { length: 20 }).notNull().default('bronze'),
   streak: integer("streak").notNull().default(0),
+  lastStreakIncrementDate: timestamp("last_streak_increment_date"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

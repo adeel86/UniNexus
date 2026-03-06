@@ -6,6 +6,7 @@ import { users, universities, majors } from "@shared/schema";
 import { verifyToken, isAuthenticated, type AuthRequest } from "../firebaseAuth";
 import { storage } from "../storage";
 import { getUniversityByEmail } from "@shared/universities";
+import { updateUserStreak } from "../streakHelper";
 
 const router = Router();
 
@@ -213,6 +214,11 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
       position: position || null,
       bio: bio || null,
     });
+
+    // Update streak on registration (first activity)
+    updateUserStreak(user.id).catch(err => 
+      console.error("Failed to update streak on registration:", err)
+    );
 
     res.json(user);
   } catch (error) {

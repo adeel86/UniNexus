@@ -9,6 +9,7 @@ import {
   discussionUpvotes,
 } from "@shared/schema";
 import { createNotification } from "../services/notifications.service";
+import { updateUserStreakForActivity } from "../streakHelper";
 
 const router = Router();
 
@@ -173,6 +174,11 @@ router.post("/qa/questions", isAuthenticated, async (req: Request, res: Response
       link: `/qa/questions/${question.id}`
     });
 
+    // Track streak for asking a Q&A question
+    await updateUserStreakForActivity(req.user.id, 'QA_QUESTION').catch((error) => {
+      console.error('Failed to update streak for Q&A question:', error);
+    });
+
     res.json(question);
   } catch (error: any) {
     console.error("Error creating question:", error);
@@ -235,6 +241,11 @@ router.post("/qa/questions/:questionId/answers", isAuthenticated, async (req: Re
         link: `/qa/questions/${questionId}`
       });
     }
+
+    // Track streak for answering a Q&A question
+    await updateUserStreakForActivity(req.user.id, 'QA_ANSWER').catch((error) => {
+      console.error('Failed to update streak for Q&A answer:', error);
+    });
 
     res.json(answer);
   } catch (error: any) {
@@ -303,6 +314,11 @@ router.post("/qa/upvote", isAuthenticated, async (req: Request, res: Response) =
         .set({ upvoteCount: sql`${discussionReplies.upvoteCount} + 1` })
         .where(eq(discussionReplies.id, answerId));
     }
+
+    // Track streak for upvoting Q&A content (only if newly upvoted)
+    await updateUserStreakForActivity(req.user.id, 'QA_UPVOTE').catch((error) => {
+      console.error('Failed to update streak for Q&A upvote:', error);
+    });
 
     res.json({ upvoted: true });
   } catch (error: any) {

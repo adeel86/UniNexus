@@ -8,6 +8,7 @@ import {
   users,
   notifications,
 } from "@shared/schema";
+import { updateUserStreakForActivity } from "../streakHelper";
 
 const router = Router();
 
@@ -218,6 +219,11 @@ router.post("/conversations/:id/messages", isAuthenticated, async (req: AuthRequ
         link: `/messages?conversation=${id}`,
       });
     }
+
+    // Track streak for sending a direct message (hourly limit to prevent spam)
+    await updateUserStreakForActivity(userId, 'DIRECT_MESSAGE').catch((error) => {
+      console.error('Failed to update streak for direct message:', error);
+    });
 
     res.json(message);
   } catch (error: any) {

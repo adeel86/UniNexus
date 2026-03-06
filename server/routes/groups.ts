@@ -10,6 +10,7 @@ import {
   insertGroupSchema,
   insertGroupPostSchema,
 } from "@shared/schema";
+import { updateUserStreakForActivity } from "../streakHelper";
 
 const router = Router();
 
@@ -38,6 +39,11 @@ router.post("/groups", isAuthenticated, async (req: AuthRequest, res: Response) 
       .update(groups)
       .set({ memberCount: 1 })
       .where(eq(groups.id, group.id));
+
+    // Track streak for group creation
+    await updateUserStreakForActivity(req.user!.id, 'GROUP_CREATION').catch((error) => {
+      console.error('Failed to update streak for group creation:', error);
+    });
 
     res.json(group);
   } catch (error: any) {
@@ -273,6 +279,11 @@ router.post("/groups/:id/join", isAuthenticated, async (req: AuthRequest, res: R
       .set({ memberCount: sql`${groups.memberCount} + 1` })
       .where(eq(groups.id, id));
 
+    // Track streak for joining a group
+    await updateUserStreakForActivity(req.user!.id, 'GROUP_JOIN').catch((error) => {
+      console.error('Failed to update streak for group join:', error);
+    });
+
     res.json(membership);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -389,6 +400,11 @@ router.post("/groups/:id/posts", isAuthenticated, async (req: AuthRequest, res: 
       .insert(groupPosts)
       .values(validatedData)
       .returning();
+
+    // Track streak for posting in a group
+    await updateUserStreakForActivity(req.user!.id, 'GROUP_POST').catch((error) => {
+      console.error('Failed to update streak for group post:', error);
+    });
 
     res.json(post);
   } catch (error: any) {
