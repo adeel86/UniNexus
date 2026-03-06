@@ -73,8 +73,8 @@ router.get("/universities/search", async (req: Request, res: Response) => {
   }
 });
 
-// Create or get university
-router.post("/universities", isAuthenticated, async (req: AuthRequest, res: Response) => {
+// Create or get university (allow unauthenticated for registration)
+router.post("/universities", async (req: Request, res: Response) => {
   try {
     const { name } = req.body;
     
@@ -112,8 +112,8 @@ router.get("/majors/search", async (req: Request, res: Response) => {
   }
 });
 
-// Create or get major
-router.post("/majors", isAuthenticated, async (req: AuthRequest, res: Response) => {
+// Create or get major (allow unauthenticated for registration)
+router.post("/majors", async (req: Request, res: Response) => {
   try {
     const { name, category } = req.body;
     
@@ -128,53 +128,7 @@ router.post("/majors", isAuthenticated, async (req: AuthRequest, res: Response) 
   }
 });
 
-router.get("/universities/search", async (req: Request, res: Response) => {
-  try {
-    const query = (req.query.q as string || "").toLowerCase();
-    
-    if (!query || query.length < 1) {
-      return res.json([]);
-    }
 
-    // Fuzzy search using ILIKE for substring matching
-    const results = await db
-      .select()
-      .from(universities)
-      .where(sql`LOWER(${universities.name}) ILIKE ${`%${query}%`}`)
-      .orderBy(universities.name)
-      .limit(10);
-
-    res.json(results);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// ========================================================================
-// MAJORS ENDPOINTS
-// ========================================================================
-
-router.get("/majors/search", async (req: Request, res: Response) => {
-  try {
-    const query = (req.query.q as string || "").toLowerCase();
-    
-    if (!query || query.length < 1) {
-      return res.json([]);
-    }
-
-    // Fuzzy search using ILIKE for substring matching
-    const results = await db
-      .select()
-      .from(majors)
-      .where(sql`LOWER(${majors.name}) ILIKE ${`%${query}%`}`)
-      .orderBy(majors.name)
-      .limit(10);
-
-    res.json(results);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 router.get("/majors", async (_req: Request, res: Response) => {
   try {

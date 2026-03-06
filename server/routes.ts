@@ -64,7 +64,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use("/api", skillsRouter);
   app.use("/api", certificationsRouter);
   app.use("/api", notificationsRouter);
-  app.use("/api", coursesRouter);
+  app.use("/api/courses", coursesRouter);
   app.use("/api", challengesRouter);
   app.use("/api", groupsRouter);
   app.use("/api", connectionsRouter);

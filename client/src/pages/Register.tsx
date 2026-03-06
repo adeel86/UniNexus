@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { Link, useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
@@ -45,11 +45,18 @@ export default function Register() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    if (currentUser && userData) {
-      navigate("/");
-    }
-  }, [currentUser, userData, navigate]);
+  // If user is authenticated, show loading while Router updates
+  // This prevents showing 404 during the brief moment before Router re-renders
+  if (currentUser && userData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-500 via-pink-500 to-blue-500">
+        <div className="text-center">
+          <div className="h-16 w-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-white font-medium">Redirecting to dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   const form = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
