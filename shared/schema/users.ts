@@ -206,3 +206,40 @@ export const insertFollowerSchema = createInsertSchema(followers).omit({
 
 export type Follower = typeof followers.$inferSelect;
 export type InsertFollower = z.infer<typeof insertFollowerSchema>;
+
+// User Preferences and Settings
+export const userPreferences = pgTable("user_preferences", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }).unique(),
+  // Notification preferences
+  emailNotifications: boolean("email_notifications").notNull().default(true),
+  pushNotifications: boolean("push_notifications").notNull().default(true),
+  commentNotifications: boolean("comment_notifications").notNull().default(true),
+  endorsementNotifications: boolean("endorsement_notifications").notNull().default(true),
+  // Privacy settings
+  publicProfile: boolean("public_profile").notNull().default(true),
+  showEmail: boolean("show_email").notNull().default(false),
+  showActivity: boolean("show_activity").notNull().default(true),
+  // Two-factor authentication
+  twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
+  twoFactorSecret: varchar("two_factor_secret"),
+  backupCodes: text("backup_codes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const userPreferencesRelations = relations(userPreferences, ({ one }) => ({
+  user: one(users, {
+    fields: [userPreferences.userId],
+    references: [users.id],
+  }),
+}));
+
+export const insertUserPreferencesSchema = createInsertSchema(userPreferences).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type UserPreferences = typeof userPreferences.$inferSelect;
+export type InsertUserPreferences = z.infer<typeof insertUserPreferencesSchema>;

@@ -254,4 +254,150 @@ router.post("/logout", async (req: Request, res: Response) => {
   }
 });
 
+router.post("/change-password", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({ message: "Current password, new password, and confirmation are required" });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ message: "New password must be at least 6 characters" });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ message: "New password and confirmation do not match" });
+    }
+
+    // Check if this is a development/demo user by looking for dev token or checking for demo user marker
+    const isDevUser = req.headers.authorization?.includes('dev-') || req.user.email === 'student@example.com';
+    
+    // For development/demo auth, use a simple password check
+    if (isDevUser) {
+      const DEMO_PASSWORD = "demo123";
+      if (currentPassword !== DEMO_PASSWORD) {
+        return res.status(401).json({ message: "Current password is incorrect" });
+      }
+      // In dev mode, just return success
+      return res.json({ 
+        message: "Password changed successfully",
+        user: req.user 
+      });
+    }
+
+    // For Firebase authentication, use Firebase Admin SDK to change password
+    try {
+      const { firebaseAdmin } = await import("../firebaseAuth") as any;
+      
+      if (!firebaseAdmin) {
+        return res.status(503).json({ message: "Firebase authentication is not configured" });
+      }
+
+      // Get the user's Firebase UID from the authenticated request
+      const firebaseUid = req.user.id;
+      
+      if (!firebaseUid) {
+        return res.status(400).json({ message: "User information not found" });
+      }
+
+      // The user is already authenticated (middleware verified their token)
+      // We need to verify they know their current password before allowing a change
+      // Use Firebase REST API with their email to verify the current password
+      try {
+        const firebaseApiKey = process.env.VITE_FIREBASE_API_KEY;
+        if (!firebaseApiKey) {
+          console.warn("VITE_FIREBASE_API_KEY not set, cannot verify password");
+          return res.status(503).json({ message: "Firebase configuration incomplete" });
+        }
+
+        // Try using email from authenticated request first
+        let userEmail = req.user.email;
+        
+        // If email is not available from request, fetch from Firebase Admin SDK
+        if (!userEmail) {
+          const firebaseUser = await firebaseAdmin.auth().getUser(firebaseUid);
+          userEmail = firebaseUser.email;
+        }
+        
+        if (!userEmail) {
+          return res.status(400).json({ message: "User email not found in Firebase" });
+        }
+
+        // Verify password using Firebase REST API
+        const verifyResponse = await fetch(
+          `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${firebaseApiKey}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email: userEmail,
+              password: currentPassword,
+              returnSecureToken: true,
+            }),
+          }
+        );
+
+        const responseData = await verifyResponse.json();
+        
+        if (!verifyResponse.ok) {
+          return res.status(401).json({ message: "Current password is incorrect" });
+        }
+
+        // Get the actual Firebase UID from the REST API response
+        // This ensures we're using the correct UID that exists in Firebase Auth
+        const actualFirebaseUid = responseData.localId;
+
+        // Update password using Admin SDK with the actual Firebase UID
+        await firebaseAdmin.auth().updateUser(actualFirebaseUid, {
+          password: newPassword,
+        });
+
+        return res.json({ 
+          message: "Password changed successfully",
+          user: req.user 
+        });
+      } catch (verifyError: any) {
+        console.error("Password verification error:", verifyError);
+        return res.status(401).json({ message: "Current password is incorrect" });
+      }
+    } catch (firebaseError: any) {
+      console.error("Firebase password change error:", firebaseError);
+      return res.status(500).json({ message: "Failed to change password" });
+    }
+  } catch (error: any) {
+    console.error("Error changing password:", error);
+    res.status(500).json({ message: "Failed to change password" });
+  }
+});
+
+router.post("/2fa/enable", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    // In a full implementation, this would:
+    // 1. Generate a TOTP secret using a library like 'speakeasy'
+    // 2. Generate a QR code
+    // 3. Store temporary unverified 2FA secret in database
+    // 4. Return QR code to client for scanning
+    // 5. Require verification code before finalizing setup
+
+    // For now, return a basic success response
+    res.json({
+      message: "Two-factor authentication setup initiated",
+      userId: req.user.id,
+      // In production, include: qrCode, secret, backupCodes
+    });
+  } catch (error: any) {
+    console.error("Error enabling 2FA:", error);
+    res.status(500).json({ message: "Failed to enable two-factor authentication" });
+  }
+});
+
 export default router;

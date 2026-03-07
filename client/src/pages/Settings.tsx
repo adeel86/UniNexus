@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Bell, Lock, User, Shield, AlertTriangle, Trash2 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useLocation } from "wouter";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,12 +28,57 @@ export default function Settings() {
   const { userData, signOut } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [pushNotifications, setPushNotifications] = useState(true);
-  const [commentNotifications, setCommentNotifications] = useState(true);
-  const [endorsementNotifications, setEndorsementNotifications] = useState(true);
+  
+  // Form states
+  const [firstName, setFirstName] = useState(userData?.firstName || "");
+  const [lastName, setLastName] = useState(userData?.lastName || "");
+  const [email, setEmail] = useState(userData?.email || "");
+  const [university, setUniversity] = useState(userData?.university || "");
+  const [major, setMajor] = useState(userData?.major || "");
+  
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [isTwoFAEnabled, setIsTwoFAEnabled] = useState(false);
+  const [isEnabling2FA, setIsEnabling2FA] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isSavingPreferences, setIsSavingPreferences] = useState(false);
+
+  // Load user preferences
+  const { data: userPreferences = null, isLoading: preferencesLoading } = useQuery<any>({
+    queryKey: ["user-preferences", userData?.id],
+    queryFn: async () => {
+      const response = await apiRequest("GET", "/api/users/preferences");
+      return response;
+    },
+    enabled: !!userData?.id,
+  });
+
+  // Initialize preference states from loaded data
+  const [emailNotifications, setEmailNotifications] = useState(
+    userPreferences?.emailNotifications ?? true
+  );
+  const [pushNotifications, setPushNotifications] = useState(
+    userPreferences?.pushNotifications ?? true
+  );
+  const [commentNotifications, setCommentNotifications] = useState(
+    userPreferences?.commentNotifications ?? true
+  );
+  const [endorsementNotifications, setEndorsementNotifications] = useState(
+    userPreferences?.endorsementNotifications ?? true
+  );
+  const [publicProfile, setPublicProfile] = useState(
+    userPreferences?.publicProfile ?? true
+  );
+  const [showEmail, setShowEmail] = useState(
+    userPreferences?.showEmail ?? false
+  );
+  const [showActivity, setShowActivity] = useState(
+    userPreferences?.showActivity ?? true
+  );
 
   const handleDeleteAccount = async () => {
     if (deleteConfirmText !== "DELETE") {
@@ -64,25 +110,173 @@ export default function Settings() {
     }
   };
 
-  const handleSaveNotifications = () => {
-    toast({
-      title: "Settings saved",
-      description: "Your notification preferences have been updated.",
-    });
+  const handleSaveProfile = async () => {
+    if (!firstName || !lastName) {
+      toast({
+        title: "Missing required fields",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSavingProfile(true);
+    try {
+      await apiRequest("PATCH", "/api/users/profile", {
+        firstName,
+        lastName,
+        email,
+        university,
+        major,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["auth-user"] });
+
+      toast({
+        title: "Profile updated",
+        description: "Your profile information has been saved successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Update failed",
+        description: error.message || "Failed to update profile.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingProfile(false);
+    }
   };
 
-  const handleSaveProfile = () => {
-    toast({
-      title: "Profile updated",
-      description: "Your profile information has been saved.",
-    });
+  const handleSaveNotifications = async () => {
+    setIsSavingPreferences(true);
+    try {
+      await apiRequest("PATCH", "/api/users/preferences/notifications", {
+        emailNotifications,
+        pushNotifications,
+        commentNotifications,
+        endorsementNotifications,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["user-preferences"] });
+
+      toast({
+        title: "Settings saved",
+        description: "Your notification preferences have been updated.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Save failed",
+        description: error.message || "Failed to save notification preferences.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingPreferences(false);
+    }
   };
 
-  const handleSavePrivacy = () => {
-    toast({
-      title: "Privacy settings updated",
-      description: "Your privacy preferences have been saved.",
-    });
+  const handleSavePrivacy = async () => {
+    setIsSavingPreferences(true);
+    try {
+      await apiRequest("PATCH", "/api/users/preferences/privacy", {
+        publicProfile,
+        showEmail,
+        showActivity,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["user-preferences"] });
+
+      toast({
+        title: "Privacy settings updated",
+        description: "Your privacy preferences have been saved.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Save failed",
+        description: error.message || "Failed to save privacy settings.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingPreferences(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    // Validation
+    if (!currentPassword) {
+      toast({
+        title: "Missing current password",
+        description: "Please enter your current password.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!newPassword || newPassword.length < 6) {
+      toast({
+        title: "Invalid new password",
+        description: "New password must be at least 6 characters.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Passwords don't match",
+        description: "New password and confirmation don't match.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      const response = await apiRequest("POST", "/api/auth/change-password", {
+        currentPassword,
+        newPassword,
+        confirmPassword,
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Password changed",
+          description: "Your password has been successfully updated.",
+        });
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      }
+    } catch (error: any) {
+      toast({
+        title: "Password change failed",
+        description: error.message || "Failed to change password. Please check your current password and try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsChangingPassword(false);
+    }
+  };
+
+  const handleEnable2FA = async () => {
+    setIsEnabling2FA(true);
+    try {
+      const response = await apiRequest("POST", "/api/auth/2fa/enable", {});
+      
+      // Handle the response - typically would show QR code modal
+      toast({
+        title: "2FA Setup",
+        description: "Two-factor authentication has been enabled. Check your authenticator app.",
+      });
+      setIsTwoFAEnabled(true);
+    } catch (error: any) {
+      toast({
+        title: "2FA setup failed",
+        description: error.message || "Failed to enable two-factor authentication.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsEnabling2FA(false);
+    }
   };
 
   return (
@@ -130,7 +324,8 @@ export default function Settings() {
                   <Label htmlFor="firstName">First Name</Label>
                   <Input 
                     id="firstName" 
-                    defaultValue={userData?.firstName || ""} 
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
                     data-testid="input-first-name"
                   />
                 </div>
@@ -138,7 +333,8 @@ export default function Settings() {
                   <Label htmlFor="lastName">Last Name</Label>
                   <Input 
                     id="lastName" 
-                    defaultValue={userData?.lastName || ""} 
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
                     data-testid="input-last-name"
                   />
                 </div>
@@ -149,7 +345,8 @@ export default function Settings() {
                 <Input 
                   id="email" 
                   type="email" 
-                  defaultValue={userData?.email || ""} 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   data-testid="input-email"
                 />
               </div>
@@ -158,7 +355,8 @@ export default function Settings() {
                 <Label htmlFor="university">University</Label>
                 <Input 
                   id="university" 
-                  defaultValue={userData?.university || ""} 
+                  value={university}
+                  onChange={(e) => setUniversity(e.target.value)}
                   data-testid="input-university"
                 />
               </div>
@@ -167,15 +365,20 @@ export default function Settings() {
                 <Label htmlFor="major">Major</Label>
                 <Input 
                   id="major" 
-                  defaultValue={userData?.major || ""} 
+                  value={major}
+                  onChange={(e) => setMajor(e.target.value)}
                   data-testid="input-major"
                 />
               </div>
 
               <Separator />
 
-              <Button onClick={handleSaveProfile} data-testid="button-save-profile">
-                Save Changes
+              <Button 
+                onClick={handleSaveProfile} 
+                disabled={isSavingProfile}
+                data-testid="button-save-profile"
+              >
+                {isSavingProfile ? "Saving..." : "Save Changes"}
               </Button>
             </CardContent>
           </Card>
@@ -258,8 +461,12 @@ export default function Settings() {
 
               <Separator />
 
-              <Button onClick={handleSaveNotifications} data-testid="button-save-notifications">
-                Save Preferences
+              <Button 
+                onClick={handleSaveNotifications} 
+                disabled={isSavingPreferences}
+                data-testid="button-save-notifications"
+              >
+                {isSavingPreferences ? "Saving..." : "Save Preferences"}
               </Button>
             </CardContent>
           </Card>
@@ -322,8 +529,12 @@ export default function Settings() {
 
               <Separator />
 
-              <Button onClick={handleSavePrivacy} data-testid="button-save-privacy">
-                Save Privacy Settings
+              <Button 
+                onClick={handleSavePrivacy} 
+                disabled={isSavingPreferences}
+                data-testid="button-save-privacy"
+              >
+                {isSavingPreferences ? "Saving..." : "Save Privacy Settings"}
               </Button>
             </CardContent>
           </Card>
@@ -342,7 +553,9 @@ export default function Settings() {
                 <Label htmlFor="current-password">Current Password</Label>
                 <Input 
                   id="current-password" 
-                  type="password" 
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
                   data-testid="input-current-password"
                 />
               </div>
@@ -351,7 +564,9 @@ export default function Settings() {
                 <Label htmlFor="new-password">New Password</Label>
                 <Input 
                   id="new-password" 
-                  type="password" 
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
                   data-testid="input-new-password"
                 />
               </div>
@@ -360,28 +575,39 @@ export default function Settings() {
                 <Label htmlFor="confirm-password">Confirm New Password</Label>
                 <Input 
                   id="confirm-password" 
-                  type="password" 
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                   data-testid="input-confirm-password"
                 />
               </div>
 
               <Separator />
 
-              <Button data-testid="button-change-password">
-                Change Password
+              <Button 
+                onClick={handleChangePassword}
+                disabled={isChangingPassword}
+                data-testid="button-change-password"
+              >
+                {isChangingPassword ? "Changing..." : "Change Password"}
               </Button>
 
               <Separator className="my-6" />
 
-              <div className="space-y-4">
+              {/* <div className="space-y-4">
                 <h3 className="font-semibold">Two-Factor Authentication</h3>
                 <p className="text-sm text-muted-foreground">
                   Add an extra layer of security to your account
                 </p>
-                <Button variant="outline" data-testid="button-enable-2fa">
-                  Enable Two-Factor Authentication
-                </Button>
-              </div>
+                <Button 
+                  variant="outline" 
+                  onClick={handleEnable2FA}
+                  disabled={isEnabling2FA || isTwoFAEnabled}
+                  data-testid="button-enable-2fa"
+                >
+                  {isTwoFAEnabled ? "2FA Enabled" : isEnabling2FA ? "Enabling..." : "Enable Two-Factor Authentication"}
+                </Button> 
+              </div> */}
 
               <Separator className="my-6" />
 

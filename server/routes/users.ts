@@ -19,6 +19,7 @@ import {
   studentCourses,
   notifications,
   userConnections,
+  userPreferences,
   insertEducationRecordSchema,
   insertJobExperienceSchema,
   insertStudentCourseSchema,
@@ -365,6 +366,153 @@ router.get("/users/groups", async (req: Request, res: Response) => {
     res.json(results);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// Get user preferences
+router.get("/users/preferences", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+
+    const [preferences] = await db
+      .select()
+      .from(userPreferences)
+      .where(eq(userPreferences.userId, userId))
+      .limit(1);
+
+    if (!preferences) {
+      // Return default preferences if none exist yet
+      return res.json({
+        emailNotifications: true,
+        pushNotifications: true,
+        commentNotifications: true,
+        endorsementNotifications: true,
+        publicProfile: true,
+        showEmail: false,
+        showActivity: true,
+        twoFactorEnabled: false,
+      });
+    }
+
+    res.json(preferences);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update profile information
+router.patch("/users/profile", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+
+    const { firstName, lastName, email, university, major } = req.body;
+
+    const [updated] = await db
+      .update(users)
+      .set({
+        firstName,
+        lastName,
+        email,
+        university,
+        major,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+
+    res.json(updated);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Update notification preferences
+router.patch("/users/preferences/notifications", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+
+    const { emailNotifications, pushNotifications, commentNotifications, endorsementNotifications } = req.body;
+
+    // First check if preferences exist
+    const [existing] = await db
+      .select()
+      .from(userPreferences)
+      .where(eq(userPreferences.userId, userId))
+      .limit(1);
+
+    let result;
+    if (existing) {
+      [result] = await db
+        .update(userPreferences)
+        .set({
+          emailNotifications,
+          pushNotifications,
+          commentNotifications,
+          endorsementNotifications,
+          updatedAt: new Date(),
+        })
+        .where(eq(userPreferences.userId, userId))
+        .returning();
+    } else {
+      [result] = await db
+        .insert(userPreferences)
+        .values({
+          userId,
+          emailNotifications,
+          pushNotifications,
+          commentNotifications,
+          endorsementNotifications,
+        })
+        .returning();
+    }
+
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Update privacy settings
+router.patch("/users/preferences/privacy", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+
+    const { publicProfile, showEmail, showActivity } = req.body;
+
+    // First check if preferences exist
+    const [existing] = await db
+      .select()
+      .from(userPreferences)
+      .where(eq(userPreferences.userId, userId))
+      .limit(1);
+
+    let result;
+    if (existing) {
+      [result] = await db
+        .update(userPreferences)
+        .set({
+          publicProfile,
+          showEmail,
+          showActivity,
+          updatedAt: new Date(),
+        })
+        .where(eq(userPreferences.userId, userId))
+        .returning();
+    } else {
+      [result] = await db
+        .insert(userPreferences)
+        .values({
+          userId,
+          publicProfile,
+          showEmail,
+          showActivity,
+        })
+        .returning();
+    }
+
+    res.json(result);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
   }
 });
 

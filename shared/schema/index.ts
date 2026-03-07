@@ -21,11 +21,14 @@ export {
   userConnectionsRelations,
   followers,
   followersRelations,
+  userPreferences,
+  userPreferencesRelations,
   insertUserProfileSchema,
   insertEducationRecordSchema,
   insertJobExperienceSchema,
   insertUserConnectionSchema,
   insertFollowerSchema,
+  insertUserPreferencesSchema,
 } from "./users";
 export type {
   User,
@@ -40,6 +43,8 @@ export type {
   InsertUserConnection,
   Follower,
   InsertFollower,
+  UserPreferences,
+  InsertUserPreferences,
 } from "./users";
 
 // Feed
