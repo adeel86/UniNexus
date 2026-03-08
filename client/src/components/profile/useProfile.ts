@@ -64,7 +64,7 @@ export function useProfile({ currentUser, viewingUserId }: UseProfileOptions) {
   });
 
   const { data: userPosts = [] } = useQuery<PostWithAuthor[]>({
-    queryKey: [`/api/posts`, 'author', targetUserId],
+    queryKey: [`/api/posts`, { authorId: targetUserId }],
     enabled: !!targetUserId,
   });
 

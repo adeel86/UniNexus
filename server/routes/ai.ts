@@ -160,16 +160,9 @@ router.post("/api/ai/personal-tutor/materials", requireAuth, upload.single('file
     if (req.file.mimetype.startsWith('text/')) {
       // For text files, directly convert buffer to string
       textContent = req.file.buffer.toString();
-      console.log(`[AI Tutor] Text file uploaded: ${req.file.originalname}, size: ${textContent.length} chars`);
     } else if (req.file.mimetype === 'application/pdf' || req.file.originalname.endsWith('.pdf')) {
       // For PDFs, try to extract text using pdf-parse if available
-      console.log(`[AI Tutor] PDF file uploaded: ${req.file.originalname}, attempting text extraction...`);
       textContent = await extractTextFromPDF(req.file.buffer);
-      if (textContent) {
-        console.log(`[AI Tutor] PDF text extracted successfully: ${textContent.length} chars from ${req.file.originalname}`);
-      } else {
-        console.log(`[AI Tutor] PDF text extraction failed or returned null: ${req.file.originalname}`);
-      }
     } else if (
       req.file.mimetype === 'application/msword' ||
       req.file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
@@ -177,15 +170,7 @@ router.post("/api/ai/personal-tutor/materials", requireAuth, upload.single('file
       req.file.originalname.endsWith('.docx')
     ) {
       // For Word documents, try to extract text
-      console.log(`[AI Tutor] Word document uploaded: ${req.file.originalname}, attempting text extraction...`);
       textContent = await extractTextFromWord(req.file.buffer, req.file.originalname);
-      if (textContent) {
-        console.log(`[AI Tutor] Word document text extracted successfully: ${textContent.length} chars from ${req.file.originalname}`);
-      } else {
-        console.log(`[AI Tutor] Word document text extraction failed or returned null: ${req.file.originalname}`);
-      }
-    } else {
-      console.log(`[AI Tutor] File uploaded: ${req.file.originalname} (${req.file.mimetype}), no text extraction attempted`);
     }
 
     const data = insertStudentPersonalTutorMaterialSchema.parse({
@@ -307,11 +292,6 @@ router.post("/api/ai/personal-tutor/chat", requireAuth, async (req: Request, res
 
     // Get context: Student profile and materials
     const materials = await storage.getPersonalTutorMaterials(req.user!.id);
-    console.log(`[AI Tutor] Chat request - Found ${materials.length} materials for user ${req.user!.id}`);
-    materials.forEach(m => {
-      console.log(`[AI Tutor]   Material: ${m.fileName}, textContent length: ${m.textContent ? m.textContent.length : 0} chars`);
-    });
-    
     // Build context including both text-extracted and non-extracted materials
     const materialsContext = materials
       .map(m => {
@@ -325,8 +305,6 @@ router.post("/api/ai/personal-tutor/chat", requireAuth, async (req: Request, res
     
     const hasExtractedContent = materials.some(m => m.textContent && m.textContent.trim().length > 0);
     const contextText = materialsContext || '\nNo materials uploaded yet.';
-    
-    console.log(`[AI Tutor] Has extracted content: ${hasExtractedContent}, context length: ${contextText.length} chars`);
 
     const systemPrompt = `You are a Personal Academic Tutor for ${req.user!.firstName} ${req.user!.lastName}.
 Level: ${req.user!.major || 'Student'} at ${req.user!.university || 'University'}.
@@ -365,7 +343,6 @@ STUDENT'S UPLOADED MATERIALS (use these to answer questions):${contextText}`;
 
     // Return all messages in this session so frontend has complete conversation
     const allMessages = await storage.getPersonalTutorMessages(sessionId);
-    console.log(`[AI Tutor] Returning ${allMessages.length} messages for session ${sessionId}`);
     res.json(allMessages);
   } catch (error) {
     console.error("Personal Tutor error:", error);

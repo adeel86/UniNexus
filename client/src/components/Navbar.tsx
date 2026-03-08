@@ -2,6 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "./UserAvatar";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Bell, LogOut, Menu, Trophy, Target, MessageCircle, Users, UsersRound, Compass, Lightbulb, GraduationCap, BrainCircuit, Check } from "lucide-react";
 import {
   DropdownMenu,
@@ -22,7 +23,8 @@ interface NavbarProps {
 
 export function Navbar({ onMenuClick }: NavbarProps) {
   const { userData: user, signOut } = useAuth();
-  const [location, setLocation] = useLocation();
+  const [location, navigate] = useLocation();
+  const isMobile = useIsMobile();
 
   const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey: ["/api/notifications"],
@@ -45,6 +47,11 @@ export function Navbar({ onMenuClick }: NavbarProps) {
       queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
     },
   });
+
+  // Hide navbar completely on mobile (mobile has its own MobileHome dashboard)
+  if (isMobile && user) {
+    return null;
+  }
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
   const unreadMessages = conversations.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
@@ -335,10 +342,10 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                 <DropdownMenuSeparator />
                 {!isAdmin && (
                   <>
-                    <DropdownMenuItem onClick={() => setLocation('/profile')} data-testid="link-profile">
+                    <DropdownMenuItem onClick={() => navigate('/profile')} data-testid="link-profile">
                       View Profile
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setLocation('/settings')} data-testid="link-settings">
+                    <DropdownMenuItem onClick={() => navigate('/settings')} data-testid="link-settings">
                       Settings
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
@@ -347,7 +354,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                 <DropdownMenuItem
                   onClick={async () => {
                     await signOut();
-                    setLocation('/');
+                    navigate('/');
                   }}
                   className="text-destructive focus:text-destructive"
                   data-testid="button-logout"

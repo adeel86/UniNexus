@@ -151,6 +151,7 @@ export function CreatePostModal({
       });
     },
     onSuccess: () => {
+      // Invalidate all post-related queries
       queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
       queryClient.invalidateQueries({ queryKey: ["/api/feed/personalized"] });
       queryClient.invalidateQueries({ queryKey: ["/api/feed/following"] });

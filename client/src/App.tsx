@@ -8,11 +8,13 @@ import { Navbar } from "@/components/Navbar";
 import { MobileNavigation } from "@/components/MobileNavigation";
 import { CareerBot } from "@/components/CareerBot";
 import { RoleGuard } from "@/components/RoleGuard";
+import { useIsMobile } from "@/hooks/use-mobile";
 import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import ForgotPassword from "@/pages/ForgotPassword";
 import StudentHome from "@/pages/StudentHome";
+import MobileHome from "@/pages/MobileHome";
 import TeacherDashboard from "@/pages/TeacherDashboard";
 import UniversityDashboard from "@/pages/UniversityDashboard";
 import IndustryDashboard from "@/pages/IndustryDashboard";
@@ -43,6 +45,7 @@ import NotFound from "@/pages/not-found";
 
 function Router() {
   const { currentUser, userData, loading } = useAuth();
+  const isMobile = useIsMobile();
 
   if (loading) {
     return (
@@ -95,7 +98,18 @@ function Router() {
       <Navbar />
       <div className="pb-16 md:pb-0">
         <Switch>
-          <Route path="/" component={HomePage} />
+          {/* Mobile home page - show only on mobile */}
+          <Route path="/mobile-home" component={MobileHome} />
+          {/* Feed page for students */}
+          <Route path="/student-feed">
+            <RoleGuard allowedRoles={['student']}>
+              <StudentHome />
+            </RoleGuard>
+          </Route>
+          {/* Desktop home page - or mobile home if on mobile at root */}
+          <Route path="/">
+            {isMobile ? <MobileHome /> : <HomePage />}
+          </Route>
           {/* ... existing routes ... */}
           <Route path="/master-admin-dashboard">
             {import.meta.env.DEV_AUTH_ENABLED === 'true' ? (

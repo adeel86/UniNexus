@@ -217,19 +217,23 @@ export default function Network() {
           <TabsList className="grid w-full grid-cols-4 gap-2">
             <TabsTrigger value="connections" data-testid="tab-connections">
               <Users className="h-4 w-4 mr-2" />
-              Connections ({acceptedConnections.length})
+              <span className="hidden sm:inline">Connections</span>
+              <span className="sm:hidden">({acceptedConnections.length})</span>
             </TabsTrigger>
             <TabsTrigger value="requests" data-testid="tab-requests">
               <UserPlus className="h-4 w-4 mr-2" />
-              Requests ({receivedRequests.length})
+              <span className="hidden sm:inline">Requests</span>
+              <span className="sm:hidden">({receivedRequests.length})</span>
             </TabsTrigger>
             <TabsTrigger value="followers" data-testid="tab-followers">
               <Heart className="h-4 w-4 mr-2" />
-              Followers ({followers.length})
+              <span className="hidden sm:inline">Followers</span>
+              <span className="sm:hidden">({followers.length})</span>
             </TabsTrigger>
             <TabsTrigger value="following" data-testid="tab-following">
               <UserCheck className="h-4 w-4 mr-2" />
-              Following ({following.length})
+              <span className="hidden sm:inline">Following</span>
+              <span className="sm:hidden">({following.length})</span>
             </TabsTrigger>
           </TabsList>
 

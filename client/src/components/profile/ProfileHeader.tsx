@@ -13,6 +13,7 @@ interface ProfileHeaderProps {
   followersCount: number;
   followingCount: number;
   postsCount: number;
+  badgeCount?: number;
   followStatus?: { following: boolean };
   followMutation: { isPending: boolean; mutate: (action: 'follow' | 'unfollow') => void };
   onShowFollowers: () => void;
@@ -28,6 +29,7 @@ export function ProfileHeader({
   followersCount,
   followingCount,
   postsCount,
+  badgeCount = 0,
   followStatus,
   followMutation,
   onShowFollowers,
@@ -37,53 +39,53 @@ export function ProfileHeader({
 }: ProfileHeaderProps) {
   return (
     <Card className="p-8 mb-6 bg-gradient-to-r from-purple-600 to-pink-600 text-white">
-      <div className="flex items-start justify-between gap-6">
-        <div className="flex items-start gap-6 flex-1">
-          <UserAvatar user={user} size="xl" className="border-4 border-white" />
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <h1 className="font-heading text-3xl font-bold">
+      <div className="flex flex-col lg:flex-row items-start justify-between gap-6">
+        <div className="flex items-start gap-4 lg:gap-6 flex-1 w-full">
+          <UserAvatar user={user} size="xl" className="border-4 border-white flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
+              <h1 className="font-heading text-2xl lg:text-3xl font-bold">
                 {user.firstName} {user.lastName}
               </h1>
               {user.isVerified && (
                 <div className="flex items-center gap-1 bg-blue-500/30 backdrop-blur px-3 py-1 rounded-full">
                   <CheckCircle className="h-5 w-5 fill-white" />
-                  <span className="text-sm font-medium">Verified</span>
+                  <span className="text-xs lg:text-sm font-medium">Verified</span>
                 </div>
               )}
             </div>
             {user.major && (
-              <p className="text-purple-100 text-lg mb-1">{user.major}</p>
+              <p className="text-purple-100 text-base lg:text-lg mb-1 truncate">{user.major}</p>
             )}
             {user.university && (
-              <p className="text-purple-100 mb-3">{user.university}</p>
+              <p className="text-purple-100 mb-3 truncate">{user.university}</p>
             )}
             
-            <div className="flex gap-6 mt-4">
+            <div className="flex gap-4 lg:gap-6 mt-4 flex-wrap">
               <button 
                 onClick={onShowFollowers}
                 className="hover-elevate rounded-lg p-2 transition-all"
                 data-testid="button-followers"
               >
-                <div className="text-2xl font-bold">{followersCount}</div>
-                <div className="text-sm text-purple-100">Followers</div>
+                <div className="text-xl lg:text-2xl font-bold">{followersCount}</div>
+                <div className="text-xs lg:text-sm text-purple-100">Followers</div>
               </button>
               <button 
                 onClick={onShowFollowing}
                 className="hover-elevate rounded-lg p-2 transition-all"
                 data-testid="button-following"
               >
-                <div className="text-2xl font-bold">{followingCount}</div>
-                <div className="text-sm text-purple-100">Following</div>
+                <div className="text-xl lg:text-2xl font-bold">{followingCount}</div>
+                <div className="text-xs lg:text-sm text-purple-100">Following</div>
               </button>
               <div className="p-2">
-                <div className="text-2xl font-bold">{postsCount}</div>
-                <div className="text-sm text-purple-100">Posts</div>
+                <div className="text-xl lg:text-2xl font-bold">{postsCount}</div>
+                <div className="text-xs lg:text-sm text-purple-100">Posts</div>
               </div>
             </div>
             
             {user.bio && (
-              <p className="text-white/90 mt-4">{user.bio}</p>
+              <p className="text-white/90 mt-4 line-clamp-2">{user.bio}</p>
             )}
             
             <div className="mt-4">
@@ -97,16 +99,16 @@ export function ProfileHeader({
         </div>
         
         {isViewingOwnProfile && (
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto flex-shrink-0">
             {onEditProfile && (
               <Button
                 onClick={onEditProfile}
                 variant="outline"
-                className="bg-white/20 backdrop-blur border-white/30 text-white"
+                className="bg-white/20 backdrop-blur border-white/30 text-white text-sm lg:text-base"
                 data-testid="button-edit-profile"
               >
                 <Pencil className="mr-2 h-4 w-4" />
-                Edit Profile
+                Edit
               </Button>
             )}
             {user.role === "student" && <CVExportButton userId={targetUserId} />}
@@ -142,51 +144,58 @@ export function ProfileHeader({
       </div>
 
       {user.role === "student" ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-          <div className="bg-white/20 backdrop-blur rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingUp className="h-5 w-5" />
-              <span className="text-sm">Engagement</span>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mt-6">
+          <div className="bg-white/20 backdrop-blur rounded-lg p-3">
+            <div className="flex items-center gap-1 mb-1">
+              <TrendingUp className="h-4 w-4" />
+              <span className="text-xs md:text-sm">Engagement</span>
             </div>
-            <div className="text-2xl font-bold">{user.engagementScore || 0}</div>
+            <div className="text-xl md:text-2xl font-bold">{user.engagementScore || 0}</div>
           </div>
-          <div className="bg-white/20 backdrop-blur rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Trophy className="h-5 w-5" />
-              <span className="text-sm">Problem Solver</span>
+          <div className="bg-white/20 backdrop-blur rounded-lg p-3">
+            <div className="flex items-center gap-1 mb-1">
+              <Trophy className="h-4 w-4" />
+              <span className="text-xs md:text-sm">Problem Solver</span>
             </div>
-            <div className="text-2xl font-bold">{user.problemSolverScore || 0}</div>
+            <div className="text-xl md:text-2xl font-bold">{user.problemSolverScore || 0}</div>
           </div>
-          <div className="bg-white/20 backdrop-blur rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Award className="h-5 w-5" />
-              <span className="text-sm">Endorsements</span>
+          <div className="bg-white/20 backdrop-blur rounded-lg p-3">
+            <div className="flex items-center gap-1 mb-1">
+              <Award className="h-4 w-4" />
+              <span className="text-xs md:text-sm">Endorsements</span>
             </div>
-            <div className="text-2xl font-bold">{user.endorsementScore || 0}</div>
+            <div className="text-xl md:text-2xl font-bold">{user.endorsementScore || 0}</div>
           </div>
-          <div className="bg-white/20 backdrop-blur rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Zap className="h-5 w-5" />
-              <span className="text-sm">Streak</span>
+          <div className="bg-white/20 backdrop-blur rounded-lg p-3">
+            <div className="flex items-center gap-1 mb-1">
+              <Trophy className="h-4 w-4" />
+              <span className="text-xs md:text-sm">Badges</span>
             </div>
-            <div className="text-2xl font-bold">{user.streak || 0} days</div>
+            <div className="text-xl md:text-2xl font-bold">{badgeCount}</div>
+          </div>
+          <div className="bg-white/20 backdrop-blur rounded-lg p-3">
+            <div className="flex items-center gap-1 mb-1">
+              <Zap className="h-4 w-4" />
+              <span className="text-xs md:text-sm">Streak</span>
+            </div>
+            <div className="text-xl md:text-2xl font-bold">{user.streak || 0}d</div>
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4 mt-6">
-          <div className="bg-white/20 backdrop-blur rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <TrendingUp className="h-5 w-5" />
-              <span className="text-sm">Engagement</span>
+        <div className="grid grid-cols-2 gap-3 mt-6">
+          <div className="bg-white/20 backdrop-blur rounded-lg p-3">
+            <div className="flex items-center gap-1 mb-1">
+              <TrendingUp className="h-4 w-4" />
+              <span className="text-xs md:text-sm">Engagement</span>
             </div>
-            <div className="text-2xl font-bold">{user.engagementScore || 0}</div>
+            <div className="text-xl md:text-2xl font-bold">{user.engagementScore || 0}</div>
           </div>
-          <div className="bg-white/20 backdrop-blur rounded-lg p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <Zap className="h-5 w-5" />
-              <span className="text-sm">Streak</span>
+          <div className="bg-white/20 backdrop-blur rounded-lg p-3">
+            <div className="flex items-center gap-1 mb-1">
+              <Zap className="h-4 w-4" />
+              <span className="text-xs md:text-sm">Streak</span>
             </div>
-            <div className="text-2xl font-bold">{user.streak || 0} days</div>
+            <div className="text-xl md:text-2xl font-bold">{user.streak || 0}d</div>
           </div>
         </div>
       )}

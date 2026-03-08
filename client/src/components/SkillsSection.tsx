@@ -68,7 +68,6 @@ export function SkillsSection({ userSkills, isOwnProfile, userId }: SkillsSectio
       }
     },
     onMutate: async (skillId: string) => {
-      console.log("Client: onMutate - Deleting skill:", skillId);
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: [`/api/user-skills/${userId}`] });
 
@@ -89,7 +88,6 @@ export function SkillsSection({ userSkills, isOwnProfile, userId }: SkillsSectio
       toast({ title: "Failed to remove skill", variant: "destructive" });
     },
     onSuccess: () => {
-      console.log("Client: Skill deleted successfully");
       // Refetch to confirm deletion persisted
       queryClient.invalidateQueries({ queryKey: [`/api/user-skills/${userId}`] });
       toast({ title: "Skill removed" });
@@ -108,7 +106,6 @@ export function SkillsSection({ userSkills, isOwnProfile, userId }: SkillsSectio
       }
     },
     onMutate: async ({ id, level }) => {
-      console.log("Client: onMutate - Updating skill:", id, "to level:", level);
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: [`/api/user-skills/${userId}`] });
 
@@ -131,7 +128,6 @@ export function SkillsSection({ userSkills, isOwnProfile, userId }: SkillsSectio
       toast({ title: "Failed to update skill level", variant: "destructive" });
     },
     onSuccess: () => {
-      console.log("Client: Skill updated successfully");
       // Refetch to confirm update persisted
       queryClient.invalidateQueries({ queryKey: [`/api/user-skills/${userId}`] });
       toast({ title: "Skill level updated" });

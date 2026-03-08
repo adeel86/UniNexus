@@ -108,22 +108,7 @@ export default function StudentHome() {
             </div>
 
             <div className="flex gap-3 flex-wrap">
-              <div className="bg-white/20 backdrop-blur rounded-lg px-4 py-2">
-                <div className="text-2xl font-bold">{user?.engagementScore || 0}</div>
-                <div className="text-xs text-purple-100">Engagement</div>
-              </div>
-              <div className="bg-white/20 backdrop-blur rounded-lg px-4 py-2">
-                <div className="text-2xl font-bold">{user?.problemSolverScore || 0}</div>
-                <div className="text-xs text-purple-100">Problem Solver</div>
-              </div>
-              <div className="bg-white/20 backdrop-blur rounded-lg px-4 py-2">
-                <div className="text-2xl font-bold">{userBadges.length}</div>
-                <div className="text-xs text-purple-100">Badges</div>
-              </div>
-              {/* <div className="bg-white/20 backdrop-blur rounded-lg px-4 py-2">
-                <div className="text-2xl font-bold">{user?.challengePoints || 0}</div>
-                <div className="text-xs text-purple-100">Challenge Pts</div>
-              </div> */}
+              {/* Stats removed - now shown on profile only */}
             </div>
           </Card>
 
@@ -200,7 +185,7 @@ export default function StudentHome() {
         </div>
 
         {/* Right Sidebar */}
-        <div className="lg:col-span-4 space-y-6">
+        <div className="lg:col-span-4 space-y-6 hidden md:block">
           {/* Quick Stats */}
           <Card className="p-6">
             <h3 className="font-heading font-semibold text-lg mb-4">Your Progress</h3>

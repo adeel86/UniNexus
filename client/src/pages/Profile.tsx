@@ -85,6 +85,7 @@ export default function Profile() {
         followersCount={followersData.length}
         followingCount={followingData.length}
         postsCount={userPosts.length}
+        badgeCount={userBadges.length}
         followStatus={followStatus}
         followMutation={followMutation}
         onShowFollowers={() => setShowFollowers(!showFollowers)}

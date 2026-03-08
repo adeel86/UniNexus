@@ -57,19 +57,15 @@ export function Autocomplete({
       if (searchQuery.length < 1) return [];
 
       try {
-        console.log(`[Autocomplete] Fetching from ${searchEndpoint}?q=${searchQuery}`);
         const response = await fetch(
           `${searchEndpoint}?q=${encodeURIComponent(searchQuery)}`
         );
         if (!response.ok) {
-          console.error(`[Autocomplete] API error: ${response.status}`);
           return [];
         }
         const data = await response.json();
-        console.log(`[Autocomplete] Got ${data.length} results`);
         return data;
       } catch (error) {
-        console.error('[Autocomplete] Fetch error:', error);
         return [];
       }
     },
@@ -82,7 +78,6 @@ export function Autocomplete({
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const newValue = e.target.value;
-      console.log(`[Autocomplete] Input changed: "${newValue}"`);
       setInputValue(newValue);
       
       // Clear any pending debounce timers
@@ -95,7 +90,6 @@ export function Autocomplete({
         setOpen(true);
         // Debounce the search query update
         debounceTimerRef.current = setTimeout(() => {
-          console.log(`[Autocomplete] Setting search query: "${newValue}"`);
           setSearchQuery(newValue);
         }, 300);
       } else {
@@ -194,11 +188,6 @@ export function Autocomplete({
 
   // Show dropdown if we have results or can show custom entry
   const showDropdown = open && (searchResults.length > 0 || showCustomEntry);
-  
-  // Debug logging
-  if (inputValue.length > 0 && !showDropdown) {
-    console.log(`[Autocomplete] Debug: open=${open}, results=${searchResults.length}, showCustomEntry=${showCustomEntry}, searchQuery="${searchQuery}"`);
-  }
 
   return (
     <div className="w-full">
