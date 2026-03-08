@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { eq, desc, sql, and, inArray } from "drizzle-orm";
 import { db } from "../db";
 import { updateUserStreakForActivity } from "../streakHelper";
+import { updateTotalPointsAfterScoreChange } from "../pointsHelper";
 import {
   posts,
   comments,
@@ -436,6 +437,11 @@ router.post("/posts", blockRestrictedRoles, async (req: Request, res: Response) 
       })
       .where(eq(users.id, req.user.id));
 
+    // Recalculate totalPoints after engagement score change
+    await updateTotalPointsAfterScoreChange(req.user.id).catch((err: any) => 
+      console.error("Failed to update total points:", err)
+    );
+
     // Update streak when user creates a post
     await updateUserStreakForActivity(req.user.id, 'POST_CREATION').catch((err: any) => 
       console.error("Failed to update streak on post creation:", err)
@@ -556,6 +562,11 @@ router.post("/comments", async (req: Request, res: Response) => {
       })
       .where(eq(users.id, req.user.id));
 
+    // Recalculate totalPoints after engagement score change
+    await updateTotalPointsAfterScoreChange(req.user.id).catch((err: any) => 
+      console.error("Failed to update total points:", err)
+    );
+
     // Update streak when user comments
     await updateUserStreakForActivity(req.user.id, 'COMMENT_CREATION').catch((err: any) => 
       console.error("Failed to update streak on comment:", err)
@@ -649,6 +660,11 @@ router.post("/reactions", async (req: Request, res: Response) => {
         engagementScore: sql`${users.engagementScore} + 2`,
       })
       .where(eq(users.id, req.user.id));
+
+    // Recalculate totalPoints after engagement score change
+    await updateTotalPointsAfterScoreChange(req.user.id).catch((err: any) => 
+      console.error("Failed to update total points:", err)
+    );
 
     // Update streak when user reacts
     await updateUserStreakForActivity(req.user.id, 'REACTION_CREATION').catch((err: any) => 

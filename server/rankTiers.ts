@@ -39,21 +39,10 @@ export const RANK_TIERS: RankTierInfo[] = [
   },
 ];
 
-export function calculateTotalPoints(
-  engagementScore: number,
-  problemSolverScore: number,
-  endorsementScore: number,
-  challengePoints: number
-): number {
-  return engagementScore + problemSolverScore + endorsementScore + challengePoints;
-}
-
 export function getRankTier(totalPoints: number): RankTier {
-  for (let i = RANK_TIERS.length - 1; i >= 0; i--) {
-    if (totalPoints >= RANK_TIERS[i].minPoints) {
-      return RANK_TIERS[i].tier;
-    }
-  }
+  if (totalPoints >= 7000) return 'platinum';
+  if (totalPoints >= 3000) return 'gold';
+  if (totalPoints >= 1000) return 'silver';
   return 'bronze';
 }
 

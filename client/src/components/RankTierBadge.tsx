@@ -4,6 +4,13 @@ import { cn } from "@/lib/utils";
 
 export type RankTier = 'bronze' | 'silver' | 'gold' | 'platinum';
 
+/**
+ * Point-Based Rank Tier System
+ * Bronze: 0-999 points
+ * Silver: 1000-2999 points
+ * Gold: 3000-6999 points
+ * Platinum: 7000+ points
+ */
 interface RankTierInfo {
   tier: RankTier;
   label: string;
@@ -11,6 +18,7 @@ interface RankTierInfo {
   maxPoints: number | null;
   gradient: string;
   icon: typeof Trophy;
+  description: string;
 }
 
 const RANK_TIERS: RankTierInfo[] = [
@@ -21,6 +29,7 @@ const RANK_TIERS: RankTierInfo[] = [
     maxPoints: 999,
     gradient: 'from-amber-700 to-amber-900',
     icon: Award,
+    description: 'Getting Started',
   },
   {
     tier: 'silver',
@@ -29,6 +38,7 @@ const RANK_TIERS: RankTierInfo[] = [
     maxPoints: 2999,
     gradient: 'from-gray-300 to-gray-500',
     icon: Award,
+    description: 'Rising Star',
   },
   {
     tier: 'gold',
@@ -37,6 +47,7 @@ const RANK_TIERS: RankTierInfo[] = [
     maxPoints: 6999,
     gradient: 'from-yellow-400 to-yellow-600',
     icon: Trophy,
+    description: 'Established Expert',
   },
   {
     tier: 'platinum',
@@ -45,6 +56,7 @@ const RANK_TIERS: RankTierInfo[] = [
     maxPoints: null,
     gradient: 'from-purple-400 to-pink-500',
     icon: Trophy,
+    description: 'Master',
   },
 ];
 
@@ -70,7 +82,7 @@ interface RankTierBadgeProps {
 
 export function RankTierBadge({ 
   rankTier, 
-  totalPoints = 0, 
+  totalPoints = 0,
   size = 'md', 
   showProgress = false,
   className 
@@ -91,6 +103,10 @@ export function RankTierBadge({
     lg: 'h-5 w-5',
   };
 
+  /**
+   * Calculate progress using point-based system
+   * Progress = ((currentPoints - currentTierMin) / (nextTierMin - currentTierMin)) * 100
+   */
   const progress = nextTier
     ? Math.min(
         100,
@@ -114,7 +130,7 @@ export function RankTierBadge({
           {tierInfo.label}
         </Badge>
         {totalPoints > 0 && (
-          <span className="text-xs text-xs text-white" data-testid="text-total-points">
+          <span className="text-xs text-white" data-testid="text-total-points">
             {totalPoints.toLocaleString()} pts
           </span>
         )}
@@ -135,7 +151,7 @@ export function RankTierBadge({
             />
           </div>
           <div className="text-xs text-white">
-            {nextTier.minPoints - totalPoints} points to {nextTier.label}
+            {Math.round(nextTier.minPoints - totalPoints)} points to {nextTier.label}
           </div>
         </div>
       )}

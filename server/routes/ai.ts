@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { eq, desc, and } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { db } from "../db";
+import { updateTotalPointsAfterScoreChange } from "../pointsHelper";
 import {
   users,
   skills,
@@ -485,6 +486,11 @@ Example responses:
         engagementScore: sql`${users.engagementScore} + 3`,
       })
       .where(eq(users.id, req.user!.id));
+
+    // Recalculate totalPoints after engagement score change
+    await updateTotalPointsAfterScoreChange(req.user!.id).catch((err: any) => 
+      console.error("Failed to update total points:", err)
+    );
 
     // Optional: Notify user about points earned via AI interaction
     if (req.user!.engagementScore % 10 === 0) { // Subtle notification every 10 points

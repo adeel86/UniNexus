@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { eq, desc, sql, and } from "drizzle-orm";
 import { db } from "../db";
+import { updateTotalPointsAfterScoreChange } from "../pointsHelper";
 import {
   users,
   badges,
@@ -131,6 +132,11 @@ router.post("/endorsements", async (req: Request, res: Response) => {
         engagementScore: sql`${users.engagementScore} + 15`,
       })
       .where(eq(users.id, validatedData.endorsedUserId));
+
+    // Recalculate totalPoints after both endorsement and engagement score changes
+    await updateTotalPointsAfterScoreChange(validatedData.endorsedUserId).catch((err: any) => 
+      console.error("Failed to update total points:", err)
+    );
 
     await db.insert(notifications).values({
       userId: validatedData.endorsedUserId,

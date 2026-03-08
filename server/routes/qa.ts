@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { eq, desc, and, sql, isNull } from "drizzle-orm";
 import { db } from "../db";
 import { isAuthenticated } from "../firebaseAuth";
+import { updateTotalPointsAfterScoreChange } from "../pointsHelper";
 import {
   users,
   courseDiscussions,
@@ -162,9 +163,13 @@ router.post("/qa/questions", isAuthenticated, async (req: Request, res: Response
       .update(users)
       .set({
         problemSolverScore: sql`COALESCE(${users.problemSolverScore}, 0) + 10`,
-        totalPoints: sql`COALESCE(${users.totalPoints}, 0) + 10`,
       })
       .where(eq(users.id, req.user.id));
+
+    // Recalculate totalPoints after problem solver score change
+    await updateTotalPointsAfterScoreChange(req.user.id).catch((err: any) => 
+      console.error("Failed to update total points:", err)
+    );
 
     await createNotification({
       userId: req.user.id,
@@ -227,9 +232,13 @@ router.post("/qa/questions/:questionId/answers", isAuthenticated, async (req: Re
       .update(users)
       .set({
         problemSolverScore: sql`COALESCE(${users.problemSolverScore}, 0) + 15`,
-        totalPoints: sql`COALESCE(${users.totalPoints}, 0) + 15`,
       })
       .where(eq(users.id, req.user.id));
+
+    // Recalculate totalPoints after problem solver score change
+    await updateTotalPointsAfterScoreChange(req.user.id).catch((err: any) => 
+      console.error("Failed to update total points:", err)
+    );
 
     // Notify question author
     if (question.authorId !== req.user.id) {
@@ -365,9 +374,13 @@ router.post("/qa/questions/:questionId/resolve", isAuthenticated, async (req: Re
           .update(users)
           .set({
             problemSolverScore: sql`COALESCE(${users.problemSolverScore}, 0) + 20`,
-            totalPoints: sql`COALESCE(${users.totalPoints}, 0) + 20`,
           })
           .where(eq(users.id, answer.authorId));
+
+        // Recalculate totalPoints after problem solver score change
+        await updateTotalPointsAfterScoreChange(answer.authorId).catch((err: any) => 
+          console.error("Failed to update total points:", err)
+        );
 
         await createNotification({
           userId: answer.authorId,

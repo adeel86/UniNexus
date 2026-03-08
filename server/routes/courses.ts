@@ -3,6 +3,7 @@ import { eq, desc, sql, and, ilike, or } from "drizzle-orm";
 import { db } from "../db";
 import { storage } from "../storage";
 import { isAuthenticated, type AuthRequest } from "../firebaseAuth";
+import { updateTotalPointsAfterScoreChange } from "../pointsHelper";
 import {
   users,
   universities,
@@ -720,6 +721,12 @@ router.post("/discussions", isAuthenticated, async (req: Request, res: Response)
     const validatedData = insertCourseDiscussionSchema.parse({ ...req.body, authorId: req.user.id });
     const newDiscussion = await storage.createDiscussion(validatedData);
     await db.update(users).set({ engagementScore: sql`${users.engagementScore} + 5` }).where(eq(users.id, req.user.id));
+    
+    // Recalculate totalPoints after engagement score change
+    await updateTotalPointsAfterScoreChange(req.user.id).catch((err: any) => 
+      console.error("Failed to update total points:", err)
+    );
+
     if (newDiscussion) await checkAndAwardCourseBadges(req.user.id, String(validatedData.courseId));
     
     // Track streak for course discussion
@@ -819,6 +826,11 @@ router.post("/replies", isAuthenticated, async (req: Request, res: Response) => 
     const validatedData = insertDiscussionReplySchema.parse({ ...req.body, authorId: req.user.id });
     const newReply = await storage.createReply(validatedData);
     await db.update(users).set({ engagementScore: sql`${users.engagementScore} + 3` }).where(eq(users.id, req.user.id));
+
+    // Recalculate totalPoints after engagement score change
+    await updateTotalPointsAfterScoreChange(req.user.id).catch((err: any) => 
+      console.error("Failed to update total points:", err)
+    );
 
     const [discussion] = await db.select().from(courseDiscussions).where(eq(courseDiscussions.id, validatedData.discussionId));
     if (discussion && discussion.authorId !== req.user.id) {
