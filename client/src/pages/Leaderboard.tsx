@@ -62,8 +62,15 @@ export default function Leaderboard() {
                 <div className="font-semibold">
                   {student.firstName} {student.lastName}
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  {student.major || 'No major specified'}
+                <div className="text-sm text-muted-foreground space-y-1">
+                  <div>
+                    {student.major || 'No major specified'}
+                  </div>
+                  {student.university && (
+                    <div className="text-xs text-muted-foreground/80">
+                      {student.university}
+                    </div>
+                  )}
                 </div>
                 <div className="mt-2">
                   <RankTierBadge 
