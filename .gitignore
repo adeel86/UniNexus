@@ -6,7 +6,7 @@ vite.config.ts.*
 *.tar.gz
 .env
 .env.example
-secrets/
+etc/
 .local/
 attached_assets/
 uploads/

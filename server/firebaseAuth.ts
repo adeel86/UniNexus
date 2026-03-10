@@ -1,3 +1,5 @@
+
+
 import type { Express, Request, Response, NextFunction } from "express";
 import admin from "firebase-admin";
 import jwt from "jsonwebtoken";
@@ -13,17 +15,16 @@ const DEV_JWT_SECRET = process.env.DEV_JWT_SECRET;
 // Try to initialize Firebase Admin SDK from service account
 async function initializeFirebaseAdmin() {
   try {
-    // Try to import service account JSON from project root (serviceAccountKey.json)
-    // or from env path (VITE_FIREBASE_SERVICE_ACCOUNT_PATH - for backwards compatibility)
-    let serviceAccountPath = new URL("../secrets/serviceAccountKey.json", import.meta.url);
-    
-    // If env var is set, try that path first
-    if (process.env.VITE_FIREBASE_SERVICE_ACCOUNT_PATH) {
-      const envPath = new URL(`../${process.env.VITE_FIREBASE_SERVICE_ACCOUNT_PATH}`, import.meta.url);
-      serviceAccountPath = envPath;
+    let serviceAccount: any;
+
+    // First try environment variable (most reliable for Render deployments)
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    } else {
+      // Fall back to Render secret file location
+      const serviceAccountPath = new URL("/etc/secrets/serviceAccountKey.json", "file:///");
+      serviceAccount = await import(serviceAccountPath.pathname, { with: { type: "json" } }).then(m => m.default);
     }
-    
-    const serviceAccount = await import(serviceAccountPath.pathname, { with: { type: "json" } }).then(m => m.default);
     
     // Validate that this is a service account (not web SDK credentials)
     if (!serviceAccount.private_key || !serviceAccount.client_email) {
