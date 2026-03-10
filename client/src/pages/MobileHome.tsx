@@ -1,8 +1,8 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
 import { Card } from "@/components/ui/card";
-import { useState, useEffect } from "react";
-import { apiRequest } from "@/lib/queryClient";
+import { useState, useEffect, useCallback } from "react";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import {
   Home,
   Users,
@@ -184,42 +184,45 @@ export default function MobileHome() {
     courses: 0,
   });
 
-  useEffect(() => {
-    const fetchNotificationCounts = async () => {
-      try {
-        const [notificationsRes, messagesRes, networkRes, groupsRes, coursesRes] = await Promise.all([
-          apiRequest("GET", "/api/notifications/unread-count"),
-          apiRequest("GET", "/api/unread-count"),
-          apiRequest("GET", "/api/connections/pending-count"),
-          apiRequest("GET", "/api/notifications/groups/unread-count"),
-          apiRequest("GET", "/api/notifications/courses/unread-count"),
-        ]);
+  const fetchNotificationCounts = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      const [notificationsRes, messagesRes, networkRes, groupsRes, coursesRes] = await Promise.all([
+        apiRequest("GET", "/api/notifications/unread-count"),
+        apiRequest("GET", "/api/unread-count"),
+        apiRequest("GET", "/api/connections/pending-count"),
+        apiRequest("GET", "/api/notifications/groups/unread-count"),
+        apiRequest("GET", "/api/notifications/courses/unread-count"),
+      ]);
 
-        const notificationsData = notificationsRes ? await notificationsRes.json() : { count: 0 };
-        const messagesData = messagesRes ? await messagesRes.json() : { count: 0 };
-        const networkData = networkRes ? await networkRes.json() : { count: 0 };
-        const groupsData = groupsRes ? await groupsRes.json() : { count: 0 };
-        const coursesData = coursesRes ? await coursesRes.json() : { count: 0 };
+      const notificationsData = notificationsRes?.ok ? await notificationsRes.json() : { count: 0 };
+      const messagesData = messagesRes?.ok ? await messagesRes.json() : { count: 0 };
+      const networkData = networkRes?.ok ? await networkRes.json() : { count: 0 };
+      const groupsData = groupsRes?.ok ? await groupsRes.json() : { count: 0 };
+      const coursesData = coursesRes?.ok ? await coursesRes.json() : { count: 0 };
 
-        setNotificationCounts({
-          notifications: notificationsData.count || 0,
-          messages: messagesData.count || 0,
-          networkRequests: networkData.count || 0,
-          groups: groupsData.count || 0,
-          courses: coursesData.count || 0,
-        });
-      } catch (error) {
-        console.error("Failed to fetch notification counts:", error);
-      }
-    };
-
-    if (user) {
-      fetchNotificationCounts();
-      // Refresh every 30 seconds
-      const interval = setInterval(fetchNotificationCounts, 30000);
-      return () => clearInterval(interval);
+      setNotificationCounts({
+        notifications: notificationsData.count || 0,
+        messages: messagesData.count || 0,
+        networkRequests: networkData.count || 0,
+        groups: groupsData.count || 0,
+        courses: coursesData.count || 0,
+      });
+    } catch (error) {
+      console.error("Failed to fetch notification counts:", error);
     }
   }, [user]);
+
+  useEffect(() => {
+    // Fetch counts immediately when component mounts
+    fetchNotificationCounts();
+    
+    // Also refresh every 5 seconds for real-time updates
+    const interval = setInterval(fetchNotificationCounts, 5000);
+    
+    return () => clearInterval(interval);
+  }, [fetchNotificationCounts]);
 
   if (!user) {
     return null;
@@ -254,7 +257,7 @@ export default function MobileHome() {
       // NOTE: We only clear the UI indicator, NOT mark as read in database
       // Users should read individual notifications to mark them as read
       if (path === "/notifications") {
-        // Only clear the UI indicator - do NOT mark notifications as read
+        // Only clear the UI indicator - do NOT mark notifications as read in database
         setNotificationCounts(prev => ({ ...prev, notifications: 0 }));
       } else if (path === "/messages") {
         // Clear message count when viewing messages

@@ -71,3 +71,12 @@ export function calculateChallengePoints(rank: number | null, participantCount: 
   
   return 50; // Participation
 }
+
+export function calculateTotalPoints(
+  engagementScore: number = 0,
+  problemSolverScore: number = 0,
+  endorsementScore: number = 0,
+  challengePoints: number = 0
+): number {
+  return engagementScore + problemSolverScore + endorsementScore + challengePoints;
+}
