@@ -21,9 +21,16 @@ async function initializeFirebaseAdmin() {
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
       serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
     } else {
-      // Fall back to Render secret file location
-      const serviceAccountPath = new URL("/etc/secrets/serviceAccountKey.json", "file:///");
-      serviceAccount = await import(serviceAccountPath.pathname, { with: { type: "json" } }).then(m => m.default);
+      // Try to read from file path specified in env variable
+      const serviceAccountPath = process.env.VITE_FIREBASE_SERVICE_ACCOUNT_PATH || "/etc/secrets/serviceAccountKey.json";
+      try {
+        const fs = await import('fs').then(m => m.promises);
+        const fileContent = await fs.readFile(serviceAccountPath, 'utf-8');
+        serviceAccount = JSON.parse(fileContent);
+      } catch (fileError: any) {
+        console.warn(`Could not read service account from ${serviceAccountPath}:`, fileError.message);
+        return false;
+      }
     }
     
     // Validate that this is a service account (not web SDK credentials)
