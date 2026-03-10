@@ -197,20 +197,6 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                   asChild
                   variant="ghost"
                   size="sm"
-                  className={`text-white hover:bg-white/20 gap-2 ${location === '/leaderboard' ? 'bg-white/20' : ''}`}
-                  data-testid="nav-link-leaderboard"
-                >
-                  <Link href="/leaderboard">
-                    <div className="flex items-center gap-2">
-                      <Trophy className="h-4 w-4" />
-                      <span>Leaderboard</span>
-                    </div>
-                  </Link>
-                </Button>
-                <Button
-                  asChild
-                  variant="ghost"
-                  size="sm"
                   className={`text-white hover:bg-white/20 gap-2 ${location === '/problem-solving' ? 'bg-white/20' : ''}`}
                   data-testid="nav-link-problem-solving"
                 >
@@ -218,6 +204,20 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                     <div className="flex items-center gap-2">
                       <Lightbulb className="h-4 w-4" />
                       <span>Q&A</span>
+                    </div>
+                  </Link>
+                </Button>
+                                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className={`text-white hover:bg-white/20 gap-2 ${location === '/leaderboard' ? 'bg-white/20' : ''}`}
+                  data-testid="nav-link-leaderboard"
+                >
+                  <Link href="/leaderboard">
+                    <div className="flex items-center gap-2">
+                      <Trophy className="h-4 w-4" />
+                      <span>Leaderboard</span>
                     </div>
                   </Link>
                 </Button>

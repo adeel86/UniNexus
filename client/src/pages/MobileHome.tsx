@@ -3,96 +3,9 @@ import { useLocation } from "wouter";
 import { Card } from "@/components/ui/card";
 import { useState, useEffect, useCallback } from "react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import {
-  Home,
-  Users,
-  Trophy,
-  MessageSquare,
-  Bell,
-  User,
-  BarChart,
-  Building2,
-  Briefcase,
-  Shield,
-  Brain,
-  GraduationCap,
-  UsersRound,
-  Settings,
-  Send,
-  BookOpen,
-  Network,
-  Search,
-  HelpCircle,
-  LogOut,
-  Lightbulb,
-} from "lucide-react";
+import { getNavigationForRole } from "@/lib/navigation-config";
+import type { MenuItem } from "@/lib/navigation-config";
 import { cn } from "@/lib/utils";
-
-interface MobileMenuItem {
-  icon: any;
-  label: string;
-  path: string;
-  roles: string[];
-  color?: string;
-}
-
-const mobileMenuItems: MobileMenuItem[] = [
-  // Student items
-  { icon: Home, label: "Feed", path: "/student-feed", roles: ["student"], color: "from-blue-500 to-blue-600" },
-  { icon: Search, label: "Discover", path: "/discovery", roles: ["student"], color: "from-teal-500 to-teal-600" },
-  { icon: HelpCircle, label: "Q&A", path: "/problem-solving", roles: ["student"], color: "from-amber-500 to-amber-600" },
-  { icon: Network, label: "My Network", path: "/network", roles: ["student"], color: "from-purple-500 to-purple-600" },
-  { icon: GraduationCap, label: "My Courses", path: "/courses", roles: ["student"], color: "from-green-500 to-green-600" },
-  { icon: UsersRound, label: "Groups", path: "/groups", roles: ["student"], color: "from-orange-500 to-orange-600" },
-  { icon: Brain, label: "AI Tutor", path: "/personal-tutor", roles: ["student"], color: "from-indigo-500 to-indigo-600" },
-  { icon: Lightbulb, label: "AI Career Bot", path: "/careerbot", roles: ["student"], color: "from-yellow-500 to-yellow-600" },
-  { icon: BarChart, label: "Leaderboard", path: "/leaderboard", roles: ["student"], color: "from-red-500 to-red-600" },
-  { icon: Bell, label: "Notifications", path: "/notifications", roles: ["student"], color: "from-pink-500 to-pink-600" },
-  { icon: Send, label: "Messages", path: "/messages", roles: ["student"], color: "from-cyan-500 to-cyan-600" },
-  { icon: User, label: "Profile", path: "/profile", roles: ["student"], color: "from-gray-500 to-gray-600" },
-  { icon: Settings, label: "Settings", path: "/settings", roles: ["student"], color: "from-slate-500 to-slate-600" },
-  { icon: LogOut, label: "Logout", path: "/logout", roles: ["student"], color: "from-red-500 to-red-600" },
-
-  // Teacher items
-  { icon: Home, label: "Dashboard", path: "/teacher-dashboard", roles: ["teacher"], color: "from-blue-500 to-blue-600" },
-  { icon: BookOpen, label: "My Courses", path: "/teacher-courses", roles: ["teacher"], color: "from-green-500 to-green-600" },
-  { icon: Users, label: "My Students", path: "/network", roles: ["teacher"], color: "from-purple-500 to-purple-600" },
-  { icon: Lightbulb, label: "AI Career Bot", path: "/careerbot", roles: ["teacher"], color: "from-yellow-500 to-yellow-600" },
-  { icon: Bell, label: "Notifications", path: "/notifications", roles: ["teacher"], color: "from-pink-500 to-pink-600" },
-  { icon: Send, label: "Messages", path: "/messages", roles: ["teacher"], color: "from-cyan-500 to-cyan-600" },
-  { icon: User, label: "Profile", path: "/profile", roles: ["teacher"], color: "from-gray-500 to-gray-600" },
-  { icon: Settings, label: "Settings", path: "/settings", roles: ["teacher"], color: "from-slate-500 to-slate-600" },
-  { icon: LogOut, label: "Logout", path: "/logout", roles: ["teacher"], color: "from-red-500 to-red-600" },
-
-  // University Admin items
-  { icon: Home, label: "Dashboard", path: "/university-dashboard", roles: ["university_admin"], color: "from-blue-500 to-blue-600" },
-  { icon: Users, label: "Network", path: "/network", roles: ["university_admin"], color: "from-purple-500 to-purple-600" },
-  { icon: Building2, label: "Institution", path: "/university-admin", roles: ["university_admin"], color: "from-amber-600 to-amber-700" },
-  { icon: Lightbulb, label: "AI Career Bot", path: "/careerbot", roles: ["university_admin"], color: "from-yellow-500 to-yellow-600" },
-  { icon: Send, label: "Messages", path: "/messages", roles: ["university_admin"], color: "from-cyan-500 to-cyan-600" },
-  { icon: UsersRound, label: "Groups", path: "/groups", roles: ["university_admin"], color: "from-orange-500 to-orange-600" },
-  { icon: Bell, label: "Notifications", path: "/notifications", roles: ["university_admin"], color: "from-pink-500 to-pink-600" },
-  { icon: Settings, label: "Settings", path: "/settings", roles: ["university_admin"], color: "from-slate-500 to-slate-600" },
-  { icon: LogOut, label: "Logout", path: "/logout", roles: ["university_admin"], color: "from-red-500 to-red-600" },
-
-  // Industry Professional items
-  { icon: Home, label: "Dashboard", path: "/industry-dashboard", roles: ["industry_professional"], color: "from-blue-500 to-blue-600" },
-  { icon: Briefcase, label: "Opportunities", path: "/opportunities", roles: ["industry_professional"], color: "from-teal-500 to-teal-600" },
-  { icon: Lightbulb, label: "AI Career Bot", path: "/careerbot", roles: ["industry_professional"], color: "from-yellow-500 to-yellow-600" },
-  { icon: Bell, label: "Notifications", path: "/notifications", roles: ["industry_professional"], color: "from-pink-500 to-pink-600" },
-  { icon: User, label: "Profile", path: "/profile", roles: ["industry_professional"], color: "from-gray-500 to-gray-600" },
-  { icon: Settings, label: "Settings", path: "/settings", roles: ["industry_professional"], color: "from-slate-500 to-slate-600" },
-  { icon: LogOut, label: "Logout", path: "/logout", roles: ["industry_professional"], color: "from-red-500 to-red-600" },
-
-  // Master Admin items
-  { icon: Home, label: "Dashboard", path: "/master-admin-dashboard", roles: ["master_admin"], color: "from-blue-500 to-blue-600" },
-  { icon: Shield, label: "Admin Panel", path: "/admin", roles: ["master_admin"], color: "from-red-600 to-red-700" },
-  { icon: BarChart, label: "Analytics", path: "/analytics", roles: ["master_admin"], color: "from-purple-500 to-purple-600" },
-  { icon: Lightbulb, label: "AI Career Bot", path: "/careerbot", roles: ["master_admin"], color: "from-yellow-500 to-yellow-600" },
-  { icon: Bell, label: "Notifications", path: "/notifications", roles: ["master_admin"], color: "from-pink-500 to-pink-600" },
-  { icon: Settings, label: "Settings", path: "/settings", roles: ["master_admin"], color: "from-slate-500 to-slate-600" },
-  { icon: LogOut, label: "Logout", path: "/logout", roles: ["master_admin"], color: "from-red-500 to-red-600" },
-];
 
 interface MobileMenuItemProps {
   icon: any;
@@ -229,9 +142,7 @@ export default function MobileHome() {
   }
 
   const userRole = user.role;
-  const availableItems = mobileMenuItems.filter((item) =>
-    item.roles.includes(userRole)
-  );
+  const availableItems = getNavigationForRole(userRole);
 
   const handleLogout = async () => {
     try {
