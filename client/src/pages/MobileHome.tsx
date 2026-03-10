@@ -191,7 +191,7 @@ export default function MobileHome() {
       const [notificationsRes, messagesRes, networkRes, groupsRes, coursesRes] = await Promise.all([
         apiRequest("GET", "/api/notifications/unread-count"),
         apiRequest("GET", "/api/unread-count"),
-        apiRequest("GET", "/api/connections/pending-count"),
+        apiRequest("GET", "/api/pending-count"),
         apiRequest("GET", "/api/notifications/groups/unread-count"),
         apiRequest("GET", "/api/notifications/courses/unread-count"),
       ]);
@@ -210,7 +210,7 @@ export default function MobileHome() {
         courses: coursesData.count || 0,
       });
     } catch (error) {
-      console.error("Failed to fetch notification counts:", error);
+      // Silently fail to avoid spamming logs
     }
   }, [user]);
 
@@ -218,8 +218,8 @@ export default function MobileHome() {
     // Fetch counts immediately when component mounts
     fetchNotificationCounts();
     
-    // Also refresh every 5 seconds for real-time updates
-    const interval = setInterval(fetchNotificationCounts, 5000);
+    // Also refresh every 3 seconds for real-time updates (more responsive)
+    const interval = setInterval(fetchNotificationCounts, 3000);
     
     return () => clearInterval(interval);
   }, [fetchNotificationCounts]);
@@ -240,7 +240,7 @@ export default function MobileHome() {
         // API might fail but that's okay
       });
     } catch (error) {
-      console.error("Logout API call failed:", error);
+      // Silently handle logout errors
     }
 
     // Sign out from auth context (clears currentUser and userData)
@@ -253,26 +253,13 @@ export default function MobileHome() {
       await handleLogout();
       // Once signOut completes, auth context will update and router will redirect to login
     } else {
-      // Clear notification indicators from UI when navigating to those pages
-      // NOTE: We only clear the UI indicator, NOT mark as read in database
-      // Users should read individual notifications to mark them as read
-      if (path === "/notifications") {
-        // Only clear the UI indicator - do NOT mark notifications as read in database
-        setNotificationCounts(prev => ({ ...prev, notifications: 0 }));
-      } else if (path === "/messages") {
-        // Clear message count when viewing messages
-        setNotificationCounts(prev => ({ ...prev, messages: 0 }));
-      } else if (path === "/network") {
-        // Clear network request count when viewing network
-        setNotificationCounts(prev => ({ ...prev, networkRequests: 0 }));
-      } else if (path === "/groups") {
-        // Clear group notification count when viewing groups
-        setNotificationCounts(prev => ({ ...prev, groups: 0 }));
-      } else if (path === "/courses" || path === "/teacher-courses" || path === "/my-courses") {
-        // Clear course notification count when viewing courses
-        setNotificationCounts(prev => ({ ...prev, courses: 0 }));
-      }
       navigate(path);
+      
+      // Refetch counts after a short delay to ensure proper synchronization
+      // This removes the badge from the icon (UI), but notifications remain unread in database
+      setTimeout(() => {
+        fetchNotificationCounts();
+      }, 500);
     }
   };
 

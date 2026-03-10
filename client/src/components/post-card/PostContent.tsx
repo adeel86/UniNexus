@@ -2,7 +2,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { VideoPlayer } from "@/components/VideoPlayer";
+import { ImageViewer } from "@/components/ImageViewer";
 import { X } from "lucide-react";
+import { useState } from "react";
 import type { PostWithAuthor } from "./usePostCard";
 
 interface PostContentProps {
@@ -24,6 +26,34 @@ export function PostContent({
   onCancel,
   isSaving,
 }: PostContentProps) {
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+
+  const allImages = post.mediaUrls && post.mediaUrls.length > 0
+    ? post.mediaUrls
+    : (post.imageUrl ? [post.imageUrl] : []);
+
+  const handleImageClick = (url: string, index: number) => {
+    setSelectedImage(url);
+    setSelectedImageIndex(index);
+  };
+
+  const handleNext = () => {
+    if (selectedImageIndex < allImages.length - 1) {
+      const nextIndex = selectedImageIndex + 1;
+      setSelectedImage(allImages[nextIndex]);
+      setSelectedImageIndex(nextIndex);
+    }
+  };
+
+  const handlePrev = () => {
+    if (selectedImageIndex > 0) {
+      const prevIndex = selectedImageIndex - 1;
+      setSelectedImage(allImages[prevIndex]);
+      setSelectedImageIndex(prevIndex);
+    }
+  };
+
   return (
     <div className="mb-4">
       {isEditing ? (
@@ -62,7 +92,8 @@ export function PostContent({
         <img
           src={post.imageUrl}
           alt="Post image"
-          className="mt-4 rounded-lg w-full object-cover max-h-96"
+          className="mt-4 rounded-lg w-full object-cover max-h-96 cursor-pointer hover:opacity-90 transition-opacity"
+          onClick={() => handleImageClick(post.imageUrl!, 0)}
           data-testid="post-image"
         />
       )}
@@ -74,12 +105,25 @@ export function PostContent({
               key={index}
               src={url}
               alt={`Post image ${index + 1}`}
-              className="rounded-lg w-full object-cover h-64"
+              className="rounded-lg w-full object-cover h-64 cursor-pointer hover:opacity-90 transition-opacity"
+              onClick={() => handleImageClick(url, index)}
               data-testid={`post-image-${index}`}
             />
           ))}
         </div>
       )}
+
+      {/* Image Viewer Modal */}
+      <ImageViewer
+        src={selectedImage || ""}
+        alt="Post image"
+        isOpen={selectedImage !== null}
+        onClose={() => setSelectedImage(null)}
+        onNext={handleNext}
+        onPrev={handlePrev}
+        hasNext={selectedImageIndex < allImages.length - 1}
+        hasPrev={selectedImageIndex > 0}
+      />
 
       {post.videoUrl && (
         <div className="mt-4">

@@ -12,7 +12,7 @@ export const uploadsDir = path.join(process.cwd(), 'uploads');
 
 export const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 50 * 1024 * 1024 },
+  limits: { fileSize: 200 * 1024 * 1024 }, // 200MB limit for videos and images
 });
 
 export async function saveFileLocally(buffer: Buffer, folder: string, filename: string): Promise<string> {
