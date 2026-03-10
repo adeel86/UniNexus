@@ -87,9 +87,10 @@ export default function Leaderboard() {
               </div>
 
               {student.streak && student.streak > 0 && (
-                <Badge variant="secondary" className="gap-1">
-                  <Zap className="h-3 w-3" />
-                  {student.streak} day streak
+                <Badge variant="secondary" className="gap-1 whitespace-nowrap text-xs sm:text-sm">
+                  <Zap className="h-3 w-3 flex-shrink-0" />
+                  <span className="hidden sm:inline">{student.streak} day streak</span>
+                  <span className="sm:hidden">{student.streak}d</span>
                 </Badge>
               )}
             </div>

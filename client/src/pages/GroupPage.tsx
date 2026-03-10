@@ -293,20 +293,22 @@ export default function GroupPage() {
           ) : (
             <div className="space-y-4">
               {posts.map((post) => (
-                <Card key={post.id} data-testid={`post-${post.id}`}>
+                <Card key={post.id} data-testid={`post-${post.id}`} className="border-l-4 border-l-purple-500">
                   <CardContent className="pt-4">
                     <div className="flex gap-3">
-                      <UserAvatar user={post.author} size="md" />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium">
+                      <UserAvatar user={post.author} size="md" className="flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2 mb-2">
+                          <span className="font-semibold text-base">
                             {post.author?.firstName} {post.author?.lastName}
                           </span>
-                          <span className="text-sm text-muted-foreground">
+                          <span className="text-xs sm:text-sm text-muted-foreground">
                             {post.createdAt && formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
                           </span>
                         </div>
-                        <p className="text-sm">{post.content}</p>
+                        <p className="text-sm sm:text-base leading-relaxed whitespace-pre-wrap break-words text-foreground">
+                          {post.content}
+                        </p>
                       </div>
                     </div>
                   </CardContent>

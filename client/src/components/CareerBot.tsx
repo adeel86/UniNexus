@@ -6,6 +6,7 @@ import { MessageCircle, Send, X, Sparkles } from "lucide-react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface Message {
   role: 'user' | 'assistant';
@@ -42,6 +43,9 @@ const getRoleConfig = (role: string, firstName: string) => {
 
 export function CareerBot() {
   const { userData } = useAuth();
+  const isMobile = useIsMobile();
+  
+  // Define all hooks first - before any conditional logic
   const roleConfig = getRoleConfig(userData?.role || 'student', userData?.firstName || 'there');
   
   const [isOpen, setIsOpen] = useState(false);
@@ -71,6 +75,12 @@ export function CareerBot() {
     setInput("");
     chatMutation.mutate(userMessage);
   };
+
+  // Check conditions AFTER all hooks are defined
+  // Don't show floating bot on mobile at all - use dedicated /careerbot page instead
+  if (isMobile) {
+    return null;
+  }
 
   if (!isOpen) {
     return (

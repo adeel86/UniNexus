@@ -454,7 +454,15 @@ router.get("/groups/:id/posts", isAuthenticated, async (req: AuthRequest, res: R
       .orderBy(desc(groupPosts.createdAt))
       .limit(50);
 
-    res.json(results);
+    // Transform results to flatten the structure
+    const transformedResults = results.map(result => ({
+      id: result.post.id,
+      content: result.post.content,
+      createdAt: result.post.createdAt,
+      author: result.author,
+    }));
+
+    res.json(transformedResults);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

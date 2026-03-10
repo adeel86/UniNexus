@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, or } from "drizzle-orm";
 import { db } from "../db";
+import { isAuthenticated, type AuthRequest } from "../firebaseAuth";
 import { notifications } from "@shared/schema";
 
 const router = Router();
@@ -19,6 +20,20 @@ router.get("/notifications", async (req: Request, res: Response) => {
       .limit(20);
 
     res.json(userNotifications);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/notifications/unread-count", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await db
+      .select({ count: notifications.id })
+      .from(notifications)
+      .where(and(eq(notifications.userId, req.user!.id), eq(notifications.isRead, false)));
+
+    const count = result.length;
+    res.json({ count });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -58,18 +73,59 @@ router.patch("/notifications/:notificationId/read", async (req: Request, res: Re
   }
 });
 
-router.patch("/notifications/mark-all-read", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.patch("/notifications/mark-all-read", isAuthenticated, async (req: AuthRequest, res: Response) => {
   try {
     await db
       .update(notifications)
       .set({ isRead: true })
-      .where(eq(notifications.userId, req.user.id));
+      .where(eq(notifications.userId, req.user!.id));
 
     res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/notifications/groups/unread-count", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await db
+      .select({ count: notifications.id })
+      .from(notifications)
+      .where(and(
+        eq(notifications.userId, req.user!.id),
+        eq(notifications.isRead, false),
+        or(
+          eq(notifications.type, 'group_post'),
+          eq(notifications.type, 'group_activity'),
+          eq(notifications.type, 'group_invitation')
+        )
+      ));
+
+    const count = result.length;
+    res.json({ count });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/notifications/courses/unread-count", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await db
+      .select({ count: notifications.id })
+      .from(notifications)
+      .where(and(
+        eq(notifications.userId, req.user!.id),
+        eq(notifications.isRead, false),
+        or(
+          eq(notifications.type, 'course_material'),
+          eq(notifications.type, 'course_assignment'),
+          eq(notifications.type, 'course_announcement'),
+          eq(notifications.type, 'course_graded')
+        )
+      ));
+
+    const count = result.length;
+    res.json({ count });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

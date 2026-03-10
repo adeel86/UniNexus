@@ -128,6 +128,40 @@ router.get("/conversations", isAuthenticated, async (req: AuthRequest, res: Resp
 });
 
 // Get messages in a conversation
+router.get("/unread-count", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+
+    const allConversations = await db
+      .select()
+      .from(conversations)
+      .orderBy(desc(conversations.lastMessageAt));
+
+    let unreadCount = 0;
+    for (const conversation of allConversations) {
+      if (!conversation.participantIds?.includes(userId)) continue;
+
+      const allMessages = await db
+        .select()
+        .from(messages)
+        .where(eq(messages.conversationId, conversation.id))
+        .orderBy(desc(messages.createdAt));
+
+      // Count unread messages (those from other participants that current user hasn't read)
+      const unread = allMessages.filter(msg => {
+        const isFromOther = msg.senderId !== userId;
+        const notRead = !(msg.readBy || []).includes(userId);
+        return isFromOther && notRead;
+      });
+      unreadCount += unread.length;
+    }
+
+    res.json({ count: unreadCount });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.get("/conversations/:id/messages", isAuthenticated, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;

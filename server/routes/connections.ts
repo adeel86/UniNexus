@@ -204,6 +204,27 @@ router.get("/connections", isAuthenticated, async (req: AuthRequest, res: Respon
   }
 });
 
+// Get pending connection requests count
+router.get("/pending-count", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.id;
+
+    const pendingRequests = await db
+      .select()
+      .from(userConnections)
+      .where(
+        and(
+          eq(userConnections.receiverId, userId),
+          eq(userConnections.status, "pending")
+        )
+      );
+
+    res.json({ count: pendingRequests.length });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Search within user's connections only
 router.get("/connections/search", isAuthenticated, async (req: AuthRequest, res: Response) => {
   try {

@@ -15,6 +15,7 @@ import Register from "@/pages/Register";
 import ForgotPassword from "@/pages/ForgotPassword";
 import StudentHome from "@/pages/StudentHome";
 import MobileHome from "@/pages/MobileHome";
+import CareerBotPage from "@/pages/CareerBotPage";
 import TeacherDashboard from "@/pages/TeacherDashboard";
 import UniversityDashboard from "@/pages/UniversityDashboard";
 import IndustryDashboard from "@/pages/IndustryDashboard";
@@ -100,6 +101,8 @@ function Router() {
         <Switch>
           {/* Mobile home page - show only on mobile */}
           <Route path="/mobile-home" component={MobileHome} />
+          {/* AI Career Bot Page */}
+          <Route path="/careerbot" component={CareerBotPage} />
           {/* Feed page for students */}
           <Route path="/student-feed">
             <RoleGuard allowedRoles={['student']}>
