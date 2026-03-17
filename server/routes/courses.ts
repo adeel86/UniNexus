@@ -449,7 +449,7 @@ router.get("/me/created-courses", isAuthenticated, async (req: Request, res: Res
 
 router.post("/courses", isAuthenticated, async (req: Request, res: Response) => {
   if (!req.user) return res.status(401).send("Unauthorized");
-  if (req.user.role !== "teacher") return res.status(403).json({ error: "Only teachers can create courses" });
+  if (req.user.role !== "teacher" && req.user.role !== "master_admin") return res.status(403).json({ error: "Only teachers can create courses" });
 
   try {
     const courseValidation = insertCourseSchema.safeParse({ ...req.body, instructorId: req.user.id });
