@@ -2,9 +2,10 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, TrendingDown, Users, Award, Target, AlertTriangle, Trophy, GraduationCap, FileCheck, Briefcase, MessageSquare, CheckCircle, BookOpen, Loader2, Sparkles, MessageCircle, Trash2, Search } from "lucide-react";
+import { TrendingUp, TrendingDown, Users, Award, Target, AlertTriangle, Trophy, GraduationCap, FileCheck, Briefcase, MessageSquare, CheckCircle, BookOpen, Loader2, Sparkles, MessageCircle, Trash2, Search, Plus } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { UniversalFeed } from "@/components/UniversalFeed";
+import { CreatePostModal } from "@/components/CreatePostModal";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -32,6 +33,12 @@ import { UserAvatar } from "@/components/UserAvatar";
 export default function UniversityDashboard() {
   const { toast } = useToast();
   const [userSearch, setUserSearch] = useState("");
+  const [createPostOpen, setCreatePostOpen] = useState(false);
+  const [postInitialValues, setPostInitialValues] = useState({
+    content: "",
+    category: "social",
+    tags: ""
+  });
   const {
     retentionData,
     isRetentionLoading,
@@ -104,11 +111,21 @@ export default function UniversityDashboard() {
   );
 
   const handleSelectSuggestion = (content: string, category: string, tags: string[]) => {
-    // Implementation for university suggestion selection
+    setPostInitialValues({
+      content,
+      category,
+      tags: tags.join(", ")
+    });
+    setCreatePostOpen(true);
   };
 
   const handleCreatePost = () => {
-    // Implementation for university post creation
+    setPostInitialValues({
+      content: "",
+      category: "social",
+      tags: ""
+    });
+    setCreatePostOpen(true);
   };
 
   return (
@@ -273,14 +290,10 @@ export default function UniversityDashboard() {
 
         <TabsContent value="feed">
           <Tabs defaultValue="for-you" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-4">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
               <TabsTrigger value="for-you" className="gap-2">
                 <Sparkles className="h-4 w-4" />
                 For You
-              </TabsTrigger>
-              <TabsTrigger value="following" className="gap-2">
-                <Users className="h-4 w-4" />
-                Following
               </TabsTrigger>
               <TabsTrigger value="my-posts" className="gap-2">
                 <MessageCircle className="h-4 w-4" />
@@ -290,10 +303,16 @@ export default function UniversityDashboard() {
             <TabsContent value="for-you">
               <UniversalFeed role="university" initialCategory="all" feedType="personalized" />
             </TabsContent>
-            <TabsContent value="following">
-              <UniversalFeed role="university" initialCategory="all" feedType="following" />
-            </TabsContent>
             <TabsContent value="my-posts">
+              <Button
+                onClick={handleCreatePost}
+                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold mb-4"
+                size="lg"
+                data-testid="button-create-post"
+              >
+                <Plus className="mr-2 h-5 w-5" />
+                Share Something Amazing
+              </Button>
               <UniversalFeed role="university" showOnlyOwnPosts={true} feedType="my-posts" />
             </TabsContent>
           </Tabs>
@@ -746,6 +765,14 @@ function CareerPathwaySection({ careerData, isLoading }: { careerData: any; isLo
           </ResponsiveContainer>
         </Card>
       </div>
+
+      <CreatePostModal
+        open={createPostOpen}
+        onOpenChange={setCreatePostOpen}
+        initialContent={postInitialValues.content}
+        initialCategory={postInitialValues.category}
+        initialTags={postInitialValues.tags}
+      />
     </div>
   );
 }

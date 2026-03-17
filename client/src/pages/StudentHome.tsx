@@ -27,7 +27,7 @@ export default function StudentHome() {
   const { userData: user } = useAuth();
   const [createPostOpen, setCreatePostOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [feedType, setFeedType] = useState<'personalized' | 'following' | 'my-posts'>('personalized');
+  const [feedType, setFeedType] = useState<'personalized' | 'my-posts'>('personalized');
   const [postInitialValues, setPostInitialValues] = useState<{ content: string; category: string; tags: string }>({ 
     content: "", 
     category: "social", 
@@ -44,16 +44,6 @@ export default function StudentHome() {
     enabled: feedType === 'personalized',
   });
 
-  // Following feed (chronological from followed users only)
-  const followingUrl = selectedCategory && selectedCategory !== 'all'
-    ? `/api/feed/following?category=${selectedCategory}`
-    : `/api/feed/following`;
-  
-  const { data: followingPosts = [], isLoading: isLoadingFollowing } = useQuery<PostWithAuthor[]>({
-    queryKey: [followingUrl],
-    enabled: feedType === 'following',
-  });
-
   // My Posts feed
   const myPostsUrl = selectedCategory && selectedCategory !== 'all'
     ? `/api/posts?userId=${user?.id}&category=${selectedCategory}`
@@ -64,8 +54,8 @@ export default function StudentHome() {
     enabled: feedType === 'my-posts' && !!user?.id,
   });
 
-  const posts = feedType === 'personalized' ? personalizedPosts : feedType === 'following' ? followingPosts : myPosts;
-  const isLoading = feedType === 'personalized' ? isLoadingPersonalized : feedType === 'following' ? isLoadingFollowing : isLoadingMyPosts;
+  const posts = feedType === 'personalized' ? personalizedPosts : myPosts;
+  const isLoading = feedType === 'personalized' ? isLoadingPersonalized : isLoadingMyPosts;
 
   const { data: userBadges = [] } = useQuery<(UserBadge & { badge: Badge })[]>({
     queryKey: ["/api/user-badges", user?.id],
@@ -113,15 +103,11 @@ export default function StudentHome() {
           </Card>
 
           {/* Feed Type Tabs */}
-          <Tabs value={feedType} onValueChange={(v) => setFeedType(v as 'personalized' | 'following' | 'my-posts')} className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-4">
+          <Tabs value={feedType} onValueChange={(v) => setFeedType(v as 'personalized' | 'my-posts')} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
               <TabsTrigger value="personalized" className="gap-2" data-testid="tab-for-you">
                 <Sparkles className="h-4 w-4" />
                 For You
-              </TabsTrigger>
-              <TabsTrigger value="following" className="gap-2" data-testid="tab-following">
-                <Users className="h-4 w-4" />
-                Following
               </TabsTrigger>
               <TabsTrigger value="my-posts" className="gap-2" data-testid="tab-my-posts">
                 <MessageCircle className="h-4 w-4" />
@@ -150,16 +136,18 @@ export default function StudentHome() {
             })}
           </div>
 
-          {/* Create Post Button */}
-          <Button
-            onClick={() => setCreatePostOpen(true)}
-            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold"
-            size="lg"
-            data-testid="button-create-post"
-          >
-            <Plus className="mr-2 h-5 w-5" />
-            Share Something Amazing
-          </Button>
+          {/* Create Post Button - Only in My Posts Tab */}
+          {feedType === 'my-posts' && (
+            <Button
+              onClick={() => setCreatePostOpen(true)}
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold"
+              size="lg"
+              data-testid="button-create-post"
+            >
+              <Plus className="mr-2 h-5 w-5" />
+              Share Something Amazing
+            </Button>
+          )}
 
           {/* Posts Feed */}
           <div className="space-y-4">
@@ -170,13 +158,19 @@ export default function StudentHome() {
             ) : posts.length === 0 ? (
               <Card className="p-12 text-center">
                 <Sparkles className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                <h3 className="font-semibold text-lg mb-2">No posts yet</h3>
+                <h3 className="font-semibold text-lg mb-2">
+                  {feedType === 'my-posts' ? 'No posts yet' : 'No posts available'}
+                </h3>
                 <p className="text-muted-foreground mb-4">
-                  Be the first to share something with the community!
+                  {feedType === 'my-posts' 
+                    ? 'Be the first to share something with the community!' 
+                    : 'Check back soon or follow more users for personalized content!'}
                 </p>
-                <Button onClick={() => setCreatePostOpen(true)} data-testid="button-create-first-post">
-                  Create Your First Post
-                </Button>
+                {feedType === 'my-posts' && (
+                  <Button onClick={() => setCreatePostOpen(true)} data-testid="button-create-first-post">
+                    Create Your First Post
+                  </Button>
+                )}
               </Card>
             ) : (
               posts.map((post) => <PostCard key={post.id} post={post} />)

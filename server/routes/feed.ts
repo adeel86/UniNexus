@@ -144,8 +144,8 @@ router.get("/feed/personalized", async (req: Request, res: Response) => {
     
     const followedIds = followedUsers.map(f => f.followingId);
     
-    // For You includes network (following) and own posts
-    const allowedIds = [...followedIds, currentUser.id];
+    // For You shows posts from followed users only (not user's own posts)
+    const allowedIds = followedIds;
     
     let query = db
       .select({

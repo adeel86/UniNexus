@@ -112,14 +112,10 @@ export default function TeacherDashboard() {
 
         <TabsContent value="feed">
           <Tabs defaultValue="for-you" className="w-full">
-            <TabsList className="grid w-full grid-cols-3 mb-4">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
               <TabsTrigger value="for-you" className="gap-2">
                 <Sparkles className="h-4 w-4" />
                 For You
-              </TabsTrigger>
-              <TabsTrigger value="following" className="gap-2">
-                <Users className="h-4 w-4" />
-                Following
               </TabsTrigger>
               <TabsTrigger value="my-posts" className="gap-2">
                 <MessageCircle className="h-4 w-4" />
@@ -129,10 +125,16 @@ export default function TeacherDashboard() {
             <TabsContent value="for-you">
               <UniversalFeed role="teacher" initialCategory="academic" feedType="personalized" />
             </TabsContent>
-            <TabsContent value="following">
-              <UniversalFeed role="teacher" initialCategory="academic" feedType="following" />
-            </TabsContent>
             <TabsContent value="my-posts">
+              <Button
+                onClick={handleCreatePost}
+                className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold mb-4"
+                size="lg"
+                data-testid="button-create-post"
+              >
+                <Plus className="mr-2 h-5 w-5" />
+                Share Something Amazing
+              </Button>
               <UniversalFeed role="teacher" showOnlyOwnPosts={true} feedType="my-posts" />
             </TabsContent>
           </Tabs>

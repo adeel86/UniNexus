@@ -6,7 +6,7 @@ import { CreatePostModal } from "@/components/CreatePostModal";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, TrendingUp, Users, Trophy, Play } from "lucide-react";
+import { Plus, TrendingUp, Users, Trophy, Play, MessageCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 type PostWithAuthor = Post & {
@@ -19,7 +19,7 @@ interface UniversalFeedProps {
   role: string;
   initialCategory?: string;
   showOnlyOwnPosts?: boolean;
-  feedType?: 'personalized' | 'following' | 'my-posts';
+  feedType?: 'personalized' | 'my-posts';
 }
 
 export function UniversalFeed({ 
@@ -31,7 +31,7 @@ export function UniversalFeed({
   const { userData: user } = useAuth();
   const [createPostOpen, setCreatePostOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [feedType, setFeedType] = useState<'personalized' | 'following' | 'my-posts'>(initialFeedType || (showOnlyOwnPosts ? 'my-posts' : 'personalized'));
+  const [feedType, setFeedType] = useState<'personalized' | 'my-posts'>(initialFeedType || (showOnlyOwnPosts ? 'my-posts' : 'personalized'));
 
   // My Posts logic
   const myPostsUrl = selectedCategory && selectedCategory !== 'all'
@@ -53,18 +53,8 @@ export function UniversalFeed({
     enabled: !showOnlyOwnPosts && feedType === 'personalized',
   });
 
-  // Following feed (chronological from followed users only)
-  const followingUrl = selectedCategory && selectedCategory !== 'all'
-    ? `/api/feed/following?category=${selectedCategory}`
-    : `/api/feed/following`;
-  
-  const { data: followingPosts = [], isLoading: isLoadingFollowing } = useQuery<PostWithAuthor[]>({
-    queryKey: [followingUrl],
-    enabled: !showOnlyOwnPosts && feedType === 'following',
-  });
-
-  const posts = feedType === 'my-posts' ? myPosts : (feedType === 'personalized' ? personalizedPosts : followingPosts);
-  const isLoading = feedType === 'my-posts' ? isLoadingMyPosts : (feedType === 'personalized' ? isLoadingPersonalized : isLoadingFollowing);
+  const posts = feedType === 'my-posts' ? myPosts : personalizedPosts;
+  const isLoading = feedType === 'my-posts' ? isLoadingMyPosts : isLoadingPersonalized;
 
   const categories = [
     { value: "all", label: "All Posts", icon: TrendingUp },
@@ -77,28 +67,17 @@ export function UniversalFeed({
 
   return (
     <div className="space-y-4">
-      {!showOnlyOwnPosts && (
-        <Card className="p-4 border-dashed border-2 hover:border-primary/50 transition-colors cursor-pointer" onClick={() => setCreatePostOpen(true)}>
-          <div className="flex items-center gap-4">
-            <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-              <Plus className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <span className="text-muted-foreground font-medium">Share something with the community...</span>
-          </div>
-        </Card>
-      )}
-
       {/* Feed Type Toggle */}
       {(!showOnlyOwnPosts && !initialFeedType) && (
-        <Tabs value={feedType} onValueChange={(v) => setFeedType(v as 'personalized' | 'following' | 'my-posts')}>
+        <Tabs value={feedType} onValueChange={(v) => setFeedType(v as 'personalized' | 'my-posts')}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="personalized" data-testid="tab-personalized">
               <TrendingUp className="h-4 w-4 mr-2" />
               For You
             </TabsTrigger>
-            <TabsTrigger value="following" data-testid="tab-following">
-              <Users className="h-4 w-4 mr-2" />
-              Following
+            <TabsTrigger value="my-posts" data-testid="tab-my-posts">
+              <MessageCircle className="h-4 w-4 mr-2" />
+              My Posts
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -147,7 +126,9 @@ export function UniversalFeed({
       ) : posts.length === 0 ? (
         <Card className="p-8 text-center">
           <p className="text-muted-foreground">
-            No posts yet. {feedType === 'following' ? 'Follow some users to see their posts here!' : 'Be the first to post!'}
+            {feedType === 'my-posts' 
+              ? "No posts yet. Be the first to share something with the community!" 
+              : 'No posts available. Check back soon or follow more users!'}
           </p>
         </Card>
       ) : (
