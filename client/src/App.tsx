@@ -13,6 +13,7 @@ import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import ForgotPassword from "@/pages/ForgotPassword";
+import ResetPassword from "@/pages/ResetPassword";
 import StudentHome from "@/pages/StudentHome";
 import MobileHome from "@/pages/MobileHome";
 import CareerBotPage from "@/pages/CareerBotPage";
@@ -66,6 +67,7 @@ function Router() {
         <Route path="/login" component={Login} />
         <Route path="/register" component={Register} />
         <Route path="/forgot-password" component={ForgotPassword} />
+        <Route path="/reset-password" component={ResetPassword} />
         {/* Public verification route */}
         <Route path="/verify/:hash" component={VerifyCertificate} />
         <Route component={Login} />
