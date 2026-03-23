@@ -12,6 +12,7 @@ import { Bell, Lock, User, Shield, AlertTriangle, Trash2 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { Autocomplete, type AutocompleteOption } from "@/components/Autocomplete";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,8 +34,12 @@ export default function Settings() {
   const [firstName, setFirstName] = useState(userData?.firstName || "");
   const [lastName, setLastName] = useState(userData?.lastName || "");
   const [email, setEmail] = useState(userData?.email || "");
-  const [university, setUniversity] = useState(userData?.university || "");
-  const [major, setMajor] = useState(userData?.major || "");
+  const [university, setUniversity] = useState<AutocompleteOption | null>(
+    userData?.university ? { id: userData?.universityId || userData.university, name: userData.university } : null
+  );
+  const [major, setMajor] = useState<AutocompleteOption | null>(
+    userData?.major ? { id: userData?.majorId || userData.major, name: userData.major } : null
+  );
   
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -126,8 +131,10 @@ export default function Settings() {
         firstName,
         lastName,
         email,
-        university,
-        major,
+        university: university?.name || null,
+        universityId: university?.id || null,
+        major: major?.name || null,
+        majorId: major?.id || null,
       });
 
       queryClient.invalidateQueries({ queryKey: ["auth-user"] });
@@ -351,25 +358,35 @@ export default function Settings() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="university">University</Label>
-                <Input 
-                  id="university" 
-                  value={university}
-                  onChange={(e) => setUniversity(e.target.value)}
-                  data-testid="input-university"
-                />
-              </div>
+              {(userData?.role === 'student' || userData?.role === 'teacher' || userData?.role === 'university_admin') && (
+                <div className="space-y-2">
+                  <Label>University</Label>
+                  <Autocomplete
+                    placeholder="Search your university..."
+                    value={university}
+                    onChange={(option) => setUniversity(option)}
+                    onCustomEntry={(text) => setUniversity({ id: text, name: text })}
+                    searchEndpoint="/api/universities/search"
+                    allowCustomEntry={true}
+                    testId="autocomplete-university"
+                  />
+                </div>
+              )}
 
-              <div className="space-y-2">
-                <Label htmlFor="major">Major</Label>
-                <Input 
-                  id="major" 
-                  value={major}
-                  onChange={(e) => setMajor(e.target.value)}
-                  data-testid="input-major"
-                />
-              </div>
+              {(userData?.role === 'student' || userData?.role === 'teacher') && (
+                <div className="space-y-2">
+                  <Label>Major / Field of Study</Label>
+                  <Autocomplete
+                    placeholder="Search your major..."
+                    value={major}
+                    onChange={(option) => setMajor(option)}
+                    onCustomEntry={(text) => setMajor({ id: text, name: text })}
+                    searchEndpoint="/api/majors/search"
+                    allowCustomEntry={true}
+                    testId="autocomplete-major"
+                  />
+                </div>
+              )}
 
               <Separator />
 

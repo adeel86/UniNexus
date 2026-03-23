@@ -405,7 +405,7 @@ router.patch("/users/profile", requireAuth, async (req: Request, res: Response) 
   try {
     const userId = req.user!.id;
 
-    const { firstName, lastName, email, university, major } = req.body;
+    const { firstName, lastName, email, university, universityId, major, majorId } = req.body;
 
     const [updated] = await db
       .update(users)
@@ -413,8 +413,10 @@ router.patch("/users/profile", requireAuth, async (req: Request, res: Response) 
         firstName,
         lastName,
         email,
-        university,
-        major,
+        university: university ?? undefined,
+        universityId: universityId ?? undefined,
+        major: major ?? undefined,
+        majorId: majorId ?? undefined,
         updatedAt: new Date(),
       })
       .where(eq(users.id, userId))

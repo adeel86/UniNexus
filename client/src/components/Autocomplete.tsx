@@ -115,8 +115,8 @@ export function Autocomplete({
       try {
         // Determine the endpoint based on searchEndpoint
         const endpoint = searchEndpoint.includes('universities') 
-          ? '/api/courses/universities'
-          : '/api/courses/majors';
+          ? '/api/universities'
+          : '/api/majors';
         
         const response = await fetch(endpoint, {
           method: 'POST',

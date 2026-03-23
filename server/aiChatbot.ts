@@ -60,7 +60,7 @@ export async function extractTextFromPDF(buffer: Buffer): Promise<string | null>
       .map((line: string) => line.trim())
       .filter((line: string) => line.length > 0)
       .join('\n')
-      .substring(0, 8000);
+      .substring(0, 15000);
     
     if (!text || text.length === 0) {
       console.debug("PDF has no extractable text");
@@ -94,7 +94,7 @@ export async function extractTextFromWord(buffer: Buffer, filename: string): Pro
           .map((line: string) => line.trim())
           .filter((line: string) => line.length > 0)
           .join('\n')
-          .substring(0, 8000);
+          .substring(0, 15000);
         
         if (text && text.length > 0) {
           return text;
@@ -423,32 +423,43 @@ export async function generateChatResponse(
     .from(teacherContent)
     .where(eq(teacherContent.courseId, courseId));
   
-  // Check chunks in database
+  if (!allContent || allContent.length === 0) {
+    return {
+      answer: `I don't have any course materials for ${courseInfo.name} yet. Please ask your teacher to upload content first.`,
+      citations: [],
+    };
+  }
+
+  // Auto-index any content that has textContent but no chunks yet
   const allChunks = await db
     .select()
     .from(teacherContentChunks)
     .where(eq(teacherContentChunks.courseId, courseId));
-  
+
+  if (allChunks.length === 0) {
+    // Attempt to index any content that has extracted text available
+    const contentWithText = allContent.filter(c => c.textContent && c.textContent.trim().length > 50);
+    if (contentWithText.length > 0) {
+      for (const c of contentWithText) {
+        try {
+          await indexTeacherContent(c.id);
+        } catch (e) {
+          console.error(`[GenerateChatResponse] Auto-index failed for ${c.id}:`, e);
+        }
+      }
+    } else {
+      return {
+        answer: `This topic is not covered in this course material.`,
+        citations: [],
+      };
+    }
+  }
+
   let relevantChunks = await retrieveRelevantChunks(courseId, userMessage);
   
   if (relevantChunks.length === 0) {
-    if (!allContent || allContent.length === 0) {
-      return {
-        answer: `I don't have any course materials for ${courseInfo.name} yet. Please ask your teacher to upload content first.`,
-        citations: [],
-      };
-    }
-
-    if (allChunks.length === 0) {
-      return {
-        answer: `I found materials for ${courseInfo.name}, but they are not yet indexed for searching. Please ask your teacher to re-upload the materials or wait for them to be indexed.`,
-        citations: [],
-      };
-    }
-
-    // If there is content and chunks but no relevant matches
     return {
-      answer: `I found some materials for ${courseInfo.name}, but I couldn't find specific information related to your question: "${userMessage}". Try asking something else or check if the materials cover this topic.`,
+      answer: `This topic is not covered in this course material.`,
       citations: [],
     };
   }
@@ -458,14 +469,14 @@ export async function generateChatResponse(
   );
   const context = contextParts.join("\n\n---\n\n");
   
-  const systemPrompt = `You are a helpful tutor assistant for the course "${courseInfo.name}" (${courseInfo.code}), taught by ${courseInfo.instructorName}.
+  const systemPrompt = `You are a course tutor assistant for "${courseInfo.name}" (${courseInfo.code}), taught by ${courseInfo.instructorName}.
 
-IMPORTANT RULES:
-1. ONLY answer questions using the provided course materials below.
-2. If the answer is not found in the materials, say: "I don't have information about that in the course materials. Please ask your teacher for clarification."
-3. When answering, cite which source you're using (e.g., "According to [Source 1]...").
-4. Be helpful, clear, and educational in your responses.
-5. Do NOT make up information or use knowledge outside of the provided materials.
+CRITICAL RULES:
+1. Answer ONLY using the course materials provided below. Do NOT use outside knowledge.
+2. If the answer is not in the materials, respond with exactly: "This topic is not covered in this course material."
+3. When answering, cite your source (e.g., "According to [Source 1]...").
+4. Be educational, clear, and precise.
+5. Never fabricate or guess information beyond what the materials state.
 
 COURSE MATERIALS:
 ${context}`;
@@ -478,14 +489,22 @@ ${context}`;
     };
   }
 
+  // Load conversation history to maintain multi-turn context
+  const history = await getChatHistory(sessionId);
+  const historyMessages = history
+    .slice(-16) // Keep last 16 messages for context window management
+    .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         { role: "system", content: systemPrompt },
+        ...historyMessages,
         { role: "user", content: userMessage },
       ],
-      max_tokens: 1024,
+      max_tokens: 1500,
+      temperature: 0.3,
     });
     
     const answer = response.choices[0].message.content || "I couldn't generate a response.";

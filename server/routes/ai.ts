@@ -54,7 +54,7 @@ async function extractTextFromPDF(buffer: Buffer): Promise<string | null> {
       .map((line: string) => line.trim())
       .filter((line: string) => line.length > 0)
       .join('\n')
-      .substring(0, 8000); // Increased limit to first 8000 chars for more context
+      .substring(0, 15000);
     
     if (!text || text.length === 0) {
       console.debug("PDF has no extractable text");
@@ -90,7 +90,7 @@ async function extractTextFromWord(buffer: Buffer, filename: string): Promise<st
           .map((line: string) => line.trim())
           .filter((line: string) => line.length > 0)
           .join('\n')
-          .substring(0, 8000);
+          .substring(0, 15000);
         
         if (text && text.length > 0) {
           return text;
@@ -99,18 +99,16 @@ async function extractTextFromWord(buffer: Buffer, filename: string): Promise<st
     }
     
     // For .doc files or fallback: try to extract basic text by converting to string
-    // This is a simple approach that may not work perfectly for all Word documents
     if (filename.endsWith('.doc') || filename.endsWith('.docx')) {
-      // Basic text extraction: Look for readable text patterns in the binary
       const text = buffer
         .toString('latin1')
-        .replace(/[^\x20-\x7E\n\r]/g, ' ') // Keep only printable ASCII
+        .replace(/[^\x20-\x7E\n\r]/g, ' ')
         .split('\n')
         .map((line: string) => line.trim())
-        .filter((line: string) => line.length > 10) // Filter out noise (lines < 10 chars)
-        .slice(0, 200) // Limit to first 200 lines
+        .filter((line: string) => line.length > 10)
+        .slice(0, 400)
         .join('\n')
-        .substring(0, 8000);
+        .substring(0, 15000);
       
       if (text && text.length > 100) {
         console.debug("Word document: basic text extraction successful");
@@ -292,44 +290,55 @@ router.post("/api/ai/personal-tutor/chat", requireAuth, async (req: Request, res
 
     // Get context: Student profile and materials
     const materials = await storage.getPersonalTutorMaterials(req.user!.id);
-    // Build context including both text-extracted and non-extracted materials
-    const materialsContext = materials
-      .map(m => {
-        if (m.textContent && m.textContent.trim().length > 0) {
-          return `\n📄 Material: ${m.fileName}\n${m.textContent.substring(0, 3000)}`;
-        } else {
-          return `\n📄 Document uploaded: ${m.fileName} (${m.fileType || 'document'})`;
-        }
-      })
-      .join('\n');
-    
-    const hasExtractedContent = materials.some(m => m.textContent && m.textContent.trim().length > 0);
-    const contextText = materialsContext || '\nNo materials uploaded yet.';
+
+    // Build materials context — include as much text as possible
+    const materialsContext = materials.length === 0
+      ? '\n[No materials uploaded yet.]'
+      : materials
+          .map(m => {
+            if (m.textContent && m.textContent.trim().length > 0) {
+              return `\n--- Document: ${m.fileName} ---\n${m.textContent.substring(0, 12000)}`;
+            } else {
+              return `\n--- Document: ${m.fileName} (${m.fileType || 'document'}) ---\n[Text could not be extracted from this file]`;
+            }
+          })
+          .join('\n\n');
 
     const systemPrompt = `You are a Personal Academic Tutor for ${req.user!.firstName} ${req.user!.lastName}.
-Level: ${req.user!.major || 'Student'} at ${req.user!.university || 'University'}.
-Mode: ${mode || 'Explain'}
+Student level: ${req.user!.major || 'Student'} at ${req.user!.university || 'University'}.
+Current mode: ${mode || 'Explain'}
 
-IMPORTANT: You have access to the student's uploaded materials provided below. When the student asks you to summarize, explain, or work with these materials, YOU CAN AND SHOULD USE THEM DIRECTLY.
-
-Your goal is to be a private, knowledgeable tutor. Adapt to the student's level and learning mode.
+CRITICAL RULES:
+1. Your answers MUST be based ONLY on the student's uploaded materials below.
+2. Do NOT use any knowledge outside of the provided documents.
+3. If the student's question cannot be answered from the uploaded materials, respond with: "This information is not found in your uploaded material."
+4. When you answer, reference the specific document and section you are drawing from.
 
 Respond according to the current mode:
-- Explain: Break down concepts clearly with examples
-- Practice: Provide exercises and problems related to the topic
-- Quiz: Test the student's knowledge with questions
-- Revision: Provide summaries and key points
+- Explain: Break down concepts clearly with examples drawn from the materials
+- Practice: Create exercises and problems based on the materials content
+- Quiz: Test the student using questions directly from the materials
+- Revision: Summarise key points from the materials
 
-STUDENT'S UPLOADED MATERIALS (use these to answer questions):${contextText}`;
+STUDENT'S UPLOADED MATERIALS:
+${materialsContext}`;
 
+    // Load conversation history for this session to maintain context
+    const previousMessages = await storage.getPersonalTutorMessages(sessionId);
+    const historyMessages = previousMessages
+      .filter(m => m.role === 'user' || m.role === 'assistant')
+      .slice(-20) // Keep last 20 messages for context window management
+      .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         { role: "system", content: systemPrompt },
+        ...historyMessages,
         { role: "user", content: message },
       ],
-      temperature: 0.7,
+      temperature: 0.5,
+      max_tokens: 1500,
     });
 
     const assistantContent = completion.choices[0]?.message?.content || "I'm sorry, I couldn't process that.";

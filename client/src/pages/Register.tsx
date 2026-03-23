@@ -85,7 +85,10 @@ export default function Register() {
         additionalData.major = data.major || null;
       } else if (data.role === 'industry_professional') {
         additionalData.company = data.company || '';
-      } else if (data.role === 'teacher' || data.role === 'university_admin') {
+      } else if (data.role === 'teacher') {
+        additionalData.university = data.university || null;
+        additionalData.major = data.major || null;
+      } else if (data.role === 'university_admin') {
         additionalData.university = data.university || null;
       }
 
@@ -247,7 +250,7 @@ export default function Register() {
                             // Store as object with name property
                             field.onChange({ id: text, name: text });
                           }}
-                          searchEndpoint="/api/courses/universities/search"
+                          searchEndpoint="/api/universities/search"
                           allowCustomEntry={true}
                           testId="autocomplete-university"
                         />
@@ -258,7 +261,7 @@ export default function Register() {
                 />
               )}
 
-              {selectedRole === 'student' && (
+              {(selectedRole === 'student' || selectedRole === 'teacher') && (
                 <FormField
                   control={form.control}
                   name="major"
@@ -271,10 +274,9 @@ export default function Register() {
                           value={field.value as AutocompleteOption | null}
                           onChange={(option) => field.onChange(option)}
                           onCustomEntry={(text) => {
-                            // Store as object with name property
                             field.onChange({ id: text, name: text });
                           }}
-                          searchEndpoint="/api/courses/majors/search"
+                          searchEndpoint="/api/majors/search"
                           allowCustomEntry={true}
                           testId="autocomplete-major"
                         />

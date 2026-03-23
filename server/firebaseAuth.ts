@@ -193,6 +193,47 @@ export async function setupAuth(app: Express): Promise<void> {
 
       // Production Firebase verification (non-fatal)
       if (!firebaseAdmin) {
+        // If Firebase Admin is not configured but dev auth is enabled,
+        // decode the Firebase ID token without verification to identify the user
+        if (DEV_AUTH_ENABLED) {
+          try {
+            const decoded = jwt.decode(token) as { sub?: string; uid?: string; email?: string; user_id?: string } | null;
+            if (decoded) {
+              const firebaseUid = decoded.sub || decoded.uid || decoded.user_id;
+              let user;
+              if (firebaseUid) {
+                user = await storage.getUserByFirebaseUid(firebaseUid);
+              }
+              if (!user && decoded.email) {
+                user = await storage.getUserByEmail(decoded.email);
+              }
+              if (user) {
+                req.user = {
+                  id: user.id,
+                  email: user.email || '',
+                  role: user.role,
+                  firstName: user.firstName || '',
+                  lastName: user.lastName || '',
+                  major: user.major || undefined,
+                  university: user.university || undefined,
+                  company: user.company || undefined,
+                  bio: user.bio || undefined,
+                  avatarUrl: user.profileImageUrl || undefined,
+                  engagementScore: user.engagementScore,
+                  problemSolverScore: user.problemSolverScore,
+                  endorsementScore: user.endorsementScore,
+                  challengePoints: user.challengePoints,
+                  totalPoints: user.totalPoints,
+                  rankTier: user.rankTier,
+                  streak: user.streak || 0,
+                };
+                req.isAuthenticated = () => !!req.user;
+              }
+            }
+          } catch (e) {
+            // ignore decode errors in dev mode
+          }
+        }
         return next();
       }
 
@@ -215,6 +256,10 @@ export async function setupAuth(app: Express): Promise<void> {
             engagementScore: user.engagementScore,
             problemSolverScore: user.problemSolverScore,
             endorsementScore: user.endorsementScore,
+            challengePoints: user.challengePoints,
+            totalPoints: user.totalPoints,
+            rankTier: user.rankTier,
+            streak: user.streak || 0,
           };
         } else {
           // minimal info from token
@@ -227,6 +272,10 @@ export async function setupAuth(app: Express): Promise<void> {
             engagementScore: 0,
             problemSolverScore: 0,
             endorsementScore: 0,
+            challengePoints: 0,
+            totalPoints: 0,
+            rankTier: 'bronze',
+            streak: 0,
           };
         }
 
@@ -320,6 +369,44 @@ export const verifyToken = async (
     // Production Firebase authentication
     if (!firebaseAdmin) {
       if (DEV_AUTH_ENABLED) {
+        // Decode Firebase ID token without verification to identify the user in dev mode
+        try {
+          const decoded = jwt.decode(token) as { sub?: string; uid?: string; email?: string; user_id?: string } | null;
+          if (decoded) {
+            const firebaseUid = decoded.sub || decoded.uid || decoded.user_id;
+            let user;
+            if (firebaseUid) {
+              user = await storage.getUserByFirebaseUid(firebaseUid);
+            }
+            if (!user && decoded.email) {
+              user = await storage.getUserByEmail(decoded.email);
+            }
+            if (user) {
+              req.user = {
+                id: user.id,
+                email: user.email || '',
+                role: user.role,
+                firstName: user.firstName || '',
+                lastName: user.lastName || '',
+                major: user.major || undefined,
+                university: user.university || undefined,
+                company: user.company || undefined,
+                bio: user.bio || undefined,
+                avatarUrl: user.profileImageUrl || undefined,
+                engagementScore: user.engagementScore,
+                problemSolverScore: user.problemSolverScore,
+                endorsementScore: user.endorsementScore,
+                challengePoints: user.challengePoints,
+                totalPoints: user.totalPoints,
+                rankTier: user.rankTier,
+                streak: user.streak || 0,
+              };
+              return next();
+            }
+          }
+        } catch (e) {
+          // ignore decode errors in dev mode
+        }
         return next();
       }
       return res.status(503).json({ message: 'Authentication service not configured' });
