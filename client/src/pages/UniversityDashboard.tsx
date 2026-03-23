@@ -305,7 +305,7 @@ export default function UniversityDashboard() {
             </TabsContent>
             <TabsContent value="my-posts">
               <Button
-                onClick={handleCreatePost}
+                onClick={() => setCreatePostOpen(true)}
                 className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold mb-4"
                 size="lg"
                 data-testid="button-create-post"
@@ -480,6 +480,14 @@ export default function UniversityDashboard() {
         onRejectionReasonChange={setRejectionReason}
         onReject={handleReject}
         isPending={rejectCourseMutation.isPending}
+      />
+
+      <CreatePostModal
+        open={createPostOpen}
+        onOpenChange={setCreatePostOpen}
+        initialContent={postInitialValues.content}
+        initialCategory={postInitialValues.category}
+        initialTags={postInitialValues.tags}
       />
     </div>
   );
@@ -765,14 +773,6 @@ function CareerPathwaySection({ careerData, isLoading }: { careerData: any; isLo
           </ResponsiveContainer>
         </Card>
       </div>
-
-      <CreatePostModal
-        open={createPostOpen}
-        onOpenChange={setCreatePostOpen}
-        initialContent={postInitialValues.content}
-        initialCategory={postInitialValues.category}
-        initialTags={postInitialValues.tags}
-      />
     </div>
   );
 }

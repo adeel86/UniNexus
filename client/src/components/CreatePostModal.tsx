@@ -151,10 +151,18 @@ export function CreatePostModal({
       });
     },
     onSuccess: () => {
-      // Invalidate all post-related queries
-      queryClient.invalidateQueries({ queryKey: ["/api/posts"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/feed/personalized"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/feed/following"] });
+      // Invalidate all post-related queries using predicates to match any query key containing these endpoints
+      queryClient.invalidateQueries({
+        predicate: (query) => {
+          const queryKey = query.queryKey[0];
+          if (typeof queryKey === 'string') {
+            return queryKey.startsWith('/api/posts') || 
+                   queryKey.startsWith('/api/feed/personalized') || 
+                   queryKey.startsWith('/api/feed/following');
+          }
+          return false;
+        }
+      });
       toast({ title: "Post created successfully!" });
       setContent("");
       setCategory("social");

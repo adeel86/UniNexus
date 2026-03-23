@@ -101,16 +101,6 @@ export function UniversalFeed({
         </div>
       )}
 
-      {(showOnlyOwnPosts || initialFeedType === 'my-posts') && (
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold font-heading">My Posts</h2>
-          <Button onClick={() => setCreatePostOpen(true)} size="sm">
-            <Plus className="h-4 w-4 mr-2" />
-            New Post
-          </Button>
-        </div>
-      )}
-
       {/* Posts Feed */}
       {isLoading ? (
         <div className="space-y-4">

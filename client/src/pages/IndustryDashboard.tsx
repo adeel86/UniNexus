@@ -117,7 +117,7 @@ export default function IndustryDashboard() {
             </TabsContent>
             <TabsContent value="my-posts">
               <Button
-                onClick={handleCreatePost}
+                onClick={() => setCreatePostOpen(true)}
                 className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold mb-4"
                 size="lg"
                 data-testid="button-create-post"
