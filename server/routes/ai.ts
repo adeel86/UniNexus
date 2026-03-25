@@ -234,6 +234,30 @@ router.post("/api/ai/personal-tutor/sessions", requireAuth, async (req: Request,
   }
 });
 
+router.patch("/api/ai/personal-tutor/sessions/:sessionId", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { sessionId } = req.params;
+    const { title } = req.body;
+    if (!title || typeof title !== "string") {
+      return res.status(400).json({ error: "title is required" });
+    }
+    const session = await db
+      .select()
+      .from(studentPersonalTutorSessions)
+      .where(eq(studentPersonalTutorSessions.id, sessionId));
+    if (session.length === 0) {
+      return res.status(404).json({ error: "Session not found" });
+    }
+    if (session[0].studentId !== req.user!.id) {
+      return res.status(403).json({ error: "Not authorized" });
+    }
+    const updated = await storage.updatePersonalTutorSession(sessionId, title.trim().substring(0, 200));
+    res.json(updated);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || "Failed to rename session" });
+  }
+});
+
 router.delete("/api/ai/personal-tutor/sessions/:sessionId", requireAuth, async (req: Request, res: Response) => {
   try {
     const { sessionId } = req.params;

@@ -99,6 +99,7 @@ export interface IStorage {
   deletePersonalTutorMaterial(id: string): Promise<void>;
   getPersonalTutorSessions(studentId: string): Promise<StudentPersonalTutorSession[]>;
   createPersonalTutorSession(session: InsertStudentPersonalTutorSession): Promise<StudentPersonalTutorSession>;
+  updatePersonalTutorSession(id: string, title: string): Promise<StudentPersonalTutorSession>;
   deletePersonalTutorSession(id: string): Promise<void>;
   // Course Chat Session Uploads
   getAiChatSessionUploads(sessionId: string): Promise<AiChatSessionUpload[]>;
@@ -430,6 +431,15 @@ export class DatabaseStorage implements IStorage {
       .values(session)
       .returning();
     return newSession;
+  }
+
+  async updatePersonalTutorSession(id: string, title: string): Promise<StudentPersonalTutorSession> {
+    const [updated] = await db
+      .update(studentPersonalTutorSessions)
+      .set({ title })
+      .where(eq(studentPersonalTutorSessions.id, id))
+      .returning();
+    return updated;
   }
 
   async deletePersonalTutorSession(id: string): Promise<void> {

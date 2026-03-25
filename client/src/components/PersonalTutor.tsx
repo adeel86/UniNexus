@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
 import {
   Sheet,
   SheetContent,
@@ -24,6 +25,16 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Send,
   Paperclip,
   Plus,
@@ -33,6 +44,9 @@ import {
   ChevronDown,
   MessageSquare,
   Menu,
+  Pencil,
+  Check,
+  X,
 } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -113,10 +127,33 @@ interface SessionListProps {
   activeSessionId: string | null;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
+  onRename: (id: string, newTitle: string) => void;
   onNewChat: () => void;
 }
 
-function SessionList({ sessions, activeSessionId, onSelect, onDelete, onNewChat }: SessionListProps) {
+function SessionList({ sessions, activeSessionId, onSelect, onDelete, onRename, onNewChat }: SessionListProps) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+
+  const startEdit = (e: React.MouseEvent, session: StudentPersonalTutorSession) => {
+    e.stopPropagation();
+    setEditingId(session.id);
+    setEditValue(session.title || "Untitled Chat");
+  };
+
+  const commitEdit = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (editValue.trim()) {
+      onRename(id, editValue.trim());
+    }
+    setEditingId(null);
+  };
+
+  const cancelEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingId(null);
+  };
+
   return (
     <div className="flex flex-col h-full">
       <div className="p-3 border-b">
@@ -146,23 +183,65 @@ function SessionList({ sessions, activeSessionId, onSelect, onDelete, onNewChat 
                     ? "bg-primary/10 text-primary"
                     : "hover:bg-muted"
                 }`}
-                onClick={() => onSelect(s.id)}
+                onClick={() => editingId !== s.id && onSelect(s.id)}
                 data-testid={`session-item-${s.id}`}
               >
                 <MessageSquare className="h-3.5 w-3.5 flex-shrink-0 opacity-60" />
-                <span className="flex-1 truncate text-xs leading-snug">
-                  {s.title || "Untitled Chat"}
-                </span>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDelete(s.id);
-                  }}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                  data-testid={`button-delete-session-${s.id}`}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+
+                {editingId === s.id ? (
+                  <div className="flex-1 flex items-center gap-1 min-w-0" onClick={(e) => e.stopPropagation()}>
+                    <Input
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") commitEdit(e as any, s.id);
+                        if (e.key === "Escape") cancelEdit(e as any);
+                      }}
+                      className="h-6 text-xs px-1 py-0 border-primary/40"
+                      autoFocus
+                      data-testid={`input-rename-session-${s.id}`}
+                    />
+                    <button
+                      onClick={(e) => commitEdit(e, s.id)}
+                      className="flex-shrink-0 text-primary hover:text-primary/80"
+                      data-testid={`button-confirm-rename-${s.id}`}
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={cancelEdit}
+                      className="flex-shrink-0 text-muted-foreground hover:text-foreground"
+                      data-testid={`button-cancel-rename-${s.id}`}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <span className="flex-1 truncate text-xs leading-snug">
+                      {s.title || "Untitled Chat"}
+                    </span>
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
+                      <button
+                        onClick={(e) => startEdit(e, s)}
+                        className="text-muted-foreground hover:text-foreground p-0.5"
+                        data-testid={`button-rename-session-${s.id}`}
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDelete(s.id);
+                        }}
+                        className="text-muted-foreground hover:text-destructive p-0.5"
+                        data-testid={`button-delete-session-${s.id}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>
@@ -170,6 +249,11 @@ function SessionList({ sessions, activeSessionId, onSelect, onDelete, onNewChat 
       </ScrollArea>
     </div>
   );
+}
+
+function generateSessionTitle(message: string): string {
+  const cleaned = message.replace(/^📎 Uploaded:\s*/i, "").trim();
+  return cleaned.length > 60 ? cleaned.substring(0, 57) + "..." : cleaned;
 }
 
 export function PersonalTutor() {
@@ -181,6 +265,7 @@ export function PersonalTutor() {
   const [mode, setMode] = useState<Mode>("Explain");
   const [isUploading, setIsUploading] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -249,11 +334,20 @@ export function PersonalTutor() {
     },
   });
 
-  const ensureSession = async (): Promise<string> => {
+  const renameSessionMutation = useMutation({
+    mutationFn: async ({ id, title }: { id: string; title: string }) => {
+      const res = await apiRequest("PATCH", `/api/ai/personal-tutor/sessions/${id}`, { title });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/ai/personal-tutor/sessions"] });
+    },
+  });
+
+  const ensureSession = async (firstMessage: string): Promise<string> => {
     if (activeSessionId) return activeSessionId;
-    const session = await createSessionMutation.mutateAsync(
-      `${mode} - ${new Date().toLocaleDateString()}`
-    );
+    const title = generateSessionTitle(firstMessage);
+    const session = await createSessionMutation.mutateAsync(title);
     return session.id;
   };
 
@@ -262,7 +356,7 @@ export function PersonalTutor() {
     if (!text || sendMessageMutation.isPending) return;
     setInput("");
     try {
-      const sid = await ensureSession();
+      const sid = await ensureSession(text);
       sendMessageMutation.mutate({ message: text, sessionId: sid });
     } catch {
       toast({ title: "Could not start session", variant: "destructive" });
@@ -282,7 +376,7 @@ export function PersonalTutor() {
     e.target.value = "";
     setIsUploading(true);
     try {
-      const sid = await ensureSession();
+      const sid = await ensureSession(`📎 Uploaded: ${file.name}`);
       const formData = new FormData();
       formData.append("file", file);
       formData.append("sessionId", sid);
@@ -307,13 +401,29 @@ export function PersonalTutor() {
     setMobileMenuOpen(false);
   };
 
+  const handleDeleteRequest = (id: string) => {
+    setDeleteTargetId(id);
+  };
+
+  const handleConfirmDelete = () => {
+    if (deleteTargetId) {
+      deleteSessionMutation.mutate(deleteTargetId);
+    }
+    setDeleteTargetId(null);
+  };
+
+  const handleRename = (id: string, newTitle: string) => {
+    renameSessionMutation.mutate({ id, title: newTitle });
+  };
+
   const isBusy = sendMessageMutation.isPending || isUploading;
 
   const sessionListProps: SessionListProps = {
     sessions,
     activeSessionId,
     onSelect: handleSelectSession,
-    onDelete: (id) => deleteSessionMutation.mutate(id),
+    onDelete: handleDeleteRequest,
+    onRename: handleRename,
     onNewChat: handleNewChat,
   };
 
@@ -326,6 +436,28 @@ export function PersonalTutor() {
         ref={fileInputRef}
         accept=".pdf,.doc,.docx,.txt"
       />
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={!!deleteTargetId} onOpenChange={(open) => !open && setDeleteTargetId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this chat?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the chat and all uploaded files associated with it. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete"
+            >
+              Yes, Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Desktop Sidebar */}
       {!isMobile && (

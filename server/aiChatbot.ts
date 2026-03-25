@@ -650,14 +650,7 @@ export async function getUserSessions(userId: string, courseId: string): Promise
 }
 
 export async function getContentChunkCount(courseId: string): Promise<number> {
-  // Check both chunks and raw content to be safe
-  const [chunkCount] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(teacherContentChunks)
-    .where(eq(teacherContentChunks.courseId, courseId));
-  
-  if (Number(chunkCount?.count || 0) > 0) return Number(chunkCount.count);
-
+  // Return count of distinct uploaded documents (not chunks) for accurate display
   const [contentCount] = await db
     .select({ count: sql<number>`count(*)` })
     .from(teacherContent)
