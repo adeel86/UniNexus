@@ -1,47 +1,206 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
-import { BookOpen, Upload, Send, MessageSquare, BrainCircuit, GraduationCap, Trash2 } from "lucide-react";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Send,
+  Paperclip,
+  Plus,
+  Trash2,
+  BrainCircuit,
+  FileText,
+  ChevronDown,
+  MessageSquare,
+  Menu,
+} from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { StudentPersonalTutorMaterial, StudentPersonalTutorSession, StudentPersonalTutorMessage } from "@shared/schema";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { StudentPersonalTutorSession, StudentPersonalTutorMessage } from "@shared/schema";
+
+const MODES = ["Explain", "Practice", "Quiz", "Revision"] as const;
+type Mode = typeof MODES[number];
+
+function isFileMessage(content: string) {
+  return content.startsWith("📎 Uploaded:");
+}
+
+function FileMessageCard({ fileName }: { fileName: string }) {
+  return (
+    <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-xl px-4 py-3 max-w-xs">
+      <FileText className="h-5 w-5 text-primary flex-shrink-0" />
+      <span className="text-sm font-medium truncate">{fileName}</span>
+    </div>
+  );
+}
+
+function MessageBubble({ message }: { message: StudentPersonalTutorMessage }) {
+  const isUser = message.role === "user";
+  const isFile = isFileMessage(message.content);
+  const fileName = isFile ? message.content.replace("📎 Uploaded: ", "") : null;
+
+  return (
+    <div className={`flex gap-3 ${isUser ? "flex-row-reverse" : "flex-row"}`}>
+      {!isUser && (
+        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center mt-1">
+          <BrainCircuit className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+        </div>
+      )}
+      <div className={`max-w-[80%] flex flex-col ${isUser ? "items-end" : "items-start"}`}>
+        {isFile && fileName ? (
+          <FileMessageCard fileName={fileName} />
+        ) : (
+          <div
+            className={`px-4 py-3 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed ${
+              isUser
+                ? "bg-primary text-primary-foreground rounded-tr-sm"
+                : "bg-muted/70 border border-border/50 rounded-tl-sm"
+            }`}
+          >
+            {message.content}
+          </div>
+        )}
+        <span className="text-[11px] text-muted-foreground mt-1 px-1">
+          {message.createdAt
+            ? new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+            : ""}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function TypingIndicator() {
+  return (
+    <div className="flex gap-3">
+      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center">
+        <BrainCircuit className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+      </div>
+      <div className="bg-muted/70 border border-border/50 rounded-2xl rounded-tl-sm px-4 py-3">
+        <div className="flex gap-1 items-center h-4">
+          <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce [animation-delay:0ms]" />
+          <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce [animation-delay:150ms]" />
+          <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce [animation-delay:300ms]" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface SessionListProps {
+  sessions: StudentPersonalTutorSession[];
+  activeSessionId: string | null;
+  onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
+  onNewChat: () => void;
+}
+
+function SessionList({ sessions, activeSessionId, onSelect, onDelete, onNewChat }: SessionListProps) {
+  return (
+    <div className="flex flex-col h-full">
+      <div className="p-3 border-b">
+        <Button
+          onClick={onNewChat}
+          variant="outline"
+          size="sm"
+          className="w-full gap-2 justify-start"
+          data-testid="button-new-chat"
+        >
+          <Plus className="h-4 w-4" />
+          New Chat
+        </Button>
+      </div>
+      <ScrollArea className="flex-1 px-2 py-2">
+        {sessions.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-8 px-2">
+            No chats yet. Start one!
+          </p>
+        ) : (
+          <div className="space-y-1">
+            {sessions.map((s) => (
+              <div
+                key={s.id}
+                className={`group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer text-sm transition-colors ${
+                  activeSessionId === s.id
+                    ? "bg-primary/10 text-primary"
+                    : "hover:bg-muted"
+                }`}
+                onClick={() => onSelect(s.id)}
+                data-testid={`session-item-${s.id}`}
+              >
+                <MessageSquare className="h-3.5 w-3.5 flex-shrink-0 opacity-60" />
+                <span className="flex-1 truncate text-xs leading-snug">
+                  {s.title || "Untitled Chat"}
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(s.id);
+                  }}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                  data-testid={`button-delete-session-${s.id}`}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </ScrollArea>
+    </div>
+  );
+}
 
 export function PersonalTutor() {
   const { userData: user } = useAuth();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [input, setInput] = useState("");
-  const [mode, setMode] = useState("Explain");
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [mode, setMode] = useState<Mode>("Explain");
   const [isUploading, setIsUploading] = useState(false);
-
-  const { data: materials = [] } = useQuery<StudentPersonalTutorMaterial[]>({
-    queryKey: ["/api/ai/personal-tutor/materials"],
-  });
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { data: sessions = [] } = useQuery<StudentPersonalTutorSession[]>({
     queryKey: ["/api/ai/personal-tutor/sessions"],
   });
 
-  // Filter sessions by current mode to keep tabs separate
-  const filteredSessions = sessions.filter(s => s.mode === mode);
-
-  const { data: messages = [], refetch: refetchMessages } = useQuery<StudentPersonalTutorMessage[]>({
+  const { data: messages = [] } = useQuery<StudentPersonalTutorMessage[]>({
     queryKey: ["/api/ai/personal-tutor/sessions", activeSessionId, "messages"],
     enabled: !!activeSessionId,
-    staleTime: 0, // Always consider data stale, allow refetch
+    staleTime: 0,
   });
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isUploading]);
 
   const createSessionMutation = useMutation({
     mutationFn: async (title: string) => {
@@ -51,79 +210,28 @@ export function PersonalTutor() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/ai/personal-tutor/sessions"] });
       setActiveSessionId(data.id);
+      return data;
     },
   });
 
   const sendMessageMutation = useMutation({
     mutationFn: async (params: { message: string; sessionId: string }) => {
-      const { message, sessionId } = params;
       const res = await apiRequest("POST", "/api/ai/personal-tutor/chat", {
-        sessionId,
-        message,
+        sessionId: params.sessionId,
+        message: params.message,
         mode,
       });
       return res.json();
     },
-    onSuccess: (messages: StudentPersonalTutorMessage[], variables) => {
-      // Update the cache with all messages from the server
+    onSuccess: (msgs: StudentPersonalTutorMessage[], variables) => {
       queryClient.setQueryData(
         ["/api/ai/personal-tutor/sessions", variables.sessionId, "messages"],
-        messages
+        msgs
       );
-      setInput("");
+      queryClient.invalidateQueries({ queryKey: ["/api/ai/personal-tutor/sessions"] });
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to send message",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const uploadMutation = useMutation({
-    mutationFn: async (file: File) => {
-      setIsUploading(true);
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await apiRequest("POST", "/api/ai/personal-tutor/materials", formData);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/ai/personal-tutor/materials"] });
-      toast({
-        title: "Success",
-        description: "Material uploaded successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Upload failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-    onSettled: () => setIsUploading(false),
-  });
-
-  const deleteMaterialMutation = useMutation({
-    mutationFn: async (materialId: string) => {
-      const res = await apiRequest("DELETE", `/api/ai/personal-tutor/materials/${materialId}`);
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/ai/personal-tutor/materials"] });
-      toast({
-        title: "Success",
-        description: "Material deleted successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Delete failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: error.message || "Failed to send message", variant: "destructive" });
     },
   });
 
@@ -132,255 +240,249 @@ export function PersonalTutor() {
       const res = await apiRequest("DELETE", `/api/ai/personal-tutor/sessions/${sessionId}`);
       return res.json();
     },
-    onSuccess: (data, deletedSessionId) => {
+    onSuccess: (_, deletedId) => {
       queryClient.invalidateQueries({ queryKey: ["/api/ai/personal-tutor/sessions"] });
-      // Clear active session if the deleted one was active
-      if (activeSessionId === deletedSessionId) {
+      if (activeSessionId === deletedId) {
         setActiveSessionId(null);
       }
-      toast({
-        title: "Success",
-        description: "Chat deleted successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Delete failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast({ title: "Chat deleted" });
     },
   });
 
-  const handleSend = () => {
-    if (!input.trim() || sendMessageMutation.isPending) return;
-    
-    if (!activeSessionId) {
-      createSessionMutation.mutate(input.substring(0, 30) + "...", {
-        onSuccess: (session) => {
-          // Send message with the new session ID
-          sendMessageMutation.mutate({ message: input, sessionId: session.id });
-        }
-      });
-    } else {
-      sendMessageMutation.mutate({ message: input, sessionId: activeSessionId });
+  const ensureSession = async (): Promise<string> => {
+    if (activeSessionId) return activeSessionId;
+    const session = await createSessionMutation.mutateAsync(
+      `${mode} - ${new Date().toLocaleDateString()}`
+    );
+    return session.id;
+  };
+
+  const handleSend = async () => {
+    const text = input.trim();
+    if (!text || sendMessageMutation.isPending) return;
+    setInput("");
+    try {
+      const sid = await ensureSession();
+      sendMessageMutation.mutate({ message: text, sessionId: sid });
+    } catch {
+      toast({ title: "Could not start session", variant: "destructive" });
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      uploadMutation.mutate(file);
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
     }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setIsUploading(true);
+    try {
+      const sid = await ensureSession();
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("sessionId", sid);
+      const uploadRes = await apiRequest("POST", "/api/ai/personal-tutor/materials", formData);
+      if (!uploadRes.ok) throw new Error("Upload failed");
+      sendMessageMutation.mutate({ message: `📎 Uploaded: ${file.name}`, sessionId: sid });
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleNewChat = () => {
+    setActiveSessionId(null);
+    setInput("");
+    setMobileMenuOpen(false);
+  };
+
+  const handleSelectSession = (id: string) => {
+    setActiveSessionId(id);
+    setMobileMenuOpen(false);
+  };
+
+  const isBusy = sendMessageMutation.isPending || isUploading;
+
+  const sessionListProps: SessionListProps = {
+    sessions,
+    activeSessionId,
+    onSelect: handleSelectSession,
+    onDelete: (id) => deleteSessionMutation.mutate(id),
+    onNewChat: handleNewChat,
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 h-full min-h-0">
-      {/* Sidebar */}
-      <div className="md:col-span-1 space-y-4 h-full min-h-0 overflow-hidden flex flex-col">
-        <Card className="flex-1 flex flex-col overflow-hidden">
-          <CardHeader className="shrink-0">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <BookOpen className="h-5 w-5" />
-              Materials
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex-1 flex flex-col min-h-0">
-            <input
-              type="file"
-              className="hidden"
-              onChange={handleFileChange}
-              ref={fileInputRef}
-              accept=".pdf,.doc,.docx,.txt"
-            />
-            <Button 
-              className="w-full justify-start gap-2 mb-4 shrink-0" 
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-            >
-              <Upload className="h-4 w-4" />
-              {isUploading ? "Uploading..." : "Upload Material"}
-            </Button>
-            <div className="flex-1 flex flex-col gap-6 min-h-0">
-              <div className="flex-1 flex flex-col min-h-0">
-                <ScrollArea className="flex-1">
-                  {materials.length === 0 ? (
-                    <p className="text-sm text-muted-foreground italic">No materials uploaded</p>
-                  ) : (
-                    materials.map((m) => (
-                      <ContextMenu key={m.id}>
-                        <ContextMenuTrigger asChild>
-                          <div className="text-sm p-2 rounded-md mb-1 border hover:bg-accent transition-colors cursor-context-menu">
-                            <span className="text-xs" title={m.fileName}>{m.fileName}</span>
-                          </div>
-                        </ContextMenuTrigger>
-                        <ContextMenuContent>
-                          <ContextMenuItem
-                            onClick={() => deleteMaterialMutation.mutate(m.id)}
-                            disabled={deleteMaterialMutation.isPending}
-                            className="text-red-600"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete Material
-                          </ContextMenuItem>
-                        </ContextMenuContent>
-                      </ContextMenu>
-                    ))
-                  )}
-                </ScrollArea>
-              </div>
-              <div className="flex-1 flex flex-col min-h-0">
-                <h3 className="text-sm font-semibold mb-2 flex items-center gap-2 shrink-0">
-                  <MessageSquare className="h-4 w-4" />
-                  Recent Chats
-                </h3>
-                <ScrollArea className="flex-1">
-                  {filteredSessions.map((s) => (
-                    <ContextMenu key={s.id}>
-                      <ContextMenuTrigger asChild>
-                        <div
-                          className={`text-sm p-2 rounded-md mb-1 border cursor-context-menu ${
-                            activeSessionId === s.id ? "bg-primary text-primary-foreground" : "hover:bg-accent"
-                          }`}
-                          onClick={() => setActiveSessionId(s.id)}
-                        >
-                          <span className="text-xs">{s.title || "Untitled Chat"}</span>
-                        </div>
-                      </ContextMenuTrigger>
-                      <ContextMenuContent>
-                        <ContextMenuItem
-                          onClick={() => deleteSessionMutation.mutate(s.id)}
-                          disabled={deleteSessionMutation.isPending}
-                          className="text-red-600"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete Chat
-                        </ContextMenuItem>
-                      </ContextMenuContent>
-                    </ContextMenu>
-                  ))}
-                </ScrollArea>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+    <div className="flex h-full min-h-0 bg-background">
+      <input
+        type="file"
+        className="hidden"
+        onChange={handleFileChange}
+        ref={fileInputRef}
+        accept=".pdf,.doc,.docx,.txt"
+      />
+
+      {/* Desktop Sidebar */}
+      {!isMobile && (
+        <div className="w-60 flex-shrink-0 border-r flex flex-col bg-muted/20">
+          <SessionList {...sessionListProps} />
+        </div>
+      )}
 
       {/* Main Chat Area */}
-      <div className="md:col-span-3 flex flex-col gap-4 h-full min-h-0">
-        <Card className="flex-1 flex flex-col overflow-hidden">
-          <CardHeader className="border-b py-3 shrink-0">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                  <BrainCircuit className="h-5 w-5 text-purple-600" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg">Personal AI Tutor</CardTitle>
-                  <p className="text-xs text-muted-foreground">
-                    Level: {user?.major || 'Academic'} Student
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                {["Explain", "Practice", "Quiz", "Revision"].map((m) => (
-                  <Button
-                    key={m}
-                    size="sm"
-                    variant={mode === m ? "default" : "outline"}
-                    onClick={() => {
-                      setMode(m);
-                      setActiveSessionId(null);
-                    }}
-                    className="h-8"
-                  >
-                    {m}
+      <div className="flex-1 flex flex-col min-h-0">
+        {/* Header */}
+        <div className="flex-shrink-0 flex items-center justify-between px-3 sm:px-4 py-3 border-b bg-background">
+          <div className="flex items-center gap-2">
+            {/* Mobile menu trigger */}
+            {isMobile && (
+              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" data-testid="button-mobile-menu">
+                    <Menu className="h-4 w-4" />
                   </Button>
-                ))}
+                </SheetTrigger>
+                <SheetContent side="left" className="w-72 p-0 flex flex-col">
+                  <SheetHeader className="p-4 border-b">
+                    <SheetTitle className="text-left text-sm">Chat History</SheetTitle>
+                  </SheetHeader>
+                  <div className="flex-1 min-h-0">
+                    <SessionList {...sessionListProps} />
+                  </div>
+                </SheetContent>
+              </Sheet>
+            )}
+
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                <BrainCircuit className="h-4 w-4 text-purple-600" />
               </div>
-            </div>
-          </CardHeader>
-          <CardContent className="flex-1 p-0 flex flex-col overflow-hidden min-h-0">
-            <ScrollArea className="flex-1">
-              <div className="p-4">
-                {messages.length === 0 && !activeSessionId ? (
-                  <div className="flex flex-col items-center justify-center h-full text-center space-y-4 pt-12">
-                    <div className="h-12 w-12 bg-primary/10 rounded-full flex items-center justify-center">
-                      <GraduationCap className="h-6 w-6 text-primary" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-lg">Welcome back, {user?.firstName}!</h3>
-                      <p className="text-sm text-muted-foreground max-w-sm">
-                        I'm your personal tutor. I can help you with your {user?.major || 'studies'}. 
-                        What would you like to learn today?
-                      </p>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 w-full max-w-md">
-                      <Button variant="outline" size="sm" onClick={() => setInput("Explain polymorphism in Java")}>
-                        Explain Polymorphism
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => setInput("Test me on recursion")}>
-                        Quiz on Recursion
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {messages.map((m) => (
-                      <div
-                        key={m.id}
-                        className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
-                      >
-                        <div
-                          className={`max-w-[80%] rounded-lg p-3 ${
-                            m.role === "user"
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-muted border"
-                          }`}
-                        >
-                          <p className="text-sm whitespace-pre-wrap">{m.content}</p>
-                        </div>
-                      </div>
-                    ))}
-                    {sendMessageMutation.isPending && input && (
-                      <>
-                        <div className="flex justify-end">
-                          <div className="max-w-[80%] rounded-lg p-3 bg-primary text-primary-foreground">
-                            <p className="text-sm whitespace-pre-wrap">{input}</p>
-                          </div>
-                        </div>
-                        <div className="flex justify-start">
-                          <div className="bg-muted border rounded-lg p-3">
-                            <div className="flex gap-1">
-                              <div className="h-2 w-2 bg-foreground/30 rounded-full animate-bounce" />
-                              <div className="h-2 w-2 bg-foreground/30 rounded-full animate-bounce delay-75" />
-                              <div className="h-2 w-2 bg-foreground/30 rounded-full animate-bounce delay-150" />
-                            </div>
-                          </div>
-                        </div>
-                      </>
-                    )}
-                  </div>
+              <div>
+                <h2 className="font-semibold text-sm leading-tight">Personal AI Tutor</h2>
+                {!isMobile && (
+                  <p className="text-xs text-muted-foreground">
+                    {user?.major || "Academic"} · {user?.university || "University"}
+                  </p>
                 )}
               </div>
-            </ScrollArea>
-            <div className="p-4 border-t bg-background shrink-0">
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Ask your tutor anything..."
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSend()}
-                  className="flex-1"
-                />
-                <Button onClick={handleSend} disabled={sendMessageMutation.isPending || !input.trim()}>
-                  <Send className="h-4 w-4" />
-                </Button>
-              </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-1.5 h-8 text-xs" data-testid="dropdown-mode">
+                {mode}
+                <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {MODES.map((m) => (
+                <DropdownMenuItem
+                  key={m}
+                  onClick={() => setMode(m)}
+                  className={mode === m ? "bg-muted font-medium" : ""}
+                  data-testid={`mode-option-${m}`}
+                >
+                  {m}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Messages */}
+        <ScrollArea className="flex-1 px-3 sm:px-4 py-4">
+          <div className="max-w-3xl mx-auto space-y-4">
+            {messages.length === 0 && !activeSessionId ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center px-4">
+                <div className="w-14 h-14 bg-purple-100 dark:bg-purple-900/30 rounded-2xl flex items-center justify-center mb-4">
+                  <BrainCircuit className="h-7 w-7 text-purple-600" />
+                </div>
+                <h3 className="font-semibold text-base mb-1">
+                  Hi {user?.firstName || "there"}, I'm your AI Tutor!
+                </h3>
+                <p className="text-sm text-muted-foreground max-w-xs mb-5">
+                  Ask me anything or upload a document and I'll answer questions based on it.
+                </p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {[
+                    "Explain Big O notation",
+                    "Quiz me on recursion",
+                    "Summarise my notes",
+                  ].map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      onClick={() => setInput(suggestion)}
+                      className="px-3 py-1.5 text-xs border rounded-full hover:bg-muted transition-colors"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : messages.length === 0 && activeSessionId ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <p className="text-sm text-muted-foreground">Send a message or upload a document to begin.</p>
+              </div>
+            ) : (
+              messages.map((m) => <MessageBubble key={m.id} message={m} />)
+            )}
+
+            {isBusy && <TypingIndicator />}
+            <div ref={messagesEndRef} />
+          </div>
+        </ScrollArea>
+
+        {/* Input Bar */}
+        <div className="flex-shrink-0 border-t bg-background px-3 sm:px-4 py-3">
+          <div className="max-w-3xl mx-auto">
+            <div className="flex items-end gap-2 bg-muted/40 border rounded-2xl px-3 py-2 focus-within:border-primary/50 transition-colors">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isBusy}
+                      className="flex-shrink-0 p-1.5 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+                      data-testid="button-attach-file"
+                    >
+                      <Paperclip className="h-5 w-5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Attach PDF, DOC, or TXT</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <Textarea
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={isUploading ? "Uploading document..." : "Ask your tutor anything..."}
+                disabled={isBusy}
+                rows={1}
+                className="flex-1 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 min-h-[36px] max-h-32 py-1.5 px-0 text-sm"
+                data-testid="textarea-chat-input"
+              />
+
+              <button
+                onClick={handleSend}
+                disabled={!input.trim() || isBusy}
+                className="flex-shrink-0 p-1.5 bg-primary text-primary-foreground rounded-xl disabled:opacity-40 hover:bg-primary/90 transition-colors"
+                data-testid="button-send-message"
+              >
+                <Send className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="text-[10px] text-muted-foreground text-center mt-2">
+              AI may make mistakes. Verify important information.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

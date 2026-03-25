@@ -1,18 +1,43 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Bot, Send, GraduationCap, BookOpen, Sparkles, AlertCircle } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Bot,
+  Send,
+  GraduationCap,
+  BookOpen,
+  Paperclip,
+  FileText,
+  Plus,
+  Trash2,
+  MessageSquare,
+  Menu,
+} from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 
 interface StudentAITutorProps {
@@ -26,6 +51,14 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   citations?: Array<{ contentId: string; title: string; chunkIndex: number }>;
+  createdAt?: string;
+}
+
+interface SessionSummary {
+  id: string;
+  title: string | null;
+  lastMessageAt: string | null;
+  messageCount: number;
 }
 
 interface ChatStatusResponse {
@@ -42,17 +75,137 @@ interface ChatResponse {
   citations: Array<{ contentId: string; title: string; chunkIndex: number }>;
 }
 
+function isFileMessage(content: string) {
+  return content.startsWith("📎 Uploaded:");
+}
+
+function FileMessageCard({ fileName }: { fileName: string }) {
+  return (
+    <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-xl px-4 py-3 max-w-[240px]">
+      <FileText className="h-5 w-5 text-primary flex-shrink-0" />
+      <span className="text-sm font-medium truncate">{fileName}</span>
+    </div>
+  );
+}
+
+function TypingIndicator() {
+  return (
+    <div className="flex gap-3">
+      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center">
+        <Bot className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+      </div>
+      <div className="bg-muted/70 border border-border/50 rounded-2xl rounded-tl-sm px-4 py-3">
+        <div className="flex gap-1 items-center h-4">
+          <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce [animation-delay:0ms]" />
+          <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce [animation-delay:150ms]" />
+          <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce [animation-delay:300ms]" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface SessionPanelProps {
+  sessions: SessionSummary[];
+  sessionId: string | null;
+  onSelect: (id: string) => void;
+  onDelete: (id: string) => void;
+  onNewChat: () => void;
+}
+
+function SessionPanel({ sessions, sessionId, onSelect, onDelete, onNewChat }: SessionPanelProps) {
+  return (
+    <div className="flex flex-col h-full">
+      <div className="p-2 border-b">
+        <Button
+          onClick={onNewChat}
+          variant="outline"
+          size="sm"
+          className="w-full gap-1.5 justify-start text-xs"
+          data-testid="button-new-course-chat"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          New Chat
+        </Button>
+      </div>
+      <ScrollArea className="flex-1 px-1.5 py-1.5">
+        {sessions.length === 0 ? (
+          <p className="text-xs text-muted-foreground text-center py-6 px-2">No chats yet</p>
+        ) : (
+          <div className="space-y-0.5">
+            {sessions.map((s) => (
+              <div
+                key={s.id}
+                className={`group flex items-center gap-1.5 px-2 py-2 rounded-lg cursor-pointer transition-colors ${
+                  sessionId === s.id ? "bg-primary/10 text-primary" : "hover:bg-muted"
+                }`}
+                onClick={() => onSelect(s.id)}
+                data-testid={`course-session-${s.id}`}
+              >
+                <MessageSquare className="h-3 w-3 flex-shrink-0 opacity-60" />
+                <span className="flex-1 text-xs truncate leading-tight">
+                  {s.title || "Chat"}
+                </span>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(s.id);
+                  }}
+                  className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                  data-testid={`button-delete-course-session-${s.id}`}
+                >
+                  <Trash2 className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </ScrollArea>
+    </div>
+  );
+}
+
 export function StudentAITutor({ open, onOpenChange, courseId, courseName }: StudentAITutorProps) {
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: status, isLoading: statusLoading } = useQuery<ChatStatusResponse>({
     queryKey: ["/api/ai/course-chat", courseId, "status"],
     enabled: open && !!courseId,
   });
+
+  const { data: sessions = [], refetch: refetchSessions } = useQuery<SessionSummary[]>({
+    queryKey: ["/api/ai/course-chat", courseId, "sessions"],
+    queryFn: async () => {
+      const res = await fetch(`/api/ai/course-chat/${courseId}/sessions`, { credentials: "include" });
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: open && !!courseId,
+  });
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isUploading]);
+
+  useEffect(() => {
+    if (!open) {
+      setMessages([]);
+      setSessionId(null);
+      setInput("");
+    }
+  }, [open]);
 
   const chatMutation = useMutation({
     mutationFn: async (message: string): Promise<ChatResponse> => {
@@ -65,14 +218,11 @@ export function StudentAITutor({ open, onOpenChange, courseId, courseName }: Stu
     },
     onSuccess: (data) => {
       setSessionId(data.sessionId);
-      setMessages(prev => [
+      setMessages((prev) => [
         ...prev,
-        { 
-          role: "assistant", 
-          content: data.answer,
-          citations: data.citations,
-        }
+        { role: "assistant", content: data.answer, citations: data.citations },
       ]);
+      refetchSessions();
     },
     onError: (error: any) => {
       toast({
@@ -83,215 +233,306 @@ export function StudentAITutor({ open, onOpenChange, courseId, courseName }: Stu
     },
   });
 
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
+  const deleteSessionMutation = useMutation({
+    mutationFn: async (sid: string) => {
+      const res = await apiRequest("DELETE", `/api/ai/course-chat/session/${sid}`);
+      return res.json();
+    },
+    onSuccess: (_, deletedId) => {
+      refetchSessions();
+      if (sessionId === deletedId) {
+        setSessionId(null);
+        setMessages([]);
+      }
+      toast({ title: "Chat deleted" });
+    },
+  });
 
-  useEffect(() => {
-    if (!open) {
+  const loadSession = async (sid: string) => {
+    setSessionId(sid);
+    setMobilePanelOpen(false);
+    try {
+      const res = await fetch(`/api/ai/course-chat/session/${sid}`, { credentials: "include" });
+      if (res.ok) {
+        const msgs = await res.json();
+        setMessages(
+          msgs.map((m: any) => ({
+            role: m.role,
+            content: m.content,
+            createdAt: m.createdAt,
+          }))
+        );
+      }
+    } catch {
       setMessages([]);
-      setSessionId(null);
     }
-  }, [open]);
+  };
+
+  const handleNewChat = () => {
+    setSessionId(null);
+    setMessages([]);
+    setInput("");
+    setMobilePanelOpen(false);
+  };
 
   const handleSend = () => {
-    if (!input.trim()) return;
-
-    setMessages(prev => [...prev, { role: "user", content: input }]);
-    chatMutation.mutate(input);
+    const text = input.trim();
+    if (!text || chatMutation.isPending) return;
+    setMessages((prev) => [...prev, { role: "user", content: text }]);
+    chatMutation.mutate(text);
     setInput("");
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
   };
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    if (!sessionId) {
+      toast({ title: "Send a message first before attaching a file.", variant: "destructive" });
+      return;
+    }
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("sessionId", sessionId);
+      const res = await apiRequest("POST", "/api/ai/course-chat/upload", formData);
+      if (!res.ok) throw new Error("Upload failed");
+      const fileMessage = `📎 Uploaded: ${file.name}`;
+      setMessages((prev) => [...prev, { role: "user", content: fileMessage }]);
+      chatMutation.mutate(fileMessage);
+    } catch (err: any) {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const isReady = status?.isReady ?? false;
-  const hasMaterialsButNotIndexed = !isReady && (status?.indexedChunks || 0) === 0 && status?.courseId;
+  const isBusy = chatMutation.isPending || isUploading;
+
+  const sessionPanelProps: SessionPanelProps = {
+    sessions,
+    sessionId,
+    onSelect: loadSession,
+    onDelete: (id) => deleteSessionMutation.mutate(id),
+    onNewChat: handleNewChat,
+  };
+
+  const chatArea = (
+    <div className="flex-1 flex flex-col min-h-0">
+      {/* Messages */}
+      <ScrollArea className="flex-1 px-3 sm:px-4 py-4">
+        <div className="space-y-4">
+          {messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-10 text-center px-4">
+              {!isReady && (
+                <div className="mb-4 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg px-4 py-2 max-w-xs">
+                  No materials indexed yet — the AI will answer from general knowledge.
+                </div>
+              )}
+              <Bot className="h-12 w-12 text-purple-400 mb-3" />
+              <h3 className="font-semibold mb-1 text-base">Ask your AI Tutor</h3>
+              <p className="text-sm text-muted-foreground max-w-xs mb-4">
+                Questions are answered using your instructor's materials. You can also upload your own documents.
+              </p>
+              <div className="flex flex-wrap justify-center gap-2">
+                {["What are the key topics?", "Explain the main concepts", "What should I study?"].map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => setInput(s)}
+                    className="text-xs px-3 py-1.5 border rounded-full hover:bg-muted transition-colors"
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            messages.map((message, index) => {
+              const isUser = message.role === "user";
+              const isFile = isFileMessage(message.content);
+              const fileName = isFile ? message.content.replace("📎 Uploaded: ", "") : null;
+
+              return (
+                <div
+                  key={index}
+                  className={`flex gap-3 ${isUser ? "flex-row-reverse" : "flex-row"}`}
+                  data-testid={`message-${message.role}-${index}`}
+                >
+                  {!isUser && (
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/40 flex items-center justify-center mt-1">
+                      <Bot className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                    </div>
+                  )}
+                  <div className={`max-w-[80%] sm:max-w-[72%] flex flex-col ${isUser ? "items-end" : "items-start"}`}>
+                    {isFile && fileName ? (
+                      <FileMessageCard fileName={fileName} />
+                    ) : (
+                      <div
+                        className={`px-4 py-3 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed ${
+                          isUser
+                            ? "bg-primary text-primary-foreground rounded-tr-sm"
+                            : "bg-muted/70 border border-border/50 rounded-tl-sm"
+                        }`}
+                      >
+                        {message.content}
+                      </div>
+                    )}
+                    {message.citations && message.citations.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {message.citations.map((cite, i) => (
+                          <Badge
+                            key={i}
+                            variant="secondary"
+                            className="text-[10px] px-2 py-0"
+                            data-testid={`citation-${i}`}
+                          >
+                            <BookOpen className="h-2.5 w-2.5 mr-1" />
+                            {cite.title}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+          {isBusy && <TypingIndicator />}
+          <div ref={messagesEndRef} />
+        </div>
+      </ScrollArea>
+
+      {/* Input Bar */}
+      <div className="flex-shrink-0 border-t bg-background px-3 sm:px-4 py-3">
+        <div className="flex items-end gap-2 bg-muted/40 border rounded-2xl px-3 py-2 focus-within:border-primary/50 transition-colors">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isBusy || !sessionId}
+                  className="flex-shrink-0 p-1.5 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+                  data-testid="button-attach-file"
+                >
+                  <Paperclip className="h-5 w-5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {sessionId ? "Attach PDF, DOC, or TXT" : "Send a message first to attach files"}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <Textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={isUploading ? "Uploading..." : "Ask a question about the course..."}
+            disabled={isBusy}
+            rows={1}
+            className="flex-1 resize-none border-0 bg-transparent shadow-none focus-visible:ring-0 min-h-[36px] max-h-28 py-1.5 px-0 text-sm"
+            data-testid="textarea-chat-input"
+          />
+
+          <button
+            onClick={handleSend}
+            disabled={!input.trim() || isBusy}
+            className="flex-shrink-0 p-1.5 bg-primary text-primary-foreground rounded-xl disabled:opacity-40 hover:bg-primary/90 transition-colors"
+            data-testid="button-send-message"
+          >
+            <Send className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl h-[600px] flex flex-col">
-        <DialogHeader className="flex-shrink-0">
-          <DialogTitle className="flex items-center gap-2">
-            <GraduationCap className="h-5 w-5 text-purple-600" />
-            AI Course Tutor
-            <span className="text-sm font-normal text-muted-foreground">- {courseName}</span>
-          </DialogTitle>
-          {status && (
-            <div className="flex items-center gap-2 mt-2">
-              <Badge variant={isReady ? "default" : (status.indexedChunks > 0 ? "secondary" : "outline")}>
-                <BookOpen className="h-3 w-3 mr-1" />
-                {status.indexedChunks} materials {isReady ? "ready" : "found"}
-              </Badge>
-              <span className="text-xs text-muted-foreground">
-                Instructor: {status.instructorName}
+      <DialogContent
+        className={`flex flex-col p-0 gap-0 overflow-hidden ${
+          isMobile
+            ? "w-full h-full max-w-full max-h-full m-0 rounded-none"
+            : "max-w-4xl h-[680px]"
+        }`}
+      >
+        <input
+          type="file"
+          className="hidden"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+          accept=".pdf,.doc,.docx,.txt"
+        />
+
+        {/* Header */}
+        <DialogHeader className="flex-shrink-0 px-3 sm:px-4 py-3 border-b">
+          <div className="flex items-center justify-between">
+            <DialogTitle className="flex items-center gap-2 text-sm sm:text-base">
+              {/* Mobile sessions drawer */}
+              {isMobile && (
+                <Sheet open={mobilePanelOpen} onOpenChange={setMobilePanelOpen}>
+                  <SheetTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-7 w-7 -ml-1" data-testid="button-mobile-sessions">
+                      <Menu className="h-4 w-4" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="left" className="w-72 p-0 flex flex-col">
+                    <SheetHeader className="p-4 border-b">
+                      <SheetTitle className="text-left text-sm">Chat History</SheetTitle>
+                    </SheetHeader>
+                    <div className="flex-1 min-h-0">
+                      <SessionPanel {...sessionPanelProps} />
+                    </div>
+                  </SheetContent>
+                </Sheet>
+              )}
+
+              <GraduationCap className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600 flex-shrink-0" />
+              <span className="truncate">
+                AI Tutor
+                <span className="hidden sm:inline text-sm font-normal text-muted-foreground ml-1">
+                  — {courseName}
+                </span>
               </span>
-            </div>
-          )}
+            </DialogTitle>
+            {status && (
+              <Badge variant={isReady ? "default" : "outline"} className="text-xs flex-shrink-0">
+                <BookOpen className="h-3 w-3 mr-1" />
+                <span className="hidden sm:inline">{status.indexedChunks} materials</span>
+                <span className="sm:hidden">{status.indexedChunks}</span>
+              </Badge>
+            )}
+          </div>
         </DialogHeader>
 
         {statusLoading ? (
-          <div className="flex-1 flex items-center justify-center">
-            <div className="space-y-4 w-full max-w-sm">
+          <div className="flex-1 flex items-center justify-center p-6">
+            <div className="space-y-3 w-full max-w-xs">
               <Skeleton className="h-4 w-full" />
               <Skeleton className="h-4 w-3/4" />
               <Skeleton className="h-4 w-1/2" />
             </div>
           </div>
-        ) : !isReady && status?.indexedChunks === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-            <AlertCircle className="h-12 w-12 text-muted-foreground mb-4" />
-            <h3 className="font-semibold text-lg mb-2">
-              No Course Materials Available
-            </h3>
-            <p className="text-muted-foreground max-w-md">
-              Your instructor hasn't uploaded any materials for this course yet. 
-              Check back later or ask your instructor to add content.
-            </p>
-          </div>
         ) : (
-          <>
-            <ScrollArea className="flex-1 pr-4" ref={scrollRef}>
-              {!isReady && status && status.indexedChunks > 0 && (
-                <div className="mb-4 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg flex items-start gap-2">
-                  <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
-                  <div className="text-xs text-amber-800 dark:text-amber-200">
-                    <strong>Materials found but not yet indexed.</strong> The AI might have limited information until indexing is complete.
-                  </div>
-                </div>
-              )}
-              {messages.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                  <Sparkles className="h-12 w-12 text-purple-600 mb-4" />
-                  <h3 className="font-semibold text-lg mb-2">
-                    Ask Your AI Tutor
-                  </h3>
-                  <p className="text-muted-foreground max-w-md mb-4">
-                    Get help understanding course concepts. The AI answers using 
-                    only the materials your instructor has provided.
-                  </p>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    <Badge 
-                      variant="outline" 
-                      className="cursor-pointer"
-                      onClick={() => setInput("What are the key topics covered in this course?")}
-                      data-testid="button-suggestion-1"
-                    >
-                      Key topics?
-                    </Badge>
-                    <Badge 
-                      variant="outline" 
-                      className="cursor-pointer"
-                      onClick={() => setInput("Can you explain the main concepts?")}
-                      data-testid="button-suggestion-2"
-                    >
-                      Main concepts?
-                    </Badge>
-                    <Badge 
-                      variant="outline" 
-                      className="cursor-pointer"
-                      onClick={() => setInput("What should I focus on for studying?")}
-                      data-testid="button-suggestion-3"
-                    >
-                      Study tips?
-                    </Badge>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-4 pb-4">
-                  {messages.map((message, index) => (
-                    <div
-                      key={index}
-                      className={`flex gap-3 ${
-                        message.role === "assistant" ? "" : "flex-row-reverse"
-                      }`}
-                      data-testid={`message-${message.role}-${index}`}
-                    >
-                      <div
-                        className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                          message.role === "assistant"
-                            ? "bg-purple-100 dark:bg-purple-900"
-                            : "bg-blue-100 dark:bg-blue-900"
-                        }`}
-                      >
-                        {message.role === "assistant" ? (
-                          <Bot className="h-4 w-4 text-purple-600 dark:text-purple-300" />
-                        ) : (
-                          <span className="text-xs font-medium">You</span>
-                        )}
-                      </div>
-                      <div className="flex-1 space-y-2">
-                        <div
-                          className={`p-3 rounded-lg ${
-                            message.role === "assistant"
-                              ? "bg-muted"
-                              : "bg-primary text-primary-foreground"
-                          }`}
-                        >
-                          <p className="whitespace-pre-wrap text-sm">{message.content}</p>
-                        </div>
-                        {message.citations && message.citations.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {message.citations.map((cite, i) => (
-                              <Badge 
-                                key={i} 
-                                variant="secondary" 
-                                className="text-xs"
-                                data-testid={`citation-${i}`}
-                              >
-                                <BookOpen className="h-3 w-3 mr-1" />
-                                {cite.title}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  {chatMutation.isPending && (
-                    <div className="flex gap-3" data-testid="loading-indicator">
-                      <div className="flex-shrink-0 w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
-                        <Bot className="h-4 w-4 text-purple-600 dark:text-purple-300" />
-                      </div>
-                      <div className="flex-1 p-3 rounded-lg bg-muted">
-                        <div className="flex gap-1">
-                          <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" />
-                          <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: "0.1s" }} />
-                          <div className="w-2 h-2 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }} />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </ScrollArea>
+          <div className="flex flex-1 min-h-0">
+            {/* Desktop Sessions Sidebar */}
+            {!isMobile && (
+              <div className="w-52 flex-shrink-0 border-r flex flex-col bg-muted/20">
+                <SessionPanel {...sessionPanelProps} />
+              </div>
+            )}
 
-            <div className="flex gap-2 mt-4 flex-shrink-0">
-              <Textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Ask a question about the course..."
-                rows={2}
-                data-testid="textarea-chat-input"
-              />
-              <Button
-                onClick={handleSend}
-                disabled={!input.trim() || chatMutation.isPending}
-                size="icon"
-                className="flex-shrink-0"
-                data-testid="button-send-message"
-              >
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
-          </>
+            {chatArea}
+          </div>
         )}
       </DialogContent>
     </Dialog>

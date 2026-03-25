@@ -61,6 +61,8 @@ import {
   teacherContent,
   aiChatSessions,
   aiChatMessages,
+  aiChatSessionUploads,
+  type AiChatSessionUpload,
 } from "@shared/schema";
 import { db } from "./db";
 import { studentCourses } from "@shared/schema/courses";
@@ -91,12 +93,17 @@ export interface IStorage {
 
   // Personal Tutor
   getPersonalTutorMaterials(studentId: string): Promise<StudentPersonalTutorMaterial[]>;
+  getPersonalTutorMaterialsBySession(sessionId: string): Promise<StudentPersonalTutorMaterial[]>;
   getPersonalTutorMaterial(id: string): Promise<StudentPersonalTutorMaterial | undefined>;
   createPersonalTutorMaterial(material: InsertStudentPersonalTutorMaterial): Promise<StudentPersonalTutorMaterial>;
   deletePersonalTutorMaterial(id: string): Promise<void>;
   getPersonalTutorSessions(studentId: string): Promise<StudentPersonalTutorSession[]>;
   createPersonalTutorSession(session: InsertStudentPersonalTutorSession): Promise<StudentPersonalTutorSession>;
   deletePersonalTutorSession(id: string): Promise<void>;
+  // Course Chat Session Uploads
+  getAiChatSessionUploads(sessionId: string): Promise<AiChatSessionUpload[]>;
+  createAiChatSessionUpload(upload: Omit<AiChatSessionUpload, 'id' | 'createdAt'>): Promise<AiChatSessionUpload>;
+  deleteAiChatSession(sessionId: string): Promise<void>;
   getPersonalTutorMessages(sessionId: string): Promise<StudentPersonalTutorMessage[]>;
   createPersonalTutorMessage(message: InsertStudentPersonalTutorMessage): Promise<StudentPersonalTutorMessage>;
   
@@ -379,6 +386,14 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(studentPersonalTutorMaterials.createdAt));
   }
 
+  async getPersonalTutorMaterialsBySession(sessionId: string): Promise<StudentPersonalTutorMaterial[]> {
+    return await db
+      .select()
+      .from(studentPersonalTutorMaterials)
+      .where(eq(studentPersonalTutorMaterials.sessionId, sessionId))
+      .orderBy(studentPersonalTutorMaterials.createdAt);
+  }
+
   async createPersonalTutorMaterial(material: InsertStudentPersonalTutorMaterial): Promise<StudentPersonalTutorMaterial> {
     const [newMaterial] = await db
       .insert(studentPersonalTutorMaterials)
@@ -418,15 +433,33 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deletePersonalTutorSession(id: string): Promise<void> {
-    // Delete all messages in this session first
-    await db
-      .delete(studentPersonalTutorMessages)
-      .where(eq(studentPersonalTutorMessages.sessionId, id));
-    
-    // Then delete the session
+    // Messages and materials cascade-delete via FK; just delete the session
     await db
       .delete(studentPersonalTutorSessions)
       .where(eq(studentPersonalTutorSessions.id, id));
+  }
+
+  async getAiChatSessionUploads(sessionId: string): Promise<AiChatSessionUpload[]> {
+    return await db
+      .select()
+      .from(aiChatSessionUploads)
+      .where(eq(aiChatSessionUploads.sessionId, sessionId))
+      .orderBy(aiChatSessionUploads.createdAt);
+  }
+
+  async createAiChatSessionUpload(upload: Omit<AiChatSessionUpload, 'id' | 'createdAt'>): Promise<AiChatSessionUpload> {
+    const [newUpload] = await db
+      .insert(aiChatSessionUploads)
+      .values(upload)
+      .returning();
+    return newUpload;
+  }
+
+  async deleteAiChatSession(sessionId: string): Promise<void> {
+    // Messages and uploads cascade-delete via FK; just delete the session
+    await db
+      .delete(aiChatSessions)
+      .where(eq(aiChatSessions.id, sessionId));
   }
 
   async getPersonalTutorMessages(sessionId: string): Promise<StudentPersonalTutorMessage[]> {

@@ -410,7 +410,8 @@ export async function generateChatResponse(
   courseId: string,
   sessionId: string,
   userMessage: string,
-  userId: string
+  userId: string,
+  studentUploads: Array<{ fileName: string; textContent: string | null }> = []
 ): Promise<{ answer: string; citations: Array<{ contentId: string; title: string; chunkIndex: number }> }> {
   const courseInfo = await getCourseInfo(courseId);
   if (!courseInfo) {
@@ -431,7 +432,7 @@ export async function generateChatResponse(
   }
 
   // Auto-index any content that has textContent but no chunks yet
-  const allChunks = await db
+  let allChunks = await db
     .select()
     .from(teacherContentChunks)
     .where(eq(teacherContentChunks.courseId, courseId));
@@ -440,6 +441,7 @@ export async function generateChatResponse(
     // Attempt to index any content that has extracted text available
     const contentWithText = allContent.filter(c => c.textContent && c.textContent.trim().length > 50);
     if (contentWithText.length > 0) {
+      console.log(`[GenerateChatResponse] Auto-indexing ${contentWithText.length} content item(s) for course ${courseId}`);
       for (const c of contentWithText) {
         try {
           await indexTeacherContent(c.id);
@@ -447,9 +449,18 @@ export async function generateChatResponse(
           console.error(`[GenerateChatResponse] Auto-index failed for ${c.id}:`, e);
         }
       }
-    } else {
+      // Re-fetch chunks after indexing
+      allChunks = await db
+        .select()
+        .from(teacherContentChunks)
+        .where(eq(teacherContentChunks.courseId, courseId));
+    }
+
+    if (allChunks.length === 0) {
+      // Materials exist but text could not be extracted (e.g. scanned PDFs, images)
+      console.warn(`[GenerateChatResponse] No indexable text found for course ${courseId}. Content count: ${allContent.length}`);
       return {
-        answer: `This topic is not covered in this course material.`,
+        answer: `I can see that ${allContent.length} material(s) have been uploaded for ${courseInfo.name}, but I wasn't able to read any text from them. This may happen with scanned or image-based PDFs. Please ask your teacher to re-upload the materials as text-based documents (typed PDF or Word file).`,
         citations: [],
       };
     }
@@ -457,28 +468,59 @@ export async function generateChatResponse(
 
   let relevantChunks = await retrieveRelevantChunks(courseId, userMessage);
   
+  // If similarity search returned nothing, fall back to the top available chunks
+  // so OpenAI can still attempt to answer from the course material
   if (relevantChunks.length === 0) {
-    return {
-      answer: `This topic is not covered in this course material.`,
-      citations: [],
-    };
+    console.warn(`[GenerateChatResponse] Similarity search returned 0 chunks for course ${courseId}. Falling back to top chunks.`);
+    const fallback = await db
+      .select({
+        chunk: teacherContentChunks,
+        contentTitle: teacherContent.title,
+      })
+      .from(teacherContentChunks)
+      .innerJoin(teacherContent, eq(teacherContentChunks.contentId, teacherContent.id))
+      .where(eq(teacherContentChunks.courseId, courseId))
+      .limit(TOP_K_CHUNKS);
+
+    if (fallback.length === 0) {
+      return {
+        answer: `This topic is not covered in this course material.`,
+        citations: [],
+      };
+    }
+
+    relevantChunks = fallback.map(c => ({
+      chunk: c.chunk,
+      score: 1,
+      contentTitle: c.contentTitle,
+    }));
   }
   
   const contextParts = relevantChunks.map((c, i) => 
-    `[Source ${i + 1}: ${c.contentTitle}]\n${c.chunk.text}`
+    `[Course Material ${i + 1}: ${c.contentTitle}]\n${c.chunk.text}`
   );
-  const context = contextParts.join("\n\n---\n\n");
+  let context = contextParts.join("\n\n---\n\n");
+
+  // Append any student-uploaded documents for this session
+  if (studentUploads.length > 0) {
+    const uploadParts = studentUploads
+      .filter(u => u.textContent && u.textContent.trim().length > 0)
+      .map(u => `[Student Upload: ${u.fileName}]\n${u.textContent!.substring(0, 8000)}`);
+    if (uploadParts.length > 0) {
+      context += "\n\n---\n\nSTUDENT-UPLOADED DOCUMENTS (this session):\n" + uploadParts.join("\n\n---\n\n");
+    }
+  }
   
   const systemPrompt = `You are a course tutor assistant for "${courseInfo.name}" (${courseInfo.code}), taught by ${courseInfo.instructorName}.
 
-CRITICAL RULES:
-1. Answer ONLY using the course materials provided below. Do NOT use outside knowledge.
-2. If the answer is not in the materials, respond with exactly: "This topic is not covered in this course material."
-3. When answering, cite your source (e.g., "According to [Source 1]...").
-4. Be educational, clear, and precise.
-5. Never fabricate or guess information beyond what the materials state.
+INSTRUCTIONS:
+1. Answer questions using the course materials and any student-uploaded documents provided below.
+2. When answering, cite your source (e.g., "According to [Course Material 1]..." or "According to [Student Upload: filename]...").
+3. Be educational, clear, and precise.
+4. If the specific topic is not mentioned in any of the provided materials, say: "This topic is not covered in this course material." — but only after genuinely trying to find relevant information.
+5. Never fabricate information that is not supported by the materials.
 
-COURSE MATERIALS:
+AVAILABLE MATERIALS:
 ${context}`;
 
   const openai = getOpenAI();

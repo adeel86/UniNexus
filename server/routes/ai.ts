@@ -171,9 +171,10 @@ router.post("/api/ai/personal-tutor/materials", requireAuth, upload.single('file
       textContent = await extractTextFromWord(req.file.buffer, req.file.originalname);
     }
 
+    const { sessionId } = req.body;
     const data = insertStudentPersonalTutorMaterialSchema.parse({
-      ...req.body,
       studentId: req.user!.id,
+      sessionId: sessionId || null,
       fileName: req.file.originalname,
       fileUrl: fileUrl,
       fileType: req.file.originalname.split('.').pop()?.toLowerCase() || req.file.mimetype.substring(0, 50),
@@ -288,18 +289,17 @@ router.post("/api/ai/personal-tutor/chat", requireAuth, async (req: Request, res
       content: message
     });
 
-    // Get context: Student profile and materials
-    const materials = await storage.getPersonalTutorMaterials(req.user!.id);
+    // Get context: only materials tied to this specific session
+    const materials = await storage.getPersonalTutorMaterialsBySession(sessionId);
 
-    // Build materials context — include as much text as possible
     const materialsContext = materials.length === 0
-      ? '\n[No materials uploaded yet.]'
+      ? '\n[No documents uploaded in this chat yet. You may upload files using the attachment button.]'
       : materials
           .map(m => {
             if (m.textContent && m.textContent.trim().length > 0) {
               return `\n--- Document: ${m.fileName} ---\n${m.textContent.substring(0, 12000)}`;
             } else {
-              return `\n--- Document: ${m.fileName} (${m.fileType || 'document'}) ---\n[Text could not be extracted from this file]`;
+              return `\n--- Document: ${m.fileName} (could not extract text) ---`;
             }
           })
           .join('\n\n');
@@ -308,19 +308,17 @@ router.post("/api/ai/personal-tutor/chat", requireAuth, async (req: Request, res
 Student level: ${req.user!.major || 'Student'} at ${req.user!.university || 'University'}.
 Current mode: ${mode || 'Explain'}
 
-CRITICAL RULES:
-1. Your answers MUST be based ONLY on the student's uploaded materials below.
-2. Do NOT use any knowledge outside of the provided documents.
-3. If the student's question cannot be answered from the uploaded materials, respond with: "This information is not found in your uploaded material."
-4. When you answer, reference the specific document and section you are drawing from.
+INSTRUCTIONS:
+1. Use the student's uploaded documents below as your primary source.
+2. If documents are available, base your answers on them and reference the document name.
+3. If no documents are uploaded yet, you can still answer using your general knowledge as a helpful tutor.
+4. Respond according to the current mode:
+   - Explain: Break down concepts clearly with examples
+   - Practice: Create exercises and problems
+   - Quiz: Test the student with questions from the material
+   - Revision: Summarise key points
 
-Respond according to the current mode:
-- Explain: Break down concepts clearly with examples drawn from the materials
-- Practice: Create exercises and problems based on the materials content
-- Quiz: Test the student using questions directly from the materials
-- Revision: Summarise key points from the materials
-
-STUDENT'S UPLOADED MATERIALS:
+STUDENT'S UPLOADED DOCUMENTS FOR THIS CHAT:
 ${materialsContext}`;
 
     // Load conversation history for this session to maintain context
@@ -808,7 +806,14 @@ router.post("/api/ai/course-chat", requireAuth, async (req: Request, res: Respon
 
     await aiChatbot.saveMessage(activeSessionId, 'user', message);
 
-    const response = await aiChatbot.generateChatResponse(courseId, activeSessionId, message, req.user!.id);
+    // Include any student-uploaded files in this session as additional context
+    const sessionUploads = await storage.getAiChatSessionUploads(activeSessionId);
+    const studentUploads = sessionUploads.map(u => ({
+      fileName: u.fileName,
+      textContent: u.textContent || null,
+    }));
+
+    const response = await aiChatbot.generateChatResponse(courseId, activeSessionId, message, req.user!.id, studentUploads);
 
     await aiChatbot.saveMessage(
       activeSessionId, 
@@ -876,6 +881,81 @@ router.get("/api/ai/course-chat/:courseId/status", requireAuth, async (req: Requ
       indexedChunks: chunkCount,
       isReady: chunkCount > 0,
     });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/api/ai/course-chat/upload", requireAuth, upload.single('file'), async (req: Request, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file provided" });
+    }
+    const { sessionId } = req.body;
+    if (!sessionId) {
+      return res.status(400).json({ error: "sessionId is required" });
+    }
+
+    let fileUrl: string;
+    if (isCloudStorageAvailable()) {
+      const result = await uploadToCloud(req.file.buffer, {
+        folder: 'documents',
+        contentType: req.file.mimetype,
+        originalFilename: req.file.originalname,
+      });
+      fileUrl = result?.url || await saveFileLocally(req.file.buffer, 'documents', req.file.originalname);
+    } else {
+      fileUrl = await saveFileLocally(req.file.buffer, 'documents', req.file.originalname);
+    }
+
+    let textContent: string | null = null;
+    if (req.file.mimetype.startsWith('text/')) {
+      textContent = req.file.buffer.toString('utf-8');
+    } else if (req.file.mimetype === 'application/pdf' || req.file.originalname.endsWith('.pdf')) {
+      const aiChatbot = await getAiChatbot();
+      textContent = await (aiChatbot as any).extractTextFromPDF(req.file.buffer);
+    } else if (req.file.originalname.endsWith('.docx') || req.file.originalname.endsWith('.doc')) {
+      const aiChatbot = await getAiChatbot();
+      textContent = await (aiChatbot as any).extractTextFromWord(req.file.buffer, req.file.originalname);
+    }
+
+    const upload = await storage.createAiChatSessionUpload({
+      sessionId,
+      studentId: req.user!.id,
+      fileName: req.file.originalname,
+      fileType: req.file.originalname.split('.').pop()?.toLowerCase() || 'file',
+      fileUrl,
+      textContent,
+    });
+
+    res.json(upload);
+  } catch (error: any) {
+    console.error("[CourseChatUpload] Error:", error);
+    res.status(500).json({ error: error.message || "Upload failed" });
+  }
+});
+
+router.delete("/api/ai/course-chat/session/:sessionId", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { sessionId } = req.params;
+    await storage.deleteAiChatSession(sessionId);
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error("[CourseChatDelete] Error:", error);
+    res.status(500).json({ error: error.message || "Failed to delete session" });
+  }
+});
+
+router.get("/api/ai/course-chat/:courseId/sessions", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { courseId } = req.params;
+    const aiChatbot = await getAiChatbot();
+    const hasAccess = await aiChatbot.verifyCourseAccess(req.user!.id, courseId);
+    if (!hasAccess) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+    const sessions = await aiChatbot.getUserSessions(req.user!.id, courseId);
+    res.json(sessions);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

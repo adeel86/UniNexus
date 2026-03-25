@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { relations } from 'drizzle-orm';
-import { index, jsonb, pgTable, timestamp, varchar, text, integer } from "drizzle-orm/pg-core";
+import { boolean, index, jsonb, pgTable, timestamp, varchar, text, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { users } from "./users";
@@ -21,8 +21,6 @@ export const teacherContent = pgTable("teacher_content", {
   uploadedAt: timestamp("uploaded_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
-
-import { boolean } from "drizzle-orm/pg-core";
 
 export const teacherContentRelations = relations(teacherContent, ({ one }) => ({
   teacher: one(users, {
@@ -127,6 +125,19 @@ export const insertAiChatMessageSchema = createInsertSchema(aiChatMessages).omit
 export type AiChatMessage = typeof aiChatMessages.$inferSelect;
 export type InsertAiChatMessage = z.infer<typeof insertAiChatMessageSchema>;
 
+export const aiChatSessionUploads = pgTable("ai_chat_session_uploads", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").notNull().references(() => aiChatSessions.id, { onDelete: 'cascade' }),
+  studentId: varchar("student_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  fileType: varchar("file_type", { length: 50 }).notNull(),
+  fileUrl: varchar("file_url").notNull(),
+  textContent: text("text_content"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type AiChatSessionUpload = typeof aiChatSessionUploads.$inferSelect;
+
 export const aiInteractionEvents = pgTable("ai_interaction_events", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   type: varchar("type", { length: 50 }).notNull(),
@@ -164,9 +175,20 @@ export const insertModerationActionSchema = createInsertSchema(moderationActions
 });
 
 export type ModerationAction = typeof moderationActions.$inferSelect;
+
+export const studentPersonalTutorSessions = pgTable("student_personal_tutor_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  studentId: varchar("student_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  title: varchar("title", { length: 200 }),
+  mode: varchar("mode", { length: 50 }).default('Explain'),
+  lastMessageAt: timestamp("last_message_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 export const studentPersonalTutorMaterials = pgTable("student_personal_tutor_materials", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   studentId: varchar("student_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  sessionId: varchar("session_id").references(() => studentPersonalTutorSessions.id, { onDelete: 'cascade' }),
   fileName: varchar("file_name", { length: 255 }).notNull(),
   fileType: varchar("file_type", { length: 50 }).notNull(),
   fileUrl: varchar("file_url").notNull(),
@@ -175,19 +197,10 @@ export const studentPersonalTutorMaterials = pgTable("student_personal_tutor_mat
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const studentPersonalTutorSessions = pgTable("student_personal_tutor_sessions", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  studentId: varchar("student_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
-  title: varchar("title", { length: 200 }),
-  mode: varchar("mode", { length: 50 }).default('Explain'), // Explain, Practice, Quiz, Revision
-  lastMessageAt: timestamp("last_message_at").defaultNow(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
 export const studentPersonalTutorMessages = pgTable("student_personal_tutor_messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   sessionId: varchar("session_id").notNull().references(() => studentPersonalTutorSessions.id, { onDelete: 'cascade' }),
-  role: varchar("role", { length: 20 }).notNull(), // user, assistant
+  role: varchar("role", { length: 20 }).notNull(),
   content: text("content").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -197,6 +210,10 @@ export const studentPersonalTutorMaterialsRelations = relations(studentPersonalT
     fields: [studentPersonalTutorMaterials.studentId],
     references: [users.id],
   }),
+  session: one(studentPersonalTutorSessions, {
+    fields: [studentPersonalTutorMaterials.sessionId],
+    references: [studentPersonalTutorSessions.id],
+  }),
 }));
 
 export const studentPersonalTutorSessionsRelations = relations(studentPersonalTutorSessions, ({ one, many }) => ({
@@ -205,6 +222,7 @@ export const studentPersonalTutorSessionsRelations = relations(studentPersonalTu
     references: [users.id],
   }),
   messages: many(studentPersonalTutorMessages),
+  materials: many(studentPersonalTutorMaterials),
 }));
 
 export const studentPersonalTutorMessagesRelations = relations(studentPersonalTutorMessages, ({ one }) => ({

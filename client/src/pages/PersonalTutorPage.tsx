@@ -1,21 +1,31 @@
 import { PersonalTutor } from "@/components/PersonalTutor";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BrainCircuit } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function PersonalTutorPage() {
+  const isMobile = useIsMobile();
+
   return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl h-[calc(100vh-64px)] overflow-hidden flex flex-col">
-      <div className="mb-6 flex items-center gap-3 shrink-0 px-2">
-        <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
-          <BrainCircuit className="h-8 w-8 text-purple-600" />
+    <div
+      className={`flex flex-col bg-background ${
+        isMobile
+          ? "h-[calc(100dvh-56px)]"
+          : "container mx-auto px-4 py-6 max-w-6xl h-[calc(100vh-64px)]"
+      } overflow-hidden`}
+    >
+      {!isMobile && (
+        <div className="mb-4 flex items-center gap-3 shrink-0">
+          <div className="p-2.5 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
+            <BrainCircuit className="h-6 w-6 text-purple-600" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold">Personal AI Tutor</h1>
+            <p className="text-sm text-muted-foreground">Your dedicated 24/7 learning companion</p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-3xl font-heading font-bold">Personal AI Tutor</h1>
-          <p className="text-muted-foreground">Your dedicated 24/7 learning companion</p>
-        </div>
-      </div>
-      
-      <div className="flex-1 min-h-0">
+      )}
+
+      <div className="flex-1 min-h-0 rounded-xl border overflow-hidden">
         <PersonalTutor />
       </div>
     </div>
