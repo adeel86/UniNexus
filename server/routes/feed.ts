@@ -147,6 +147,10 @@ router.get("/feed/personalized", async (req: Request, res: Response) => {
     // For You shows posts from followed users only (not user's own posts)
     const allowedIds = followedIds;
     
+    if (allowedIds.length === 0) {
+      return res.json([]);
+    }
+
     let query = db
       .select({
         id: posts.id,

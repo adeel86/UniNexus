@@ -107,6 +107,7 @@ declare global {
   namespace Express {
     interface Request {
       user?: AuthRequest["user"];
+      isAuthenticated(): boolean;
     }
   }
 }
@@ -340,8 +341,6 @@ export const verifyToken = async (
       if (!user) {
         return res.status(401).json({ message: 'User not found' });
       }
-
-      console.log(`Dev auth: User ${user.email} authenticated (role: ${user.role})`);
 
       req.user = {
         id: user.id,

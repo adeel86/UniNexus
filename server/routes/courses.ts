@@ -313,7 +313,6 @@ router.get("/teacher/courses", isAuthenticated, async (req: Request, res: Respon
       .where(eq(studentCourses.assignedTeacherId, req.user.id))
       .orderBy(desc(studentCourses.createdAt));
 
-    const teacherUniversity = req.user.university;
     const formatted = teacherCourses.map(({ course, student }) => ({
       ...course,
       student,

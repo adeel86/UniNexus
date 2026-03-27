@@ -146,7 +146,7 @@ router.get("/announcements", async (req: Request, res: Response) => {
 });
 
 router.post("/announcements", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || req.user.role !== 'university_admin') {
+  if (!req.user || !['university_admin', 'master_admin'].includes(req.user.role)) {
     return res.status(403).send("Forbidden");
   }
 

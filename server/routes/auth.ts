@@ -52,8 +52,6 @@ router.post("/dev-login", async (req: Request, res: Response) => {
       DEV_JWT_SECRET
     );
 
-    console.log(`Dev login successful: ${user.email} (role: ${user.role})`);
-
     res.json({
       token: `dev-${token}`,
       user: {
@@ -229,7 +227,14 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
 
 router.get("/user", isAuthenticated, async (req: AuthRequest, res: Response) => {
   try {
-    res.json(req.user);
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    const fullUser = await storage.getUser(req.user.id);
+    if (!fullUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.json(fullUser);
   } catch (error) {
     console.error("Error fetching user:", error);
     res.status(500).json({ message: "Failed to fetch user" });
@@ -238,12 +243,6 @@ router.get("/user", isAuthenticated, async (req: AuthRequest, res: Response) => 
 
 router.post("/logout", async (req: Request, res: Response) => {
   try {
-    const authHeader = req.headers.authorization;
-    const token = authHeader?.split('Bearer ')[1];
-    if (token) {
-      console.log(`User logout: ${token.substring(0, 20)}...`);
-    }
-    
     res.json({ 
       message: "Logged out successfully",
       timestamp: new Date().toISOString()

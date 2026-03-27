@@ -11,11 +11,10 @@ import {
   insertTeacherContentSchema,
 } from "@shared/schema";
 import { uploadToCloud, isCloudStorageAvailable } from "../cloudStorage";
-import { requireAuth, requireRole, AuthRequest } from "./shared";
+import { requireAuth, requireRole, saveFileLocally, uploadsDir, AuthRequest } from "./shared";
 
 const router = Router();
 
-const uploadsDir = path.join(process.cwd(), 'uploads');
 const documentsDir = path.join(uploadsDir, 'documents');
 
 if (!fs.existsSync(documentsDir)) {
@@ -43,17 +42,6 @@ const documentUpload = multer({
     }
   }
 });
-
-async function saveFileLocally(buffer: Buffer, folder: string, filename: string): Promise<string> {
-  const targetDir = path.join(uploadsDir, folder);
-  if (!fs.existsSync(targetDir)) {
-    fs.mkdirSync(targetDir, { recursive: true });
-  }
-  const uniqueFilename = `${Date.now()}-${filename}`;
-  const filePath = path.join(targetDir, uniqueFilename);
-  fs.writeFileSync(filePath, buffer);
-  return `/uploads/${folder}/${uniqueFilename}`;
-}
 
 router.post("/:contentId/index", requireAuth, requireRole('teacher', 'master_admin'), async (req: Request, res: Response) => {
   try {

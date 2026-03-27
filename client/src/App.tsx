@@ -115,14 +115,6 @@ function Router() {
           <Route path="/">
             {isMobile ? <MobileHome /> : <HomePage />}
           </Route>
-          {/* ... existing routes ... */}
-          <Route path="/master-admin-dashboard">
-            {import.meta.env.DEV_AUTH_ENABLED === 'true' ? (
-              <MasterAdminDashboard />
-            ) : (
-              <NotFound />
-            )}
-          </Route>
           <Route path="/network">
             <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional', 'university_admin']}>
               <Network />

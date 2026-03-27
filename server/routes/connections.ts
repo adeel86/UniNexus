@@ -477,7 +477,7 @@ router.delete("/followers/remove/:userId", isAuthenticated, async (req: AuthRequ
     const { userId } = req.params;
 
     // Delete the follow relationship where userId follows the current user
-    const result = await db
+    await db
       .delete(followers)
       .where(
         and(

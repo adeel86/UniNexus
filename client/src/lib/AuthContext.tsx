@@ -163,7 +163,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
           return;
         }
       } catch (error: any) {
-        console.log('Dev login error:', error.message);
+        // Dev login unavailable, falling through to Firebase auth
       }
     }
     

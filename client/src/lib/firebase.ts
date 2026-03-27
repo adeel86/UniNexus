@@ -17,9 +17,8 @@ let auth: any = null;
 try {
   const app = initializeApp(firebaseConfig);
   auth = getAuth(app);
-  console.log('Firebase initialized successfully with project:', projectId);
 } catch (error) {
-  console.warn('Firebase initialization failed. Using fallback auth.', error);
+  console.warn('Firebase initialization failed. Using fallback auth.');
 }
 
 export { auth };

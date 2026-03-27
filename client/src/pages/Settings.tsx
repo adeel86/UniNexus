@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,11 +54,7 @@ export default function Settings() {
 
   // Load user preferences
   const { data: userPreferences = null, isLoading: preferencesLoading } = useQuery<any>({
-    queryKey: ["user-preferences", userData?.id],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/users/preferences");
-      return response;
-    },
+    queryKey: ["/api/users/preferences", userData?.id],
     enabled: !!userData?.id,
   });
 
@@ -84,6 +80,19 @@ export default function Settings() {
   const [showActivity, setShowActivity] = useState(
     userPreferences?.showActivity ?? true
   );
+
+  // Sync preference states when data loads from server
+  useEffect(() => {
+    if (userPreferences) {
+      setEmailNotifications(userPreferences.emailNotifications ?? true);
+      setPushNotifications(userPreferences.pushNotifications ?? true);
+      setCommentNotifications(userPreferences.commentNotifications ?? true);
+      setEndorsementNotifications(userPreferences.endorsementNotifications ?? true);
+      setPublicProfile(userPreferences.publicProfile ?? true);
+      setShowEmail(userPreferences.showEmail ?? false);
+      setShowActivity(userPreferences.showActivity ?? true);
+    }
+  }, [userPreferences]);
 
   const handleDeleteAccount = async () => {
     if (deleteConfirmText !== "DELETE") {

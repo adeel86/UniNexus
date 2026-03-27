@@ -341,11 +341,6 @@ export async function deleteCourseWithRelatedData(
     };
   });
 
-  console.log(
-    `Course ${courseId} (${existingCourse.name}) deleted by user ${userId}. ` +
-      `Validated: ${existingCourse.isUniversityValidated}. Materials removed: ${result.deletedMaterialsCount}`
-  );
-
   return result;
 }
 
