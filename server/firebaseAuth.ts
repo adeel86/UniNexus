@@ -17,19 +17,31 @@ async function initializeFirebaseAdmin() {
   try {
     let serviceAccount: any;
 
-    // First try environment variable (most reliable for Render deployments)
+    // First try explicit JSON env variable (most reliable for Render/Replit deployments)
     if (process.env.FIREBASE_SERVICE_ACCOUNT) {
       serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
     } else {
-      // Try to read from file path specified in env variable
-      const serviceAccountPath = process.env.VITE_FIREBASE_SERVICE_ACCOUNT_PATH || "/etc/secrets/serviceAccountKey.json";
-      try {
-        const fs = await import('fs').then(m => m.promises);
-        const fileContent = await fs.readFile(serviceAccountPath, 'utf-8');
-        serviceAccount = JSON.parse(fileContent);
-      } catch (fileError: any) {
-        console.warn(`Could not read service account from ${serviceAccountPath}:`, fileError.message);
-        return false;
+      const serviceAccountEnv = process.env.VITE_FIREBASE_SERVICE_ACCOUNT_PATH || '';
+
+      if (serviceAccountEnv.trim().startsWith('{')) {
+        // Env var contains JSON content directly (common Replit pattern)
+        try {
+          serviceAccount = JSON.parse(serviceAccountEnv);
+        } catch (parseError: any) {
+          console.warn('Could not parse service account JSON from env var:', parseError.message);
+          return false;
+        }
+      } else {
+        // Treat as file path
+        const serviceAccountPath = serviceAccountEnv || '/etc/secrets/serviceAccountKey.json';
+        try {
+          const fs = await import('fs').then(m => m.promises);
+          const fileContent = await fs.readFile(serviceAccountPath, 'utf-8');
+          serviceAccount = JSON.parse(fileContent);
+        } catch (fileError: any) {
+          console.warn(`Could not read service account from ${serviceAccountPath}:`, fileError.message);
+          return false;
+        }
       }
     }
     

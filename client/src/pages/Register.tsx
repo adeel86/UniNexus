@@ -34,7 +34,7 @@ const roleOptions = [
   { value: 'teacher', label: 'Teacher', icon: Users, description: 'Mentor students and view analytics' },
   { value: 'industry_professional', label: 'Industry Professional', icon: Briefcase, description: 'Connect with talent and share insights' },
   { value: 'university_admin', label: 'University Admin', icon: Building2, description: 'Manage institutional oversight' },
-  ...(import.meta.env.DEV_AUTH_ENABLED === 'true' ? [
+  ...(import.meta.env.VITE_DEV_AUTH_ENABLED === 'true' ? [
     { value: 'master_admin', label: 'Master Admin', icon: Shield, description: 'Platform-wide administration' }
   ] : []),
 ];
@@ -172,6 +172,7 @@ export default function Register() {
                         <Input 
                           placeholder="••••••••" 
                           type="password"
+                          autoComplete="new-password"
                           data-testid="input-password"
                           {...field} 
                         />
@@ -190,6 +191,7 @@ export default function Register() {
                         <Input 
                           placeholder="••••••••" 
                           type="password"
+                          autoComplete="new-password"
                           data-testid="input-confirm-password"
                           {...field} 
                         />

@@ -35,34 +35,32 @@ export async function initializeCloudStorage(): Promise<boolean> {
 
     const existingApps = admin.apps;
     if (existingApps.length === 0) {
-      let serviceAccountPath = new URL(`../${process.env.VITE_FIREBASE_SERVICE_ACCOUNT_PATH}`, import.meta.url);
-      
-      if (process.env.VITE_FIREBASE_SERVICE_ACCOUNT_PATH) {
-        const envPath = new URL(`../${process.env.VITE_FIREBASE_SERVICE_ACCOUNT_PATH}`, import.meta.url);
-        serviceAccountPath = envPath;
-      }
-      
       try {
-        const serviceAccount = await import(serviceAccountPath.pathname, { with: { type: "json" } }).then(m => m.default);
-        
+        const serviceAccountEnv = process.env.VITE_FIREBASE_SERVICE_ACCOUNT_PATH || '';
+        let serviceAccount: any;
+
+        if (serviceAccountEnv.trim().startsWith('{')) {
+          serviceAccount = JSON.parse(serviceAccountEnv);
+        } else {
+          const serviceAccountPath = serviceAccountEnv || '/etc/secrets/serviceAccountKey.json';
+          const fs = await import('fs').then(m => m.promises);
+          const fileContent = await fs.readFile(serviceAccountPath, 'utf-8');
+          serviceAccount = JSON.parse(fileContent);
+        }
+
         if (!serviceAccount.private_key || !serviceAccount.client_email) {
-          console.warn("Service account file is not a valid Firebase Admin service account.");
+          console.warn("Service account is not a valid Firebase Admin service account.");
           return false;
         }
-        
+
         admin.initializeApp({
           credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
           storageBucket: STORAGE_BUCKET,
         });
       } catch (error: any) {
-        console.warn("Firebase service account not found. Cloud storage unavailable.");
+        console.warn("Firebase service account not available. Cloud storage unavailable.", error.message);
         return false;
       }
-    } else {
-      // If app already exists, make sure it has the storage bucket configured
-      const app = existingApps[0]!;
-      // We can't easily re-initialize with storageBucket if it wasn't there,
-      // but we can try to use the default bucket if it's already set.
     }
 
     storage = getStorage();

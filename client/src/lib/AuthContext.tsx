@@ -141,7 +141,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const signIn = async (email: string, password: string) => {
     // Development auth bypass is disabled in production
-    if (import.meta.env.DEV_AUTH_ENABLED === 'true') {
+    if (import.meta.env.VITE_DEV_AUTH_ENABLED === 'true') {
       try {
         const response = await fetch('/api/auth/dev-login', {
           method: 'POST',

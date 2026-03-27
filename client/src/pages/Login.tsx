@@ -131,6 +131,7 @@ export default function Login() {
                       <Input 
                         placeholder="••••••••" 
                         type="password"
+                        autoComplete="current-password"
                         data-testid="input-password"
                         {...field} 
                       />
@@ -169,39 +170,6 @@ export default function Login() {
             </Link>
           </div>
 
-          {import.meta.env.DEV_AUTH_ENABLED === 'true' && (
-            <div className="border-t pt-4" data-testid="master-demo-section">
-              <p className="text-sm font-medium mb-2">Master Demo Access:</p>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { email: "demo.student@uninexus.app", label: "Student" },
-                  { email: "demo.teacher@uninexus.app", label: "Teacher" },
-                  { email: "demo.university@uninexus.app", label: "Univ Admin" },
-                  { email: "demo.industry@uninexus.app", label: "Industry" },
-                  { email: "demo.admin@uninexus.app", label: "Admin" },
-                ].map((demo) => (
-                  <Button
-                    key={demo.email}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={async () => {
-                      form.setValue('email', demo.email);
-                      form.setValue('password', 'demo123');
-                      // Auto-submit for demo convenience if enabled
-                      await form.handleSubmit(onSubmit)();
-                    }}
-                    data-testid={`button-demo-${demo.label.toLowerCase().replace(/\s+/g, '-')}`}
-                  >
-                    {demo.label}
-                  </Button>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Development/Testing Mode Active
-              </p>
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>

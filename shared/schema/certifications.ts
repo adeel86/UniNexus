@@ -39,6 +39,8 @@ export const insertCertificationSchema = createInsertSchema(certifications).omit
   issuedAt: true,
   issuerId: true,
   issuerName: true,
+}).extend({
+  expiresAt: z.coerce.date().optional().nullable(),
 });
 
 export type Certification = typeof certifications.$inferSelect;
