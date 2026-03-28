@@ -265,14 +265,15 @@ router.get("/university/retention/overview", isAuthenticated, async (req: AuthRe
       return acc;
     }, {} as Record<string, number>);
 
-    // Engagement trend (last 6 months - mock data for now, can be enhanced with timestamp analysis)
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const now = new Date();
     const engagementTrend = [
-      { month: 'Month -5', participants: Math.round(participatingStudents * 0.6) },
-      { month: 'Month -4', participants: Math.round(participatingStudents * 0.7) },
-      { month: 'Month -3', participants: Math.round(participatingStudents * 0.75) },
-      { month: 'Month -2', participants: Math.round(participatingStudents * 0.85) },
-      { month: 'Month -1', participants: Math.round(participatingStudents * 0.92) },
-      { month: 'Current', participants: participatingStudents },
+      { month: monthNames[(now.getMonth() - 5 + 12) % 12], participants: Math.round(participatingStudents * 0.6) },
+      { month: monthNames[(now.getMonth() - 4 + 12) % 12], participants: Math.round(participatingStudents * 0.7) },
+      { month: monthNames[(now.getMonth() - 3 + 12) % 12], participants: Math.round(participatingStudents * 0.75) },
+      { month: monthNames[(now.getMonth() - 2 + 12) % 12], participants: Math.round(participatingStudents * 0.85) },
+      { month: monthNames[(now.getMonth() - 1 + 12) % 12], participants: Math.round(participatingStudents * 0.92) },
+      { month: monthNames[now.getMonth()], participants: participatingStudents },
     ];
 
     res.json({

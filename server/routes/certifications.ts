@@ -33,10 +33,6 @@ router.get("/certifications/user/:userId", async (req: Request, res: Response) =
       return res.json([]);
     }
 
-    if (req.user.role !== 'student' && req.user.role !== 'teacher') {
-      return res.status(403).json({ error: "Access denied: Certifications are only available for student and teacher roles" });
-    }
-
     const userCertifications = await db
       .select({
         id: certifications.id,

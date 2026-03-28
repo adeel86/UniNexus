@@ -14,8 +14,12 @@ export async function apiRequest(
 ): Promise<Response> {
   const headers: Record<string, string> = {};
   
-  if (data && !(data instanceof FormData)) {
-    headers["Content-Type"] = "application/json";
+  const hasBody = data !== undefined && data !== null && !(data instanceof FormData) &&
+    !(typeof data === 'object' && !Array.isArray(data) && Object.keys(data as object).length === 0);
+  if (hasBody || data instanceof FormData) {
+    if (!(data instanceof FormData)) {
+      headers["Content-Type"] = "application/json";
+    }
   }
   
   // Include dev token if available (for demo accounts)
@@ -35,7 +39,7 @@ export async function apiRequest(
     }
   }
   
-  const body = data instanceof FormData ? data : (data ? JSON.stringify(data) : undefined);
+  const body = data instanceof FormData ? data : (hasBody ? JSON.stringify(data) : undefined);
 
   const res = await fetch(url, {
     method,

@@ -57,7 +57,6 @@ export function usePostCard(initialPost: PostWithAuthor) {
     
     for (const query of allQueries) {
       if (isPostRelatedQuery(query.queryKey)) {
-        const oldData = queryClient.getQueryData(query.queryKey);
         queryClient.setQueryData(query.queryKey, updateFn);
       }
     }
@@ -273,7 +272,7 @@ export function usePostCard(initialPost: PostWithAuthor) {
 
   const deletePostMutation = useMutation({
     mutationFn: async () => {
-      return apiRequest("DELETE", `/api/posts/${post.id}`, {});
+      return apiRequest("DELETE", `/api/posts/${post.id}`);
     },
     onSuccess: () => {
       // For delete, we need to refetch since the post is removed
