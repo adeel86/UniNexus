@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "./UserAvatar";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Bell, LogOut, Menu, Trophy, Target, MessageCircle, Users, UsersRound, Compass, Lightbulb, GraduationCap, BrainCircuit, Check } from "lucide-react";
+import { Bell, LogOut, Menu, Trophy, MessageCircle, Users, UsersRound, Compass, Lightbulb, GraduationCap, BrainCircuit } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,6 +38,16 @@ export function Navbar({ onMenuClick }: NavbarProps) {
     queryKey: ["/api/conversations"],
     enabled: !!user,
   });
+
+  const { data: pendingConnections = [] } = useQuery<any[]>({
+    queryKey: ["/api/connections", { status: "pending" }],
+    enabled: !!user,
+    refetchInterval: 30000,
+  });
+
+  const pendingRequestCount = pendingConnections.filter(
+    (req: any) => req.receiverId === user?.id
+  ).length;
 
   const markAsReadMutation = useMutation({
     mutationFn: async (notificationId: string) => {
@@ -104,9 +114,17 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                   data-testid="nav-link-network"
                 >
                   <Link href="/network">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 relative">
                       <Users className="h-4 w-4" />
                       <span>My Network</span>
+                      {pendingRequestCount > 0 && (
+                        <Badge
+                          className="absolute -top-2 -right-3 h-4 w-4 flex items-center justify-center p-0 bg-red-500 text-white text-xs"
+                          data-testid="badge-pending-requests"
+                        >
+                          {pendingRequestCount > 9 ? "9+" : pendingRequestCount}
+                        </Badge>
+                      )}
                     </div>
                   </Link>
                 </Button>
@@ -286,6 +304,9 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                           onClick={() => {
                             if (!notification.isRead) {
                               markAsReadMutation.mutate(notification.id);
+                            }
+                            if (notification.link) {
+                              navigate(notification.link);
                             }
                           }}
                         >

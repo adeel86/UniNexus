@@ -111,7 +111,7 @@ export function ProfileHeader({
                 Edit
               </Button>
             )}
-            {user.role === "student" && <CVExportButton userId={targetUserId} />}
+            {(user.role === "student" || user.role === "teacher") && <CVExportButton userId={targetUserId} />}
           </div>
         )}
         

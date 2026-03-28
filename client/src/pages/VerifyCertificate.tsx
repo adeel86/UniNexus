@@ -1,4 +1,4 @@
-import { useParams } from "wouter";
+import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ interface VerificationResult {
 export default function VerifyCertificate() {
   const params = useParams();
   const hash = params.hash as string;
+  const [, navigate] = useLocation();
 
   const { data, isLoading, error } = useQuery<VerificationResult>({
     queryKey: [`/api/certifications/verify/${hash}`],
@@ -60,7 +61,7 @@ export default function VerifyCertificate() {
           <p className="text-muted-foreground mb-6">
             {data?.error || "Unable to verify this certificate. It may not exist or is not publicly accessible."}
           </p>
-          <Button variant="outline" onClick={() => window.location.href = '/'}>
+          <Button variant="outline" onClick={() => navigate('/')}>
             Return Home
           </Button>
         </Card>
@@ -77,7 +78,7 @@ export default function VerifyCertificate() {
           <p className="text-muted-foreground mb-6">
             This certificate could not be verified. It may have been revoked or does not exist.
           </p>
-          <Button variant="outline" onClick={() => window.location.href = '/'}>
+          <Button variant="outline" onClick={() => navigate('/')}>
             Return Home
           </Button>
         </Card>

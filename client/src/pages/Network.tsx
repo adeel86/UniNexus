@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, UserPlus, UserCheck, UserX, Users, UserMinus, Heart } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 import { useAuth } from "@/hooks/useAuth";
 
@@ -26,6 +26,7 @@ interface FollowerWithUser extends Follower {
 export default function Network() {
   const auth = useAuth();
   const { toast } = useToast();
+  const [_location, navigate] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
 
   // Get all connections
@@ -189,7 +190,7 @@ export default function Network() {
                           variant="outline"
                           size="sm"
                           className="flex-1"
-                          onClick={() => window.location.href = `/profile?userId=${user.id}`}
+                          onClick={() => navigate(`/profile?userId=${user.id}`)}
                           data-testid={`button-view-profile-${user.id}`}
                         >
                           View Profile
@@ -198,7 +199,7 @@ export default function Network() {
                           variant="outline"
                           size="sm"
                           className="flex-1"
-                          onClick={() => window.location.href = `/messages?userId=${user.id}`}
+                          onClick={() => navigate(`/messages?userId=${user.id}`)}
                           data-testid={`button-message-${user.id}`}
                         >
                           Message
@@ -220,10 +221,15 @@ export default function Network() {
               <span className="hidden sm:inline">Connections</span>
               <span className="sm:hidden">({acceptedConnections.length})</span>
             </TabsTrigger>
-            <TabsTrigger value="requests" data-testid="tab-requests">
+            <TabsTrigger value="requests" data-testid="tab-requests" className="relative">
               <UserPlus className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">Requests</span>
               <span className="sm:hidden">({receivedRequests.length})</span>
+              {receivedRequests.length > 0 && (
+                <Badge className="hidden sm:flex absolute -top-1 -right-1 h-4 w-4 items-center justify-center p-0 bg-red-500 text-white text-xs">
+                  {receivedRequests.length > 9 ? "9+" : receivedRequests.length}
+                </Badge>
+              )}
             </TabsTrigger>
             <TabsTrigger value="followers" data-testid="tab-followers">
               <Heart className="h-4 w-4 mr-2" />
@@ -277,7 +283,7 @@ export default function Network() {
                         variant="outline"
                         size="sm"
                         className="flex-1"
-                        onClick={() => window.location.href = `/profile?userId=${connection.user.id}`}
+                        onClick={() => navigate(`/profile?userId=${connection.user.id}`)}
                         data-testid={`button-view-profile-${connection.id}`}
                       >
                         View Profile
@@ -286,7 +292,7 @@ export default function Network() {
                         variant="outline"
                         size="sm"
                         className="flex-1"
-                        onClick={() => window.location.href = `/messages?userId=${connection.user.id}`}
+                        onClick={() => navigate(`/messages?userId=${connection.user.id}`)}
                         data-testid={`button-message-${connection.id}`}
                       >
                         Message

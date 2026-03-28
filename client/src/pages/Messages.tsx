@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/UserAvatar";
-import { Send, MessageCircle, Plus, Search } from "lucide-react";
+import { Send, MessageCircle, Plus, Search, Users } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/AuthContext";
 import { formatDistanceToNow } from "date-fns";
@@ -83,6 +83,12 @@ export default function Messages() {
   const { data: userSearchResults = [] } = useQuery<User[]>({
     queryKey: ["/api/users/search", { q: userSearchTerm }],
     enabled: userSearchTerm.length >= 3,
+  });
+
+  // Fetch connections to show in left panel when no conversations exist
+  const { data: connections = [] } = useQuery<any[]>({
+    queryKey: ["/api/connections", { status: "accepted" }],
+    enabled: !!currentUser,
   });
 
   // Create new conversation mutation
@@ -252,14 +258,7 @@ export default function Messages() {
             </Dialog>
           </div>
           <ScrollArea className="flex-1">
-            {conversations.length === 0 ? (
-              <div className="text-center py-8">
-                <MessageCircle className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
-                <p className="text-sm text-muted-foreground">
-                  No conversations yet
-                </p>
-              </div>
-            ) : (
+            {conversations.length > 0 ? (
               <div className="space-y-2">
                 {conversations.map((conversation) => {
                   const otherUser = conversation.participants.find(
@@ -303,6 +302,47 @@ export default function Messages() {
                     </div>
                   );
                 })}
+              </div>
+            ) : connections.length > 0 ? (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground px-1 pb-2 font-medium uppercase tracking-wide flex items-center gap-1">
+                  <Users className="h-3 w-3" /> Your Connections
+                </p>
+                {connections.map((connection: any) => {
+                  const connUser = connection.user;
+                  if (!connUser) return null;
+                  return (
+                    <div
+                      key={connection.id}
+                      className="p-3 rounded-md cursor-pointer hover-elevate flex items-center gap-3"
+                      onClick={() => createConversation.mutate(connUser.id)}
+                      data-testid={`connection-chat-${connection.id}`}
+                    >
+                      <UserAvatar user={connUser} size="md" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">
+                          {connUser.firstName} {connUser.lastName}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {connUser.role === 'student' && connUser.major}
+                          {connUser.role === 'teacher' && 'Teacher'}
+                          {connUser.role === 'industry_professional' && connUser.company}
+                          {connUser.role === 'university_admin' && connUser.university}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <MessageCircle className="h-12 w-12 mx-auto mb-3 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  No conversations yet
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Connect with people to start chatting
+                </p>
               </div>
             )}
           </ScrollArea>

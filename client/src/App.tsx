@@ -8,6 +8,7 @@ import { Navbar } from "@/components/Navbar";
 import { MobileNavigation } from "@/components/MobileNavigation";
 import { CareerBot } from "@/components/CareerBot";
 import { RoleGuard } from "@/components/RoleGuard";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useIsMobile } from "@/hooks/use-mobile";
 import Landing from "@/pages/Landing";
 import Login from "@/pages/Login";
@@ -100,6 +101,7 @@ function Router() {
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="pb-16 md:pb-0">
+        <ErrorBoundary>
         <Switch>
           {/* Mobile home page - show only on mobile */}
           <Route path="/mobile-home" component={MobileHome} />
@@ -205,6 +207,7 @@ function Router() {
           {/* 404 fallback */}
           <Route component={NotFound} />
         </Switch>
+        </ErrorBoundary>
       </div>
       
       {/* Mobile Navigation - Bottom Tab Bar */}
