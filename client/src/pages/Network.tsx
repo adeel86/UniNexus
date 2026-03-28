@@ -122,6 +122,29 @@ export default function Network() {
     },
   });
 
+  // Remove connection
+  const removeConnection = useMutation({
+    mutationFn: async (connectionId: string) => {
+      return await apiRequest("DELETE", `/api/connections/${connectionId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/connections"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/followers/me"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/following/me"] });
+      toast({
+        title: "Connection removed",
+        description: "You have disconnected from this user",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to remove connection",
+      });
+    },
+  });
+
   // Filter pending requests (only received ones)
   const receivedRequests = pendingRequests.filter(
     req => req.receiverId === auth.userData?.id
@@ -296,6 +319,17 @@ export default function Network() {
                         data-testid={`button-message-${connection.id}`}
                       >
                         Message
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => removeConnection.mutate(connection.id)}
+                        disabled={removeConnection.isPending}
+                        data-testid={`button-remove-connection-${connection.id}`}
+                        title="Remove connection"
+                      >
+                        <UserMinus className="h-4 w-4" />
                       </Button>
                     </div>
                   </Card>

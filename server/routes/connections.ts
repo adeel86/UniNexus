@@ -29,20 +29,24 @@ router.post("/connections/request", isAuthenticated, async (req: AuthRequest, re
       return res.status(400).json({ error: "Cannot connect with yourself" });
     }
 
-    // Check if connection already exists
+    // Check if connection already exists (excluding disconnected ones)
     const existing = await db
       .select()
       .from(userConnections)
       .where(
-        or(
-          and(
-            eq(userConnections.requesterId, req.user!.id),
-            eq(userConnections.receiverId, receiverId)
+        and(
+          or(
+            and(
+              eq(userConnections.requesterId, req.user!.id),
+              eq(userConnections.receiverId, receiverId)
+            ),
+            and(
+              eq(userConnections.requesterId, receiverId),
+              eq(userConnections.receiverId, req.user!.id)
+            )
           ),
-          and(
-            eq(userConnections.requesterId, receiverId),
-            eq(userConnections.receiverId, req.user!.id)
-          )
+          // Exclude disconnected connections
+          sql`${userConnections.status} != 'disconnected'`
         )
       );
 
@@ -146,6 +150,63 @@ router.patch("/connections/:id", isAuthenticated, async (req: AuthRequest, res: 
     }
 
     res.json(updated);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Remove/disconnect from a connection
+router.delete("/connections/:id", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user!.id;
+
+    // Get the connection
+    const [connection] = await db
+      .select()
+      .from(userConnections)
+      .where(eq(userConnections.id, id));
+
+    if (!connection) {
+      return res.status(404).json({ error: "Connection not found" });
+    }
+
+    // Verify the user is part of this connection
+    if (connection.requesterId !== userId && connection.receiverId !== userId) {
+      return res.status(403).json({ error: "You can only remove connections you are part of" });
+    }
+
+    // Get the other user ID
+    const otherUserId = connection.requesterId === userId ? connection.receiverId : connection.requesterId;
+
+    // Remove the auto-follow relationships (unfollow both directions)
+    if (connection.status === 'accepted') {
+      // Remove both follow relationships
+      await db
+        .delete(followers)
+        .where(
+          or(
+            and(
+              eq(followers.followerId, userId),
+              eq(followers.followingId, otherUserId)
+            ),
+            and(
+              eq(followers.followerId, otherUserId),
+              eq(followers.followingId, userId)
+            )
+          )
+        );
+    }
+
+    // Mark connection as disconnected instead of deleting it
+    // This allows both users to see the history and prevent duplicate connections
+    const [updated] = await db
+      .update(userConnections)
+      .set({ status: 'disconnected' })
+      .where(eq(userConnections.id, id))
+      .returning();
+
+    res.json({ success: true, message: "Connection removed", connection: updated });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -296,15 +357,19 @@ router.get("/connections/status/:userId", isAuthenticated, async (req: AuthReque
       .select()
       .from(userConnections)
       .where(
-        or(
-          and(
-            eq(userConnections.requesterId, currentUserId),
-            eq(userConnections.receiverId, userId)
+        and(
+          or(
+            and(
+              eq(userConnections.requesterId, currentUserId),
+              eq(userConnections.receiverId, userId)
+            ),
+            and(
+              eq(userConnections.requesterId, userId),
+              eq(userConnections.receiverId, currentUserId)
+            )
           ),
-          and(
-            eq(userConnections.requesterId, userId),
-            eq(userConnections.receiverId, currentUserId)
-          )
+          // Exclude disconnected connections
+          sql`${userConnections.status} != 'disconnected'`
         )
       );
 
