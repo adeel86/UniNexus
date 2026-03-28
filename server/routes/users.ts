@@ -1069,7 +1069,7 @@ router.get("/cv-export/:userId", requireAuth, async (req: Request, res: Response
         year: c.year,
         grade: c.grade,
         description: c.description,
-        isValidated: c.isUniversityValidated ?? false,
+        isValidated: c.isValidated ?? false,
         validatedAt: c.validatedAt,
       })),
       skills: skillsData.map(s => ({ id: s.id, name: s.name ?? '', level: s.level })),

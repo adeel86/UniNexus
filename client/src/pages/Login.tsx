@@ -10,6 +10,16 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 
+const DEV_AUTH_ENABLED = import.meta.env.VITE_DEV_AUTH_ENABLED === 'true';
+
+const DEMO_ACCOUNTS = [
+  { email: 'demo.student@uninexus.app', role: 'Student', color: 'bg-blue-100 text-blue-800' },
+  { email: 'demo.teacher@uninexus.app', role: 'Teacher', color: 'bg-green-100 text-green-800' },
+  { email: 'demo.university@uninexus.app', role: 'University Admin', color: 'bg-purple-100 text-purple-800' },
+  { email: 'demo.industry@uninexus.app', role: 'Industry Professional', color: 'bg-orange-100 text-orange-800' },
+  { email: 'demo.admin@uninexus.app', role: 'Master Admin', color: 'bg-red-100 text-red-800' },
+];
+
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
@@ -49,13 +59,29 @@ export default function Login() {
     setIsLoading(true);
     try {
       await signIn(data.email, data.password);
-      // Navigate to home page - Router will determine correct dashboard based on role
       navigate('/');
     } catch (error: any) {
       setIsLoading(false);
       toast({
         title: 'Login failed',
         description: error.message || 'Please check your credentials and try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const loginAsDemo = async (email: string) => {
+    setIsLoading(true);
+    form.setValue('email', email);
+    form.setValue('password', 'demo123');
+    try {
+      await signIn(email, 'demo123');
+      navigate('/');
+    } catch (error: any) {
+      setIsLoading(false);
+      toast({
+        title: 'Demo login failed',
+        description: error.message || 'Could not log in with demo account.',
         variant: 'destructive',
       });
     }
@@ -113,6 +139,7 @@ export default function Login() {
                       <Input 
                         placeholder="your.email@university.edu" 
                         type="email"
+                        autoComplete="username"
                         data-testid="input-email"
                         {...field} 
                       />
@@ -169,6 +196,26 @@ export default function Login() {
               Sign up
             </Link>
           </div>
+
+          {DEV_AUTH_ENABLED && (
+            <div className="mt-2 p-3 bg-muted/50 rounded-lg border border-border/50">
+              <p className="text-xs font-semibold text-muted-foreground mb-2 text-center">Demo Accounts (password: demo123)</p>
+              <div className="flex flex-wrap gap-1.5 justify-center">
+                {DEMO_ACCOUNTS.map((account) => (
+                  <button
+                    key={account.email}
+                    type="button"
+                    onClick={() => loginAsDemo(account.email)}
+                    disabled={isLoading}
+                    data-testid={`button-demo-${account.role.toLowerCase().replace(/\s+/g, '-')}`}
+                    className={`text-xs px-2 py-1 rounded-md font-medium cursor-pointer hover:opacity-80 transition-opacity disabled:opacity-50 ${account.color}`}
+                  >
+                    {account.role}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
         </CardContent>
       </Card>
