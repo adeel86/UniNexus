@@ -10,13 +10,9 @@ import {
   users,
   followers,
   notifications,
-  postShares,
-  postBoosts,
   insertPostSchema,
   insertCommentSchema,
   insertReactionSchema,
-  insertPostShareSchema,
-  insertPostBoostSchema,
 } from "@shared/schema";
 import { blockRestrictedRoles } from "./shared";
 

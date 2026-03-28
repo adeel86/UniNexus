@@ -20,9 +20,18 @@ import {
   notifications,
   userConnections,
   userPreferences,
+  userProfiles,
+  userSkills,
+  skills,
+  certifications,
+  challengeParticipants,
+  challenges,
+  userBadges,
+  badges,
   insertEducationRecordSchema,
   insertJobExperienceSchema,
   insertStudentCourseSchema,
+  insertUserProfileSchema,
 } from "@shared/schema";
 
 const router = Router();
@@ -944,6 +953,132 @@ router.patch("/users/:userId/profile", async (req: Request, res: Response) => {
     res.json(updated);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
+  }
+});
+
+// ---- User Profiles (extended profile data) ----
+
+router.get("/user-profiles/:userId", async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const [profile] = await db
+      .select()
+      .from(userProfiles)
+      .where(eq(userProfiles.userId, userId))
+      .limit(1);
+    if (!profile) {
+      return res.status(404).json({ error: "Profile not found" });
+    }
+    res.json(profile);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/user-profiles", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const parsed = insertUserProfileSchema.parse({ ...req.body, userId });
+
+    const [existing] = await db
+      .select()
+      .from(userProfiles)
+      .where(eq(userProfiles.userId, userId))
+      .limit(1);
+
+    if (existing) {
+      const [updated] = await db
+        .update(userProfiles)
+        .set({ ...parsed, updatedAt: new Date() })
+        .where(eq(userProfiles.userId, userId))
+        .returning();
+      return res.json(updated);
+    }
+
+    const [created] = await db
+      .insert(userProfiles)
+      .values(parsed)
+      .returning();
+    res.json(created);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// ---- CV Export ----
+
+router.get("/cv-export/:userId", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+
+    const [user] = await db
+      .select({
+        id: users.id,
+        displayName: users.displayName,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email,
+        university: users.university,
+        bio: users.bio,
+        role: users.role,
+      })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const [education, workExperience, studentCoursesData, skillsData, certsData, challengeData, badgesData] = await Promise.all([
+      db.select().from(educationRecords).where(eq(educationRecords.userId, userId)),
+      db.select().from(jobExperience).where(eq(jobExperience.userId, userId)),
+      db.select().from(studentCourses).where(eq(studentCourses.userId, userId)),
+      db.select({ id: userSkills.id, name: skills.name, level: userSkills.level })
+        .from(userSkills)
+        .leftJoin(skills, eq(userSkills.skillId, skills.id))
+        .where(eq(userSkills.userId, userId)),
+      db.select().from(certifications).where(eq(certifications.userId, userId)),
+      db.select({
+          id: challengeParticipants.id,
+          challengeTitle: challenges.title,
+          challengeCategory: challenges.category,
+          submittedAt: challengeParticipants.submittedAt,
+          rank: challengeParticipants.rank,
+        })
+        .from(challengeParticipants)
+        .leftJoin(challenges, eq(challengeParticipants.challengeId, challenges.id))
+        .where(eq(challengeParticipants.userId, userId)),
+      db.select({ id: userBadges.id, name: badges.name, description: badges.description, tier: badges.tier, earnedAt: userBadges.earnedAt })
+        .from(userBadges)
+        .leftJoin(badges, eq(userBadges.badgeId, badges.id))
+        .where(eq(userBadges.userId, userId)),
+    ]);
+
+    res.json({
+      user,
+      education,
+      workExperience,
+      courses: studentCoursesData.map(c => ({
+        id: c.id,
+        courseName: c.courseName,
+        courseCode: c.courseCode,
+        institution: c.institution,
+        instructor: c.instructor,
+        semester: c.semester,
+        year: c.year,
+        grade: c.grade,
+        description: c.description,
+        isValidated: c.isUniversityValidated ?? false,
+        validatedAt: c.validatedAt,
+      })),
+      skills: skillsData.map(s => ({ id: s.id, name: s.name ?? '', level: s.level })),
+      certifications: certsData,
+      challengeParticipations: challengeData,
+      badges: badgesData,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
   }
 });
 
