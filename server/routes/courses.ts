@@ -17,11 +17,9 @@ import {
   insertCourseSchema,
   insertCourseDiscussionSchema,
   insertDiscussionReplySchema,
-  insertStudentCourseSchema,
 } from "@shared/schema";
 import {
   checkAndAwardCourseBadges,
-  getStudentCoursesForUser,
   getEnrolledCoursesForStudent,
   validateStudentCourse,
   removeValidation,
@@ -141,89 +139,8 @@ router.get("/majors", async (_req: Request, res: Response) => {
 });
 
 // ========================================================================
-// STUDENT COURSES ENDPOINTS (Profile courses with teacher validation)
+// STUDENT COURSES VALIDATION ENDPOINTS (CRUD is handled in users.ts)
 // ========================================================================
-
-router.get("/users/:userId/student-courses", async (req: Request, res: Response) => {
-  try {
-    const courses = await getStudentCoursesForUser(req.params.userId);
-    res.json(courses);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.post("/student-courses", isAuthenticated, async (req: Request, res: Response) => {
-  if (!req.user) return res.status(401).send("Unauthorized");
-
-  try {
-    const validated = insertStudentCourseSchema.parse({
-      ...req.body,
-      userId: req.user.id,
-    });
-    const [course] = await db.insert(studentCourses).values(validated).returning();
-
-    // Notify teacher if assigned
-    if (validated.assignedTeacherId) {
-      await db.insert(notifications).values({
-        userId: validated.assignedTeacherId,
-        type: "validation",
-        title: "New Course Validation Request",
-        message: `${req.user.firstName} ${req.user.lastName} requested validation for "${validated.courseName}"`,
-        link: "/teacher-dashboard",
-      });
-    }
-
-    res.json(course);
-  } catch (error: any) {
-    res.status(400).json({ error: error.message });
-  }
-});
-
-router.patch("/student-courses/:id", isAuthenticated, async (req: Request, res: Response) => {
-  if (!req.user) return res.status(401).send("Unauthorized");
-
-  try {
-    const { id } = req.params;
-    const [existing] = await db.select().from(studentCourses).where(eq(studentCourses.id, id)).limit(1);
-    if (!existing) return res.status(404).json({ error: "Course not found" });
-    if (existing.userId !== req.user.id && req.user.role !== "teacher" && req.user.role !== "university_admin") {
-      return res.status(403).json({ error: "Not authorized to update this course" });
-    }
-
-    const [updated] = await db.update(studentCourses).set({ ...req.body, updatedAt: new Date() }).where(eq(studentCourses.id, id)).returning();
-    
-    // Notify the user if someone else updated their course (e.g. a teacher validation)
-    if (existing.userId !== req.user.id) {
-       await db.insert(notifications).values({
-        userId: existing.userId,
-        type: "validation",
-        title: "Course Updated",
-        message: `Your course "${existing.courseName}" has been updated by ${req.user.firstName} ${req.user.lastName}`,
-        link: "/profile",
-      });
-    }
-    res.json(updated);
-  } catch (error: any) {
-    res.status(400).json({ error: error.message });
-  }
-});
-
-router.delete("/student-courses/:id", isAuthenticated, async (req: Request, res: Response) => {
-  if (!req.user) return res.status(401).send("Unauthorized");
-
-  try {
-    const { id } = req.params;
-    const [existing] = await db.select().from(studentCourses).where(eq(studentCourses.id, id)).limit(1);
-    if (!existing) return res.status(404).json({ error: "Course not found" });
-    if (existing.userId !== req.user.id) return res.status(403).json({ error: "Not authorized to delete this course" });
-
-    await db.delete(studentCourses).where(eq(studentCourses.id, id));
-    res.json({ success: true });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
 
 router.post("/student-courses/:id/validate", isAuthenticated, async (req: Request, res: Response) => {
   if (!req.user) return res.status(401).send("Unauthorized");

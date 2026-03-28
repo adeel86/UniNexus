@@ -17,6 +17,67 @@ import { updateUserStreakForActivity } from "../streakHelper";
 
 const router = Router();
 
+// Get challenges for global map (must be before /:status? to avoid being shadowed)
+router.get("/challenges/map", async (req: Request, res: Response) => {
+  try {
+    const challengesData = await db
+      .select()
+      .from(challenges)
+      .orderBy(desc(challenges.createdAt));
+
+    const universityCounts: Record<string, { active: number; upcoming: number; completed: number; total: number; challenges: typeof challengesData }> = {};
+
+    challengesData.forEach((challenge) => {
+      const university = challenge.hostUniversity || 'Global';
+      if (!universityCounts[university]) {
+        universityCounts[university] = { active: 0, upcoming: 0, completed: 0, total: 0, challenges: [] };
+      }
+      universityCounts[university].total++;
+      universityCounts[university].challenges.push(challenge);
+      
+      if (challenge.status === 'active') universityCounts[university].active++;
+      else if (challenge.status === 'upcoming') universityCounts[university].upcoming++;
+      else if (challenge.status === 'completed') universityCounts[university].completed++;
+    });
+
+    res.json({
+      challenges: challengesData,
+      universityCounts,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get user's challenge participations (must be before /:status? to avoid being shadowed)
+router.get("/challenges/my-participations", isAuthenticated, async (req: Request, res: Response) => {
+  if (!req.user) {
+    return res.status(401).send("Unauthorized");
+  }
+
+  try {
+    const myParticipations = await db
+      .select({
+        id: challengeParticipants.id,
+        challengeId: challengeParticipants.challengeId,
+        userId: challengeParticipants.userId,
+        submissionUrl: challengeParticipants.submissionUrl,
+        submittedAt: challengeParticipants.submittedAt,
+        rank: challengeParticipants.rank,
+        joinedAt: challengeParticipants.joinedAt,
+        challenge: challenges,
+      })
+      .from(challengeParticipants)
+      .leftJoin(challenges, eq(challengeParticipants.challengeId, challenges.id))
+      .where(eq(challengeParticipants.userId, req.user.id))
+      .orderBy(desc(challengeParticipants.joinedAt));
+
+    res.json(myParticipations);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get challenges with optional status filter
 router.get("/challenges/:status?", async (req: Request, res: Response) => {
   try {
@@ -110,38 +171,6 @@ router.get("/users/:userId/challenge-milestones", isAuthenticated, async (req: R
         winsCount,
       },
       upcomingDeadlines,
-    });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get challenges for global map
-router.get("/challenges/map", async (req: Request, res: Response) => {
-  try {
-    const challengesData = await db
-      .select()
-      .from(challenges)
-      .orderBy(desc(challenges.createdAt));
-
-    const universityCounts: Record<string, { active: number; upcoming: number; completed: number; total: number; challenges: typeof challengesData }> = {};
-
-    challengesData.forEach((challenge) => {
-      const university = challenge.hostUniversity || 'Global';
-      if (!universityCounts[university]) {
-        universityCounts[university] = { active: 0, upcoming: 0, completed: 0, total: 0, challenges: [] };
-      }
-      universityCounts[university].total++;
-      universityCounts[university].challenges.push(challenge);
-      
-      if (challenge.status === 'active') universityCounts[university].active++;
-      else if (challenge.status === 'upcoming') universityCounts[university].upcoming++;
-      else if (challenge.status === 'completed') universityCounts[university].completed++;
-    });
-
-    res.json({
-      challenges: challengesData,
-      universityCounts,
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -490,35 +519,6 @@ router.post("/users/:userId/recalculate-rank", isAuthenticated, async (req: Requ
       totalPoints: user?.totalPoints,
       rankTier: user?.rankTier 
     });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get user's challenge participations
-router.get("/challenges/my-participations", isAuthenticated, async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
-  try {
-    const myParticipations = await db
-      .select({
-        id: challengeParticipants.id,
-        challengeId: challengeParticipants.challengeId,
-        userId: challengeParticipants.userId,
-        submissionUrl: challengeParticipants.submissionUrl,
-        submittedAt: challengeParticipants.submittedAt,
-        rank: challengeParticipants.rank,
-        joinedAt: challengeParticipants.joinedAt,
-        challenge: challenges,
-      })
-      .from(challengeParticipants)
-      .leftJoin(challenges, eq(challengeParticipants.challengeId, challenges.id))
-      .where(eq(challengeParticipants.userId, req.user.id))
-      .orderBy(desc(challengeParticipants.joinedAt));
-
-    res.json(myParticipations);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

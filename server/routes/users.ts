@@ -813,6 +813,16 @@ router.post("/student-courses", async (req: Request, res: Response) => {
       .values(validated)
       .returning();
 
+    if (validated.assignedTeacherId) {
+      await db.insert(notifications).values({
+        userId: validated.assignedTeacherId,
+        type: "validation",
+        title: "New Course Validation Request",
+        message: `${req.user.firstName} ${req.user.lastName} requested validation for "${validated.courseName}"`,
+        link: "/teacher-dashboard",
+      });
+    }
+
     res.json(course);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
@@ -837,17 +847,35 @@ router.patch("/student-courses/:id", async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Course not found" });
     }
 
-    if (existing.userId !== req.user.id) {
+    const isOwner = existing.userId === req.user.id;
+    const isPrivileged = req.user.role === "teacher" || req.user.role === "university_admin" || req.user.role === "master_admin";
+
+    if (!isOwner && !isPrivileged) {
       return res.status(403).json({ error: "Not authorized to update this course" });
     }
 
-    const { isValidated, validatedBy, validatedAt, validationNote, ...updateData } = req.body;
+    // Prevent students from self-validating by stripping validation fields from their updates
+    let updateData = req.body;
+    if (isOwner && !isPrivileged) {
+      const { isValidated, validatedBy, validatedAt, validationNote, validationStatus, ...safeData } = req.body;
+      updateData = safeData;
+    }
 
     const [updated] = await db
       .update(studentCourses)
       .set({ ...updateData, updatedAt: new Date() })
       .where(eq(studentCourses.id, id))
       .returning();
+
+    if (!isOwner) {
+      await db.insert(notifications).values({
+        userId: existing.userId,
+        type: "validation",
+        title: "Course Updated",
+        message: `Your course "${existing.courseName}" has been updated by ${req.user.firstName} ${req.user.lastName}`,
+        link: "/profile",
+      });
+    }
 
     res.json(updated);
   } catch (error: any) {
