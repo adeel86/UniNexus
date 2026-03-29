@@ -16,7 +16,7 @@ const router = express.Router();
 // ========================================================================
 
 // Get all feedback for a student (used by CareerBot and student profiles)
-router.get("/recruiter-feedback/student/:studentId", async (req: AuthRequest, res: Response) => {
+router.get("/recruiter-feedback/student/:studentId", isAuthenticated, async (req: AuthRequest, res: Response) => {
   try {
     const { studentId } = req.params;
     
@@ -93,7 +93,7 @@ router.post("/recruiter-feedback", isAuthenticated, async (req: AuthRequest, res
 });
 
 // Get aggregated feedback insights for a student (for CareerBot integration)
-router.get("/recruiter-feedback/insights/:studentId", async (req: AuthRequest, res: Response) => {
+router.get("/recruiter-feedback/insights/:studentId", isAuthenticated, async (req: AuthRequest, res: Response) => {
   try {
     const { studentId } = req.params;
     

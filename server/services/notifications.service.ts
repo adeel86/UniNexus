@@ -9,7 +9,16 @@ export type NotificationType =
   | 'comment' 
   | 'connection' 
   | 'message' 
-  | 'system';
+  | 'system'
+  | 'group_post'
+  | 'group_activity'
+  | 'group_invitation'
+  | 'course_material'
+  | 'course_assignment'
+  | 'course_announcement'
+  | 'course_graded'
+  | 'recruiter_feedback'
+  | 'endorsement';
 
 export interface CreateNotificationParams {
   userId: string;
