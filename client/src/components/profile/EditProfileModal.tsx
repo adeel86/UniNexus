@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/AuthContext";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +25,7 @@ interface EditProfileModalProps {
 
 export function EditProfileModal({ user, open, onOpenChange }: EditProfileModalProps) {
   const { toast } = useToast();
+  const { refreshUserData } = useAuth();
   const [bio, setBio] = useState(user.bio || "");
   const [profileImageUrl, setProfileImageUrl] = useState(user.profileImageUrl || "");
   const [isUploading, setIsUploading] = useState(false);
@@ -92,9 +94,9 @@ export function EditProfileModal({ user, open, onOpenChange }: EditProfileModalP
       });
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/users", user.id] });
-      queryClient.invalidateQueries({ queryKey: ["/api/users/me"] });
+    onSuccess: async () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/users/${user.id}`] });
+      await refreshUserData();
       toast({
         title: "Profile Updated",
         description: "Your profile has been updated successfully.",

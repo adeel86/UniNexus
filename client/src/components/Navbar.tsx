@@ -66,18 +66,18 @@ export function Navbar({ onMenuClick }: NavbarProps) {
   const unreadCount = notifications.filter(n => !n.isRead).length;
   const unreadMessages = conversations.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
 
-  const roleDisplay = {
+  const roleDisplay: Record<string, string> = {
     student: "Student",
     teacher: "Teacher",
     university_admin: "University Admin",
-    industry_partner: "Industry Partner",
+    industry_professional: "Industry Partner",
     master_admin: "Master Admin",
   };
 
   const isStudent = user?.role === 'student';
   const isTeacher = user?.role === 'teacher';
   const isUniversity = user?.role === 'university_admin';
-  const isIndustry = user?.role === 'industry_partner' || user?.role === 'industry_professional' || user?.role === 'industry';
+  const isIndustry = user?.role === 'industry_professional' || user?.role === 'industry';
   const isAdmin = user?.role === 'master_admin';
 
   return (

@@ -56,7 +56,7 @@ export default function MasterAdminDashboard() {
     student: users.filter(u => u.role === 'student').length,
     teacher: users.filter(u => u.role === 'teacher').length,
     university_admin: users.filter(u => u.role === 'university_admin').length,
-    industry_partner: users.filter(u => u.role === 'industry_partner').length,
+    industry_professional: users.filter(u => u.role === 'industry_professional').length,
     master_admin: users.filter(u => u.role === 'master_admin').length,
   };
 
@@ -141,7 +141,7 @@ export default function MasterAdminDashboard() {
                 <div className="text-sm text-muted-foreground">Uni Admins</div>
               </Card>
               <Card className="p-4 text-center">
-                <div className="text-2xl font-bold">{roleStats.industry_partner}</div>
+                <div className="text-2xl font-bold">{roleStats.industry_professional}</div>
                 <div className="text-sm text-muted-foreground">Industry</div>
               </Card>
               <Card className="p-4 text-center">

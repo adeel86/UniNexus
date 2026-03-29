@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function Settings() {
-  const { userData, signOut } = useAuth();
+  const { userData, signOut, refreshUserData } = useAuth();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   
@@ -146,7 +146,7 @@ export default function Settings() {
         majorId: major?.id || null,
       });
 
-      queryClient.invalidateQueries({ queryKey: ["auth-user"] });
+      await refreshUserData();
 
       toast({
         title: "Profile updated",
@@ -173,7 +173,7 @@ export default function Settings() {
         endorsementNotifications,
       });
 
-      queryClient.invalidateQueries({ queryKey: ["user-preferences"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users/preferences"] });
 
       toast({
         title: "Settings saved",
@@ -199,7 +199,7 @@ export default function Settings() {
         showActivity,
       });
 
-      queryClient.invalidateQueries({ queryKey: ["user-preferences"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users/preferences"] });
 
       toast({
         title: "Privacy settings updated",
