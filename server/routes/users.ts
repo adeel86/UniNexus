@@ -1089,7 +1089,7 @@ router.post("/users/:userId/recalculate-points", requireAuth, async (req: Reques
     const currentUser = req.user!;
 
     // Only allow users to recalculate their own points or admins
-    if (currentUser.id !== userId && currentUser.role !== 'admin') {
+    if (currentUser.id !== userId && currentUser.role !== 'master_admin') {
       return res.status(403).json({ error: "Not authorized to recalculate this user's points" });
     }
 

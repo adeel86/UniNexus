@@ -124,6 +124,12 @@ Preferred communication style: Simple, everyday language.
 - `GET /api/teacher/my-students` - Get students enrolled/validated by teacher
 - `PATCH /api/teacher-content/:id` - Update teacher content (ownership validated)
 
+## Replit Migration Notes
+- **Dev script**: Changed from `npx tsx` to `tsx` (local node_modules binary) to avoid interactive install prompts
+- **Workflow**: Configured "Start application" workflow with `npm run dev`, port 5000, webview output type
+- **Database**: Schema pushed via `drizzle-kit push` — all tables are synced
+- **Port**: Server runs on port 5000 (from `process.env.PORT || 5000`)
+
 ## Recent Changes
 - **2024-12-05**: Added course deletion for teachers - cascade delete removes all materials, enrollments, discussions, and AI sessions
 - **2024-12-05**: Enabled university_admin role access to Network, Discovery, Messages, and Groups tabs (only master_admin is now restricted)

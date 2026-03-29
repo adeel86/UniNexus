@@ -54,7 +54,7 @@ export default function Settings() {
 
   // Load user preferences
   const { data: userPreferences = null, isLoading: preferencesLoading } = useQuery<any>({
-    queryKey: ["/api/users/preferences", userData?.id],
+    queryKey: ["/api/users/preferences"],
     enabled: !!userData?.id,
   });
 

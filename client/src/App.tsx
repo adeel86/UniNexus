@@ -162,7 +162,7 @@ function Router() {
             </RoleGuard>
           </Route>
           <Route path="/settings">
-            <RoleGuard allowedRoles={['student', 'teacher', 'university_admin', 'industry_professional']}>
+            <RoleGuard allowedRoles={['student', 'teacher', 'university_admin', 'industry_professional', 'master_admin']}>
               <Settings />
             </RoleGuard>
           </Route>
