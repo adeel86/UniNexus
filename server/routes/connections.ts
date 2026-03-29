@@ -29,24 +29,20 @@ router.post("/connections/request", isAuthenticated, async (req: AuthRequest, re
       return res.status(400).json({ error: "Cannot connect with yourself" });
     }
 
-    // Check if connection already exists (excluding disconnected ones)
+    // Check if connection already exists
     const existing = await db
       .select()
       .from(userConnections)
       .where(
-        and(
-          or(
-            and(
-              eq(userConnections.requesterId, req.user!.id),
-              eq(userConnections.receiverId, receiverId)
-            ),
-            and(
-              eq(userConnections.requesterId, receiverId),
-              eq(userConnections.receiverId, req.user!.id)
-            )
+        or(
+          and(
+            eq(userConnections.requesterId, req.user!.id),
+            eq(userConnections.receiverId, receiverId)
           ),
-          // Exclude disconnected connections
-          sql`${userConnections.status} != 'disconnected'`
+          and(
+            eq(userConnections.requesterId, receiverId),
+            eq(userConnections.receiverId, req.user!.id)
+          )
         )
       );
 
@@ -198,15 +194,12 @@ router.delete("/connections/:id", isAuthenticated, async (req: AuthRequest, res:
         );
     }
 
-    // Mark connection as disconnected instead of deleting it
-    // This allows both users to see the history and prevent duplicate connections
-    const [updated] = await db
-      .update(userConnections)
-      .set({ status: 'disconnected' })
-      .where(eq(userConnections.id, id))
-      .returning();
+    // Delete the connection record entirely
+    await db
+      .delete(userConnections)
+      .where(eq(userConnections.id, id));
 
-    res.json({ success: true, message: "Connection removed", connection: updated });
+    res.json({ success: true, message: "Connection removed" });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -357,19 +350,15 @@ router.get("/connections/status/:userId", isAuthenticated, async (req: AuthReque
       .select()
       .from(userConnections)
       .where(
-        and(
-          or(
-            and(
-              eq(userConnections.requesterId, currentUserId),
-              eq(userConnections.receiverId, userId)
-            ),
-            and(
-              eq(userConnections.requesterId, userId),
-              eq(userConnections.receiverId, currentUserId)
-            )
+        or(
+          and(
+            eq(userConnections.requesterId, currentUserId),
+            eq(userConnections.receiverId, userId)
           ),
-          // Exclude disconnected connections
-          sql`${userConnections.status} != 'disconnected'`
+          and(
+            eq(userConnections.requesterId, userId),
+            eq(userConnections.receiverId, currentUserId)
+          )
         )
       );
 
