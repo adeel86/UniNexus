@@ -278,7 +278,6 @@ router.post("/change-password", isAuthenticated, async (req: AuthRequest, res: R
     
     // For development/demo auth, use a simple password check
     if (isDevUser) {
-      const DEMO_PASSWORD = "demo123";
       if (currentPassword !== DEMO_PASSWORD) {
         return res.status(401).json({ message: "Current password is incorrect" });
       }

@@ -286,7 +286,7 @@ router.get("/users/search", async (req: Request, res: Response) => {
   }
 
   try {
-    const { q, excludeConnected } = req.query;
+    const { q, excludeConnected, role } = req.query;
     const searchTerm = q as string;
 
     if (!searchTerm || searchTerm.length < 3) {
@@ -318,8 +318,10 @@ router.get("/users/search", async (req: Request, res: Response) => {
     }
     
     // Build query conditions
+    const roleCondition = role && role !== 'all' ? eq(users.role, role as string) : undefined;
     const baseConditions = and(
       sql`${users.id} != ${currentUserId}`,
+      roleCondition,
       or(
         sql`${users.firstName} ILIKE ${searchPattern}`,
         sql`${users.lastName} ILIKE ${searchPattern}`,
