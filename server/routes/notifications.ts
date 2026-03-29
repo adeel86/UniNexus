@@ -1,4 +1,4 @@
-import { Router, Request, Response } from "express";
+import { Router, Response } from "express";
 import { eq, desc, and, or } from "drizzle-orm";
 import { db } from "../db";
 import { isAuthenticated, type AuthRequest } from "../firebaseAuth";
@@ -6,16 +6,12 @@ import { notifications } from "@shared/schema";
 
 const router = Router();
 
-router.get("/notifications", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.get("/notifications", isAuthenticated, async (req: AuthRequest, res: Response) => {
   try {
     const userNotifications = await db
       .select()
       .from(notifications)
-      .where(eq(notifications.userId, req.user.id))
+      .where(eq(notifications.userId, req.user!.id))
       .orderBy(desc(notifications.createdAt))
       .limit(20);
 
@@ -39,11 +35,7 @@ router.get("/notifications/unread-count", isAuthenticated, async (req: AuthReque
   }
 });
 
-router.patch("/notifications/:notificationId/read", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.patch("/notifications/:notificationId/read", isAuthenticated, async (req: AuthRequest, res: Response) => {
   try {
     const { notificationId } = req.params;
 
@@ -57,7 +49,7 @@ router.patch("/notifications/:notificationId/read", async (req: Request, res: Re
       return res.status(404).json({ error: "Notification not found" });
     }
 
-    if (notification.userId !== req.user.id) {
+    if (notification.userId !== req.user!.id) {
       return res.status(403).json({ error: "Not authorized" });
     }
 
@@ -131,13 +123,9 @@ router.get("/notifications/courses/unread-count", isAuthenticated, async (req: A
   }
 });
 
-router.delete("/notifications/clear-all", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.delete("/notifications/clear-all", isAuthenticated, async (req: AuthRequest, res: Response) => {
   try {
-    await db.delete(notifications).where(eq(notifications.userId, req.user.id));
+    await db.delete(notifications).where(eq(notifications.userId, req.user!.id));
 
     res.json({ success: true });
   } catch (error: any) {
@@ -145,11 +133,7 @@ router.delete("/notifications/clear-all", async (req: Request, res: Response) =>
   }
 });
 
-router.delete("/notifications/:notificationId", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.delete("/notifications/:notificationId", isAuthenticated, async (req: AuthRequest, res: Response) => {
   try {
     const { notificationId } = req.params;
 
@@ -163,7 +147,7 @@ router.delete("/notifications/:notificationId", async (req: Request, res: Respon
       return res.status(404).json({ error: "Notification not found" });
     }
 
-    if (notification.userId !== req.user.id) {
+    if (notification.userId !== req.user!.id) {
       return res.status(403).json({ error: "Not authorized" });
     }
 

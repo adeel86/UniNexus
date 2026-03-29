@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { createHash } from "crypto";
 import { db } from "../db";
+import { isAuthenticated } from "../firebaseAuth";
 import {
   users,
   certifications,
@@ -11,11 +12,7 @@ import {
 
 const router = Router();
 
-router.get("/certifications/user/:userId", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.get("/certifications/user/:userId", isAuthenticated, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     
@@ -61,11 +58,7 @@ router.get("/certifications/user/:userId", async (req: Request, res: Response) =
   }
 });
 
-router.post("/certifications", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.post("/certifications", isAuthenticated, async (req: Request, res: Response) => {
   const authorizedRoles = ['teacher', 'university_admin', 'industry_professional', 'master_admin'];
   if (!authorizedRoles.includes(req.user.role)) {
     return res.status(403).json({ 
@@ -202,10 +195,7 @@ router.get("/certifications/verify/:hash", async (req: Request, res: Response) =
   }
 });
 
-router.get("/certifications/:id", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
+router.get("/certifications/:id", isAuthenticated, async (req: Request, res: Response) => {
   try {
     const [certification] = await db
       .select({

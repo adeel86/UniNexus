@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { eq, desc, sql, and, inArray } from "drizzle-orm";
 import { db } from "../db";
+import { isAuthenticated, type AuthRequest } from "../firebaseAuth";
 import { updateUserStreakForActivity } from "../streakHelper";
 import { updateTotalPointsAfterScoreChange } from "../pointsHelper";
 import {
@@ -112,11 +113,7 @@ router.get("/posts", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/feed/personalized", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.get("/feed/personalized", isAuthenticated, async (req: AuthRequest, res: Response) => {
   try {
     const [currentUser] = await db
       .select()
@@ -261,11 +258,7 @@ router.get("/feed/personalized", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/feed/following", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.get("/feed/following", isAuthenticated, async (req: AuthRequest, res: Response) => {
   try {
     const currentUser = req.user;
     const category = req.query.category as string;
@@ -335,11 +328,7 @@ router.get("/feed/following", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/feed/trending", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.get("/feed/trending", isAuthenticated, async (req: AuthRequest, res: Response) => {
   try {
     const category = req.query.category as string;
     const limit = parseInt(req.query.limit as string) || 10;
@@ -418,10 +407,6 @@ router.get("/feed/trending", async (req: Request, res: Response) => {
 });
 
 router.post("/posts", blockRestrictedRoles, async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
   try {
     const validatedData = insertPostSchema.parse({
       ...req.body,
@@ -453,11 +438,7 @@ router.post("/posts", blockRestrictedRoles, async (req: Request, res: Response) 
   }
 });
 
-router.patch("/posts/:postId", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.patch("/posts/:postId", isAuthenticated, async (req: AuthRequest, res: Response) => {
   try {
     const { postId } = req.params;
     const { content, category, tags } = req.body;
@@ -493,11 +474,7 @@ router.patch("/posts/:postId", async (req: Request, res: Response) => {
   }
 });
 
-router.delete("/posts/:postId", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.delete("/posts/:postId", isAuthenticated, async (req: AuthRequest, res: Response) => {
   try {
     const { postId } = req.params;
 
@@ -526,11 +503,7 @@ router.delete("/posts/:postId", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/comments", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.post("/comments", isAuthenticated, async (req: AuthRequest, res: Response) => {
   try {
     const validatedData = insertCommentSchema.parse({
       ...req.body,
@@ -593,11 +566,7 @@ router.post("/comments", async (req: Request, res: Response) => {
   }
 });
 
-router.delete("/comments/:commentId", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.delete("/comments/:commentId", isAuthenticated, async (req: AuthRequest, res: Response) => {
   try {
     const { commentId } = req.params;
 
@@ -624,11 +593,7 @@ router.delete("/comments/:commentId", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/reactions", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.post("/reactions", isAuthenticated, async (req: AuthRequest, res: Response) => {
   try {
     const validatedData = insertReactionSchema.parse({
       ...req.body,
@@ -692,11 +657,7 @@ router.post("/reactions", async (req: Request, res: Response) => {
   }
 });
 
-router.delete("/reactions/:postId/:type", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.delete("/reactions/:postId/:type", isAuthenticated, async (req: AuthRequest, res: Response) => {
   try {
     const { postId, type } = req.params;
 

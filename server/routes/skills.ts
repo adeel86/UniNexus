@@ -17,11 +17,7 @@ import { requireAuth } from "./shared";
 
 const router = Router();
 
-router.get("/user-badges/:userId", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.get("/user-badges/:userId", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     
@@ -67,11 +63,7 @@ router.get("/skills", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/endorsements/:userId", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.get("/endorsements/:userId", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     
@@ -112,11 +104,7 @@ router.get("/endorsements/:userId", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/endorsements", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.post("/endorsements", requireAuth, async (req: Request, res: Response) => {
   try {
     const validatedData = insertEndorsementSchema.parse({
       ...req.body,
@@ -152,11 +140,7 @@ router.post("/endorsements", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/user-skills/:userId", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.get("/user-skills/:userId", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
 
@@ -180,10 +164,6 @@ router.get("/user-skills/:userId", async (req: Request, res: Response) => {
 });
 
 router.post("/users/skills", requireAuth, async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
   try {
     let { skillId, skillName, level } = req.body;
 
@@ -252,10 +232,6 @@ router.post("/users/skills", requireAuth, async (req: Request, res: Response) =>
 });
 
 router.delete("/user-skills/:skillId", requireAuth, async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
   try {
     const { skillId } = req.params;
     const userId = (req.user as any).id;
@@ -282,10 +258,6 @@ router.delete("/user-skills/:skillId", requireAuth, async (req: Request, res: Re
 });
 
 router.patch("/users/skills/:id", requireAuth, async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
   try {
     const { id } = req.params;
     const { level } = req.body;

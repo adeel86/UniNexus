@@ -110,9 +110,7 @@ router.post("/upload/image", requireAuth, upload.single("image"), async (req: Re
   }
 });
 
-router.get("/teachers", async (req: Request, res: Response) => {
-  if (!req.user) return res.status(401).send("Unauthorized");
-
+router.get("/teachers", requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.user as any;
     let query = db.select().from(users).where(eq(users.role, "teacher"));
@@ -136,9 +134,7 @@ router.get("/teachers", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/students", async (req: Request, res: Response) => {
-  if (!req.user) return res.status(401).send("Unauthorized");
-  
+router.get("/students", requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.user as any;
     let query = db.select().from(users).where(eq(users.role, "student"));
@@ -162,11 +158,7 @@ router.get("/students", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/teachers/university/:university", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.get("/teachers/university/:university", requireAuth, async (req: Request, res: Response) => {
   try {
     const { university } = req.params;
 
@@ -187,11 +179,7 @@ router.get("/teachers/university/:university", async (req: Request, res: Respons
   }
 });
 
-router.get("/teachers/:teacherId/students", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.get("/teachers/:teacherId/students", requireAuth, async (req: Request, res: Response) => {
   try {
     const { teacherId } = req.params;
 
@@ -228,12 +216,8 @@ router.get("/teachers/:teacherId/students", async (req: Request, res: Response) 
   }
 });
 
-router.get("/university/teachers", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
-  const isUniversityAdmin = ['university', 'university_admin', 'master_admin'].includes(req.user.role);
+router.get("/university/teachers", requireAuth, async (req: Request, res: Response) => {
+  const isUniversityAdmin = ['university', 'university_admin', 'master_admin'].includes(req.user!.role);
   if (!isUniversityAdmin) {
     return res.status(403).json({ error: "Only university admins can access this" });
   }
@@ -280,11 +264,7 @@ router.get("/university/teachers", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/users/search", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.get("/users/search", requireAuth, async (req: Request, res: Response) => {
   try {
     const { q, excludeConnected, role } = req.query;
     const searchTerm = q as string;
@@ -358,11 +338,7 @@ router.get("/users/search", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/users/groups", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.get("/users/groups", requireAuth, async (req: Request, res: Response) => {
   try {
     const results = await db
       .select({
@@ -548,11 +524,7 @@ router.get("/users/:userId", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/users/:userId/education", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.get("/users/:userId/education", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
 
@@ -586,11 +558,7 @@ router.get("/users/:userId/education", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/education", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.post("/education", requireAuth, async (req: Request, res: Response) => {
   try {
     const validated = insertEducationRecordSchema.parse({
       ...req.body,
@@ -608,11 +576,7 @@ router.post("/education", async (req: Request, res: Response) => {
   }
 });
 
-router.patch("/education/:id", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.patch("/education/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
@@ -642,11 +606,7 @@ router.patch("/education/:id", async (req: Request, res: Response) => {
   }
 });
 
-router.delete("/education/:id", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.delete("/education/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
@@ -690,11 +650,7 @@ router.get("/users/:userId/job-experience", async (req: Request, res: Response) 
   }
 });
 
-router.post("/job-experience", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.post("/job-experience", requireAuth, async (req: Request, res: Response) => {
   try {
     const validated = insertJobExperienceSchema.parse({
       ...req.body,
@@ -712,11 +668,7 @@ router.post("/job-experience", async (req: Request, res: Response) => {
   }
 });
 
-router.patch("/job-experience/:id", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.patch("/job-experience/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
@@ -746,11 +698,7 @@ router.patch("/job-experience/:id", async (req: Request, res: Response) => {
   }
 });
 
-router.delete("/job-experience/:id", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.delete("/job-experience/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     
@@ -808,11 +756,7 @@ router.get("/users/:userId/student-courses", async (req: Request, res: Response)
   }
 });
 
-router.post("/student-courses", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.post("/student-courses", requireAuth, async (req: Request, res: Response) => {
   try {
     const validated = insertStudentCourseSchema.parse({
       ...req.body,
@@ -840,11 +784,7 @@ router.post("/student-courses", async (req: Request, res: Response) => {
   }
 });
 
-router.patch("/student-courses/:id", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.patch("/student-courses/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -894,11 +834,7 @@ router.patch("/student-courses/:id", async (req: Request, res: Response) => {
   }
 });
 
-router.delete("/student-courses/:id", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.delete("/student-courses/:id", requireAuth, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -927,11 +863,7 @@ router.delete("/student-courses/:id", async (req: Request, res: Response) => {
 });
 
 
-router.patch("/users/:userId/profile", async (req: Request, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
+router.patch("/users/:userId/profile", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
 

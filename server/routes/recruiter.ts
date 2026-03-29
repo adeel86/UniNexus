@@ -53,10 +53,6 @@ router.get("/recruiter-feedback/student/:studentId", isAuthenticated, async (req
 
 // Submit recruiter feedback (industry professionals only)
 router.post("/recruiter-feedback", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user) {
-    return res.status(401).send("Unauthorized");
-  }
-
   // Only industry professionals can submit recruiter feedback
   if (req.user.role !== 'industry_professional') {
     return res.status(403).json({ 
