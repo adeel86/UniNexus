@@ -133,10 +133,7 @@ export default function CourseDetail() {
       setIsCareerBotLoading(true);
       const courseContext = course ? `Course: ${course.title} - ${course.description}` : "";
       const response = await apiRequest("POST", "/api/careerbot/chat", {
-        messages: [
-          ...careerBotMessages,
-          { role: "user", content: `${courseContext}\n\n${message}` }
-        ],
+        message: `${courseContext}\n\n${message}`,
       });
       setIsCareerBotLoading(false);
       return await response.json();
