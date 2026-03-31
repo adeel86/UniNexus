@@ -44,6 +44,7 @@ import Settings from "@/pages/Settings";
 import MyTeachers from "@/pages/MyTeachers";
 import MyStudents from "@/pages/MyStudents";
 import UniversityTeachers from "@/pages/UniversityTeachers";
+import UniversityLeaderboard from "@/pages/UniversityLeaderboard";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -195,6 +196,11 @@ function Router() {
           <Route path="/university-teachers">
             <RoleGuard allowedRoles={['university', 'university_admin', 'master_admin']}>
               <UniversityTeachers />
+            </RoleGuard>
+          </Route>
+          <Route path="/university-leaderboard">
+            <RoleGuard allowedRoles={['university', 'university_admin']}>
+              <UniversityLeaderboard />
             </RoleGuard>
           </Route>
           

@@ -76,7 +76,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
 
   const isStudent = user?.role === 'student';
   const isTeacher = user?.role === 'teacher';
-  const isUniversity = user?.role === 'university_admin';
+  const isUniversity = user?.role === 'university_admin' || user?.role === 'university';
   const isIndustry = user?.role === 'industry_professional' || user?.role === 'industry';
   const isAdmin = user?.role === 'master_admin';
 
@@ -181,6 +181,23 @@ export function Navbar({ onMenuClick }: NavbarProps) {
               </>
             )}
             
+            {isUniversity && (
+              <Button
+                asChild
+                variant="ghost"
+                size="sm"
+                className={`text-white hover:bg-white/20 gap-2 ${location === '/university-leaderboard' ? 'bg-white/20' : ''}`}
+                data-testid="nav-link-university-leaderboard"
+              >
+                <Link href="/university-leaderboard">
+                  <div className="flex items-center gap-2">
+                    <Trophy className="h-4 w-4" />
+                    <span>Leaderboard</span>
+                  </div>
+                </Link>
+              </Button>
+            )}
+
             {isStudent && (
               <>
                 <Button
