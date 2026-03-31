@@ -1,17 +1,14 @@
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { Card } from "@/components/ui/card";
-import { Shield, BrainCircuit } from "lucide-react";
+import { Shield } from "lucide-react";
 import { CertificateShowcase } from "@/components/CertificateShowcase";
 import { RecruiterFeedbackSection } from "@/components/RecruiterFeedbackSection";
-import { PostCard } from "@/components/PostCard";
 import { JobExperienceModal } from "@/components/JobExperienceModal";
 import { EducationSection } from "@/components/EducationSection";
 import { SkillsSection } from "@/components/SkillsSection";
 import { WorkExperienceSection } from "@/components/WorkExperienceSection";
 import { StudentCoursesSection } from "@/components/StudentCoursesSection";
 import { TeacherValidatedCoursesSection } from "@/components/TeacherValidatedCoursesSection";
-import { PersonalTutor } from "@/components/PersonalTutor";
 import {
   useProfile,
   ProfileHeader,

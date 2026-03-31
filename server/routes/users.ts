@@ -117,14 +117,15 @@ router.get("/teachers", requireAuth, async (req: Request, res: Response) => {
 
     // Scope restriction: University Admins only see affiliated teachers
     if (user.role === 'university_admin' || user.role === 'university') {
-      if (user.university) {
-        query = db.select().from(users).where(
-          and(
-            eq(users.role, "teacher"),
-            eq(users.university, user.university)
-          )
-        );
+      if (!user.university) {
+        return res.json([]);
       }
+      query = db.select().from(users).where(
+        and(
+          eq(users.role, "teacher"),
+          eq(users.university, user.university)
+        )
+      );
     }
 
     const teachers = await query.orderBy(users.lastName, users.firstName);
@@ -141,14 +142,15 @@ router.get("/students", requireAuth, async (req: Request, res: Response) => {
 
     // Scope restriction: Teachers and University Admins only see affiliated students
     if (user.role === 'teacher' || user.role === 'university_admin' || user.role === 'university') {
-      if (user.university) {
-        query = db.select().from(users).where(
-          and(
-            eq(users.role, "student"),
-            eq(users.university, user.university)
-          )
-        );
+      if (!user.university) {
+        return res.json([]);
       }
+      query = db.select().from(users).where(
+        and(
+          eq(users.role, "student"),
+          eq(users.university, user.university)
+        )
+      );
     }
 
     const students = await query.orderBy(desc(users.engagementScore));

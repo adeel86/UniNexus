@@ -220,17 +220,27 @@ router.get("/university/retention/overview", isAuthenticated, async (req: AuthRe
   }
 
   try {
-    const universityFilter = req.user.university;
-    const uniCondition = universityFilter
-      ? and(eq(users.role, 'student'), eq(users.university, universityFilter))
-      : eq(users.role, 'student');
+    const isMasterAdmin = req.user.role === 'master_admin';
+    const uniFilter = req.user.university ?? '';
+
+    if (!isMasterAdmin && !uniFilter) {
+      return res.json({
+        overview: { totalStudents: 0, participatingStudents: 0, participationRate: 0, activeChallenges: 0 },
+        badgeProgress: { none: 0, low: 0, medium: 0, high: 0 },
+        participationByCategory: {},
+        engagementTrend: [],
+      });
+    }
+
+    const uniJoinClause = isMasterAdmin ? sql`` : sql`AND u.university = ${uniFilter}`;
+    const uniSimpleClause = isMasterAdmin ? sql`` : sql`AND university = ${uniFilter}`;
 
     // Get total students count scoped to this university
-    const totalStudentsResult = await db
-      .select({ count: sql<number>`COUNT(*)::int` })
-      .from(users)
-      .where(uniCondition);
-    const totalStudents = Number(totalStudentsResult[0]?.count) || 0;
+    const totalStudentsResult = await db.execute(sql`
+      SELECT COUNT(*)::int as count FROM ${users}
+      WHERE role = 'student' ${uniSimpleClause}
+    `);
+    const totalStudents = Number(totalStudentsResult.rows[0]?.count) || 0;
 
     // Get active challenges count (global — challenges are not university-scoped)
     const activeChallengesResult = await db
@@ -243,13 +253,12 @@ router.get("/university/retention/overview", isAuthenticated, async (req: AuthRe
     const activeChallengesCount = Number(activeChallengesResult[0]?.count) || 0;
 
     // Get unique participating students from this university
-    const uniParam = universityFilter ?? '';
     const participatingStudentsResult = await db.execute(sql`
       SELECT COUNT(DISTINCT cp.user_id)::int as count
       FROM ${challengeParticipants} cp
       INNER JOIN ${users} u ON cp.user_id = u.id
       WHERE u.role = 'student'
-        AND (${uniParam} = '' OR u.university = ${uniParam})
+        ${uniJoinClause}
     `);
     const participatingStudents = Number(participatingStudentsResult.rows[0]?.count) || 0;
 
@@ -264,7 +273,7 @@ router.get("/university/retention/overview", isAuthenticated, async (req: AuthRe
         FROM ${users} u
         LEFT JOIN ${userBadges} ub ON u.id = ub.user_id
         WHERE u.role = 'student'
-          AND (${uniParam} = '' OR u.university = ${uniParam})
+          ${uniJoinClause}
         GROUP BY u.id
       )
       SELECT 
@@ -291,7 +300,7 @@ router.get("/university/retention/overview", isAuthenticated, async (req: AuthRe
       LEFT JOIN ${challenges} c ON cp.challenge_id = c.id
       INNER JOIN ${users} u ON cp.user_id = u.id
       WHERE u.role = 'student'
-        AND (${uniParam} = '' OR u.university = ${uniParam})
+        ${uniJoinClause}
       GROUP BY c.category
     `);
 
@@ -334,13 +343,25 @@ router.get("/university/retention/career", isAuthenticated, async (req: AuthRequ
   }
 
   try {
-    const uniParam = req.user.university ?? '';
+    const isMasterAdmin = req.user.role === 'master_admin';
+    const uniFilter = req.user.university ?? '';
+
+    if (!isMasterAdmin && !uniFilter) {
+      return res.json({
+        readiness: { averageScore: 0, cohorts: { low: 0, medium: 0, high: 0 } },
+        skills: { byLevel: {}, byCategory: {}, totalSkills: 0 },
+        certifications: { total: 0, byType: {}, active: 0, certificationRate: 0, studentsWithCertifications: 0 },
+      });
+    }
+
+    const uniSimpleClause = isMasterAdmin ? sql`` : sql`AND university = ${uniFilter}`;
+    const uniJoinClause = isMasterAdmin ? sql`` : sql`AND u.university = ${uniFilter}`;
 
     // Get total students count scoped to this university
     const totalStudentsResult = await db.execute(sql`
       SELECT COUNT(*)::int as count FROM ${users}
       WHERE role = 'student'
-        AND (${uniParam} = '' OR university = ${uniParam})
+        ${uniSimpleClause}
     `);
     const totalStudents = Number(totalStudentsResult.rows[0]?.count) || 0;
 
@@ -352,7 +373,7 @@ router.get("/university/retention/career", isAuthenticated, async (req: AuthRequ
           ROUND((COALESCE(engagement_score, 0) + COALESCE(problem_solver_score, 0) + COALESCE(endorsement_score, 0)) / 3.0) as readiness_score
         FROM ${users}
         WHERE role = 'student'
-          AND (${uniParam} = '' OR university = ${uniParam})
+          ${uniSimpleClause}
       )
       SELECT 
         ROUND(AVG(readiness_score))::int as avg_readiness,
@@ -377,7 +398,7 @@ router.get("/university/retention/career", isAuthenticated, async (req: AuthRequ
       FROM ${userSkills} us
       INNER JOIN ${users} u ON us.user_id = u.id
       WHERE u.role = 'student'
-        AND (${uniParam} = '' OR u.university = ${uniParam})
+        ${uniJoinClause}
       GROUP BY us.level
     `);
 
@@ -395,7 +416,7 @@ router.get("/university/retention/career", isAuthenticated, async (req: AuthRequ
       INNER JOIN ${skills} s ON us.skill_id = s.id
       INNER JOIN ${users} u ON us.user_id = u.id
       WHERE u.role = 'student'
-        AND (${uniParam} = '' OR u.university = ${uniParam})
+        ${uniJoinClause}
       GROUP BY s.category
     `);
 
@@ -410,7 +431,7 @@ router.get("/university/retention/career", isAuthenticated, async (req: AuthRequ
       FROM ${userSkills} us
       INNER JOIN ${users} u ON us.user_id = u.id
       WHERE u.role = 'student'
-        AND (${uniParam} = '' OR u.university = ${uniParam})
+        ${uniJoinClause}
     `);
     const totalSkills = Number(totalSkillsResult.rows[0]?.count) || 0;
 
@@ -423,7 +444,7 @@ router.get("/university/retention/career", isAuthenticated, async (req: AuthRequ
       FROM ${certifications} c
       INNER JOIN ${users} u ON c.user_id = u.id
       WHERE u.role = 'student'
-        AND (${uniParam} = '' OR u.university = ${uniParam})
+        ${uniJoinClause}
     `);
 
     const certTotal = Number(certificationStatsResult.rows[0]?.total) || 0;
@@ -438,7 +459,7 @@ router.get("/university/retention/career", isAuthenticated, async (req: AuthRequ
       FROM ${certifications} c
       INNER JOIN ${users} u ON c.user_id = u.id
       WHERE u.role = 'student'
-        AND (${uniParam} = '' OR u.university = ${uniParam})
+        ${uniJoinClause}
       GROUP BY c.type
     `);
 
@@ -481,7 +502,19 @@ router.get("/university/analytics", isAuthenticated, async (req: AuthRequest, re
   }
 
   try {
-    const uniParam = req.user.university ?? '';
+    const isMasterAdmin = req.user.role === 'master_admin';
+    const uniFilter = req.user.university ?? '';
+
+    if (!isMasterAdmin && !uniFilter) {
+      return res.json({
+        engagementData: [],
+        departmentRetentionData: [],
+        monthOverMonth: { totalStudentsDelta: 0, activeStudentsDelta: 0, avgEngagementDelta: 0 },
+      });
+    }
+
+    const uniSimpleClause = isMasterAdmin ? sql`` : sql`AND university = ${uniFilter}`;
+    const uniJoinClause = isMasterAdmin ? sql`` : sql`AND u.university = ${uniFilter}`;
 
     // Engagement trend: count total and active students per month for the last 6 months
     const engagementTrendResult = await db.execute(sql`
@@ -499,7 +532,7 @@ router.get("/university/analytics", isAuthenticated, async (req: AuthRequest, re
       FROM months m
       LEFT JOIN ${users} u
         ON u.role = 'student'
-        AND (${uniParam} = '' OR u.university = ${uniParam})
+        ${uniJoinClause}
         AND date_trunc('month', u.created_at) <= m.month_start
       GROUP BY m.month_start
       ORDER BY m.month_start
@@ -519,7 +552,7 @@ router.get("/university/analytics", isAuthenticated, async (req: AuthRequest, re
         COUNT(CASE WHEN COALESCE(engagement_score, 0) > 30 THEN 1 END)::int AS retained
       FROM ${users}
       WHERE role = 'student'
-        AND (${uniParam} = '' OR university = ${uniParam})
+        ${uniSimpleClause}
       GROUP BY major
       ORDER BY total DESC
       LIMIT 8
@@ -543,7 +576,7 @@ router.get("/university/analytics", isAuthenticated, async (req: AuthRequest, re
         ROUND(AVG(CASE WHEN date_trunc('month', created_at) = date_trunc('month', NOW()) - INTERVAL '1 month' THEN COALESCE(engagement_score,0) END))::int AS prev_avg_eng
       FROM ${users}
       WHERE role = 'student'
-        AND (${uniParam} = '' OR university = ${uniParam})
+        ${uniSimpleClause}
         AND created_at >= date_trunc('month', NOW()) - INTERVAL '1 month'
     `);
 
@@ -572,7 +605,22 @@ router.get("/university/courses-stats", isAuthenticated, async (req: AuthRequest
   }
 
   try {
-    const uniParam = req.user.university ?? '';
+    const isMasterAdmin = req.user.role === 'master_admin';
+    const uniFilter = req.user.university ?? '';
+
+    if (!isMasterAdmin && !uniFilter) {
+      return res.json({
+        totalEnrollments: 0,
+        activeEnrollments: 0,
+        completed: 0,
+        studentsEnrolled: 0,
+        completionRate: 0,
+        enrollmentRate: 0,
+      });
+    }
+
+    const uniSimpleClause = isMasterAdmin ? sql`` : sql`AND university = ${uniFilter}`;
+    const uniJoinClause = isMasterAdmin ? sql`` : sql`AND u.university = ${uniFilter}`;
 
     // Total enrollments, active (currently enrolled), and completed (validated) for uni students
     const enrollmentResult = await db.execute(sql`
@@ -584,7 +632,7 @@ router.get("/university/courses-stats", isAuthenticated, async (req: AuthRequest
       FROM ${studentCourses} sc
       INNER JOIN ${users} u ON sc.user_id = u.id
       WHERE u.role = 'student'
-        AND (${uniParam} = '' OR u.university = ${uniParam})
+        ${uniJoinClause}
     `);
 
     // Total students count for completion rate
@@ -592,7 +640,7 @@ router.get("/university/courses-stats", isAuthenticated, async (req: AuthRequest
       SELECT COUNT(*)::int as count
       FROM ${users}
       WHERE role = 'student'
-        AND (${uniParam} = '' OR university = ${uniParam})
+        ${uniSimpleClause}
     `);
 
     const totalStudents = Number(totalStudentsResult.rows[0]?.count) || 0;
@@ -629,28 +677,37 @@ router.get("/university/leaderboard", isAuthenticated, async (req: AuthRequest, 
   }
 
   try {
+    const isMasterAdmin = req.user.role === 'master_admin';
     const uniParam = req.user.university ?? '';
     const limit = Math.min(Number(req.query.limit) || 10, 50);
 
-    const leaderboard = await db.execute(sql`
-      SELECT
-        id,
-        first_name,
-        last_name,
-        profile_image_url,
-        display_name,
-        major,
-        total_points,
-        rank_tier,
-        engagement_score,
-        problem_solver_score,
-        challenge_points
-      FROM ${users}
-      WHERE role = 'student'
-        AND (${uniParam} = '' OR university = ${uniParam})
-      ORDER BY total_points DESC, engagement_score DESC
-      LIMIT ${limit}
-    `);
+    // University admins must have an affiliated university — return empty if not set
+    if (!isMasterAdmin && !uniParam) {
+      return res.json([]);
+    }
+
+    const leaderboard = isMasterAdmin
+      ? await db.execute(sql`
+          SELECT
+            id, first_name, last_name, profile_image_url, display_name,
+            major, total_points, rank_tier, engagement_score,
+            problem_solver_score, challenge_points
+          FROM ${users}
+          WHERE role = 'student'
+          ORDER BY total_points DESC, engagement_score DESC
+          LIMIT ${limit}
+        `)
+      : await db.execute(sql`
+          SELECT
+            id, first_name, last_name, profile_image_url, display_name,
+            major, total_points, rank_tier, engagement_score,
+            problem_solver_score, challenge_points
+          FROM ${users}
+          WHERE role = 'student'
+            AND university = ${uniParam}
+          ORDER BY total_points DESC, engagement_score DESC
+          LIMIT ${limit}
+        `);
 
     const ranked = leaderboard.rows.map((row: any, idx: number) => ({
       rank: idx + 1,
