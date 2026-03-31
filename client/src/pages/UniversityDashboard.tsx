@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import { UniversalFeed } from "@/components/UniversalFeed";
 import { CreatePostModal } from "@/components/CreatePostModal";
+import { CreateAnnouncementModal } from "@/components/CreateAnnouncementModal";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -65,6 +66,7 @@ export default function UniversityDashboard() {
   const { userData: currentUser } = useAuth();
   const [userSearch, setUserSearch] = useState("");
   const [createPostOpen, setCreatePostOpen] = useState(false);
+  const [createAnnouncementOpen, setCreateAnnouncementOpen] = useState(false);
   const [postInitialValues, setPostInitialValues] = useState({
     content: "",
     category: "social",
@@ -560,7 +562,7 @@ export default function UniversityDashboard() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-heading font-semibold text-lg">Recent Announcements</h3>
               <Button
-                onClick={() => {/* TODO: open announcement dialog */}}
+                onClick={() => setCreateAnnouncementOpen(true)}
                 data-testid="button-create-announcement"
               >
                 Create Announcement
@@ -629,6 +631,11 @@ export default function UniversityDashboard() {
         initialContent={postInitialValues.content}
         initialCategory={postInitialValues.category}
         initialTags={postInitialValues.tags}
+      />
+
+      <CreateAnnouncementModal
+        open={createAnnouncementOpen}
+        onOpenChange={setCreateAnnouncementOpen}
       />
     </div>
   );
