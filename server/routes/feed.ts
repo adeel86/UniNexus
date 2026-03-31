@@ -118,7 +118,7 @@ router.get("/feed/personalized", isAuthenticated, async (req: AuthRequest, res: 
     const [currentUser] = await db
       .select()
       .from(users)
-      .where(eq(users.id, req.user.id));
+      .where(eq(users.id, req.user!.id));
     
     if (!currentUser) {
       return res.status(404).send("User not found");
@@ -260,7 +260,7 @@ router.get("/feed/personalized", isAuthenticated, async (req: AuthRequest, res: 
 
 router.get("/feed/following", isAuthenticated, async (req: AuthRequest, res: Response) => {
   try {
-    const currentUser = req.user;
+    const currentUser = req.user!;
     const category = req.query.category as string;
     
     const followedUsers = await db
@@ -410,7 +410,7 @@ router.post("/posts", blockRestrictedRoles, async (req: Request, res: Response) 
   try {
     const validatedData = insertPostSchema.parse({
       ...req.body,
-      authorId: req.user.id,
+      authorId: req.user!.id,
     });
 
     const [newPost] = await db.insert(posts).values(validatedData).returning();
@@ -420,15 +420,15 @@ router.post("/posts", blockRestrictedRoles, async (req: Request, res: Response) 
       .set({
         engagementScore: sql`${users.engagementScore} + 10`,
       })
-      .where(eq(users.id, req.user.id));
+      .where(eq(users.id, req.user!.id));
 
     // Recalculate totalPoints after engagement score change
-    await updateTotalPointsAfterScoreChange(req.user.id).catch((err: any) => 
+    await updateTotalPointsAfterScoreChange(req.user!.id).catch((err: any) => 
       console.error("Failed to update total points:", err)
     );
 
     // Update streak when user creates a post
-    await updateUserStreakForActivity(req.user.id, 'POST_CREATION').catch((err: any) => 
+    await updateUserStreakForActivity(req.user!.id, 'POST_CREATION').catch((err: any) => 
       console.error("Failed to update streak on post creation:", err)
     );
 
@@ -453,7 +453,7 @@ router.patch("/posts/:postId", isAuthenticated, async (req: AuthRequest, res: Re
       return res.status(404).json({ error: "Post not found" });
     }
 
-    if (existingPost.authorId !== req.user.id) {
+    if (existingPost.authorId !== req.user!.id) {
       return res.status(403).json({ error: "You can only edit your own posts" });
     }
 
@@ -488,8 +488,8 @@ router.delete("/posts/:postId", isAuthenticated, async (req: AuthRequest, res: R
       return res.status(404).json({ error: "Post not found" });
     }
 
-    const isAdmin = req.user.role === 'master_admin' || req.user.role === 'university_admin';
-    if (existingPost.authorId !== req.user.id && !isAdmin) {
+    const isAdmin = req.user!.role === 'master_admin' || req.user!.role === 'university_admin';
+    if (existingPost.authorId !== req.user!.id && !isAdmin) {
       return res.status(403).json({ error: "You can only delete your own posts" });
     }
 
@@ -507,7 +507,7 @@ router.post("/comments", isAuthenticated, async (req: AuthRequest, res: Response
   try {
     const validatedData = insertCommentSchema.parse({
       ...req.body,
-      authorId: req.user.id,
+      authorId: req.user!.id,
     });
 
     const [newComment] = await db
@@ -533,15 +533,15 @@ router.post("/comments", isAuthenticated, async (req: AuthRequest, res: Response
       .set({
         engagementScore: sql`${users.engagementScore} + 5`,
       })
-      .where(eq(users.id, req.user.id));
+      .where(eq(users.id, req.user!.id));
 
     // Recalculate totalPoints after engagement score change
-    await updateTotalPointsAfterScoreChange(req.user.id).catch((err: any) => 
+    await updateTotalPointsAfterScoreChange(req.user!.id).catch((err: any) => 
       console.error("Failed to update total points:", err)
     );
 
     // Update streak when user comments
-    await updateUserStreakForActivity(req.user.id, 'COMMENT_CREATION').catch((err: any) => 
+    await updateUserStreakForActivity(req.user!.id, 'COMMENT_CREATION').catch((err: any) => 
       console.error("Failed to update streak on comment:", err)
     );
 
@@ -550,12 +550,12 @@ router.post("/comments", isAuthenticated, async (req: AuthRequest, res: Response
       .from(posts)
       .where(eq(posts.id, validatedData.postId));
 
-    if (post && post.authorId !== req.user.id) {
+    if (post && post.authorId !== req.user!.id) {
       await db.insert(notifications).values({
         userId: post.authorId,
         type: "comment",
         title: "New Comment",
-        message: `${req.user.firstName} ${req.user.lastName} commented on your post`,
+        message: `${req.user!.firstName} ${req.user!.lastName} commented on your post`,
         link: `/feed`,
       });
     }
@@ -580,8 +580,8 @@ router.delete("/comments/:commentId", isAuthenticated, async (req: AuthRequest, 
       return res.status(404).json({ error: "Comment not found" });
     }
 
-    const isAdmin = req.user.role === 'master_admin' || req.user.role === 'university_admin';
-    if (existingComment.authorId !== req.user.id && !isAdmin) {
+    const isAdmin = req.user!.role === 'master_admin' || req.user!.role === 'university_admin';
+    if (existingComment.authorId !== req.user!.id && !isAdmin) {
       return res.status(403).json({ error: "You can only delete your own comments" });
     }
 
@@ -597,7 +597,7 @@ router.post("/reactions", isAuthenticated, async (req: AuthRequest, res: Respons
   try {
     const validatedData = insertReactionSchema.parse({
       ...req.body,
-      userId: req.user.id,
+      userId: req.user!.id,
     });
 
     const [existingReaction] = await db
@@ -606,7 +606,7 @@ router.post("/reactions", isAuthenticated, async (req: AuthRequest, res: Respons
       .where(
         and(
           eq(reactions.postId, validatedData.postId),
-          eq(reactions.userId, req.user.id),
+          eq(reactions.userId, req.user!.id),
           eq(reactions.type, validatedData.type)
         )
       )
@@ -624,15 +624,15 @@ router.post("/reactions", isAuthenticated, async (req: AuthRequest, res: Respons
       .set({
         engagementScore: sql`${users.engagementScore} + 2`,
       })
-      .where(eq(users.id, req.user.id));
+      .where(eq(users.id, req.user!.id));
 
     // Recalculate totalPoints after engagement score change
-    await updateTotalPointsAfterScoreChange(req.user.id).catch((err: any) => 
+    await updateTotalPointsAfterScoreChange(req.user!.id).catch((err: any) => 
       console.error("Failed to update total points:", err)
     );
 
     // Update streak when user reacts
-    await updateUserStreakForActivity(req.user.id, 'REACTION_CREATION').catch((err: any) => 
+    await updateUserStreakForActivity(req.user!.id, 'REACTION_CREATION').catch((err: any) => 
       console.error("Failed to update streak on reaction:", err)
     );
 
@@ -641,12 +641,12 @@ router.post("/reactions", isAuthenticated, async (req: AuthRequest, res: Respons
       .from(posts)
       .where(eq(posts.id, validatedData.postId));
 
-    if (post && post.authorId !== req.user.id) {
+    if (post && post.authorId !== req.user!.id) {
       await db.insert(notifications).values({
         userId: post.authorId,
         type: "reaction",
         title: "New Reaction",
-        message: `${req.user.firstName} ${req.user.lastName} reacted to your post`,
+        message: `${req.user!.firstName} ${req.user!.lastName} reacted to your post`,
         link: `/feed`,
       });
     }
@@ -666,7 +666,7 @@ router.delete("/reactions/:postId/:type", isAuthenticated, async (req: AuthReque
       .where(
         and(
           eq(reactions.postId, postId),
-          eq(reactions.userId, req.user.id),
+          eq(reactions.userId, req.user!.id),
           eq(reactions.type, type)
         )
       );

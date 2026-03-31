@@ -274,8 +274,8 @@ export default function Messages() {
                 {(() => {
                   // Collect connection users
                   const connectionUsers: { connId: string; user: any }[] = connections
-                    .map((c: any) => c.user ? { connId: c.id, user: c.user } : null)
-                    .filter(Boolean);
+                    .map((c: any) => c.user ? { connId: c.id as string, user: c.user } : null)
+                    .filter((c): c is { connId: string; user: any } => c !== null);
 
                   // Also include conversation participants who may not be in connections
                   const connectionUserIds = new Set(connectionUsers.map(c => c.user.id));

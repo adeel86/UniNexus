@@ -61,7 +61,7 @@ router.get("/certifications/user/:userId", isAuthenticated, async (req: Request,
 
 router.post("/certifications", isAuthenticated, async (req: Request, res: Response) => {
   const authorizedRoles = ['teacher', 'university_admin', 'industry_professional', 'master_admin'];
-  if (!authorizedRoles.includes(req.user.role)) {
+  if (!authorizedRoles.includes(req.user!.role)) {
     return res.status(403).json({ 
       error: "Forbidden: Only teachers, administrators, and industry professionals can issue certificates" 
     });
@@ -81,25 +81,25 @@ router.post("/certifications", isAuthenticated, async (req: Request, res: Respon
     }
 
     if (recipient.role === 'teacher') {
-      if (!['university_admin', 'industry_professional', 'master_admin'].includes(req.user.role)) {
+      if (!['university_admin', 'industry_professional', 'master_admin'].includes(req.user!.role)) {
         return res.status(403).json({
           error: "Teachers can only receive certificates from Universities and Industry Professionals"
         });
       }
     } else if (recipient.role === 'student') {
-      if (!['teacher', 'university_admin', 'industry_professional', 'master_admin'].includes(req.user.role)) {
+      if (!['teacher', 'university_admin', 'industry_professional', 'master_admin'].includes(req.user!.role)) {
         return res.status(403).json({
           error: "Students can receive certificates from Teachers, Universities, and Industry Professionals"
         });
       }
     }
 
-    const issuerName = `${req.user.firstName} ${req.user.lastName}`;
+    const issuerName = `${req.user!.firstName} ${req.user!.lastName}`;
 
     const hashData = JSON.stringify({
       ...validatedData,
       timestamp: Date.now(),
-      issuerId: req.user.id,
+      issuerId: req.user!.id,
       issuerName,
     });
     const verificationHash = createHash('sha256').update(hashData).digest('hex');
@@ -108,7 +108,7 @@ router.post("/certifications", isAuthenticated, async (req: Request, res: Respon
       .insert(certifications)
       .values({
         ...validatedData,
-        issuerId: req.user.id,
+        issuerId: req.user!.id,
         issuerName,
         verificationHash,
       })
@@ -116,7 +116,7 @@ router.post("/certifications", isAuthenticated, async (req: Request, res: Respon
 
     // If the issuer is a teacher, recalculate the student's rank
     // (teacher-issued certificates contribute 150 pts each to the student's ranking)
-    if (req.user.role === 'teacher' && recipient.role === 'student') {
+    if (req.user!.role === 'teacher' && recipient.role === 'student') {
       try {
         await recalculateUserRank(validatedData.userId);
       } catch (rankErr) {
@@ -124,8 +124,8 @@ router.post("/certifications", isAuthenticated, async (req: Request, res: Respon
       }
     }
 
-    const certNotificationMessage = req.user.role === 'teacher'
-      ? `You've earned a certificate: "${validatedData.title}" — issued by ${req.user.firstName} ${req.user.lastName}. This has boosted your rank!`
+    const certNotificationMessage = req.user!.role === 'teacher'
+      ? `You've earned a certificate: "${validatedData.title}" — issued by ${req.user!.firstName} ${req.user!.lastName}. This has boosted your rank!`
       : `You've earned a certificate: ${validatedData.title}`;
 
     await db.insert(notifications).values({

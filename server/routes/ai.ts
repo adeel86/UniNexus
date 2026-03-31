@@ -29,6 +29,10 @@ import { uploadToCloud, isCloudStorageAvailable } from "../cloudStorage";
 
 const router = Router();
 
+const openai = process.env.OPENAI_API_KEY ? new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+}) : null;
+
 // Helper function to extract text from PDF
 async function extractTextFromPDF(buffer: Buffer): Promise<string | null> {
   try {
@@ -43,7 +47,6 @@ async function extractTextFromPDF(buffer: Buffer): Promise<string | null> {
     })();
     
     if (!pdfParse) {
-      console.debug("pdf-parse not installed, PDF text extraction skipped. Install with: npm install pdf-parse");
       return null;
     }
     
@@ -57,7 +60,6 @@ async function extractTextFromPDF(buffer: Buffer): Promise<string | null> {
       .substring(0, 15000);
     
     if (!text || text.length === 0) {
-      console.debug("PDF has no extractable text");
       return null;
     }
     
@@ -111,12 +113,10 @@ async function extractTextFromWord(buffer: Buffer, filename: string): Promise<st
         .substring(0, 15000);
       
       if (text && text.length > 100) {
-        console.debug("Word document: basic text extraction successful");
         return text;
       }
     }
     
-    console.debug("Word document text extraction returned no usable text");
     return null;
   } catch (error) {
     console.error("Word document text extraction failed:", error instanceof Error ? error.message : 'unknown error');
@@ -380,10 +380,6 @@ ${materialsContext}`;
     res.status(500).json({ error: "Failed to get response from Personal Tutor" });
   }
 });
-
-const openai = process.env.OPENAI_API_KEY ? new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-}) : null;
 
 router.post("/api/careerbot/chat", requireAuth, async (req: Request, res: Response) => {
   try {

@@ -55,7 +55,7 @@ router.get("/recruiter-feedback/student/:studentId", isAuthenticated, async (req
 // Submit recruiter feedback (industry professionals only)
 router.post("/recruiter-feedback", isAuthenticated, async (req: AuthRequest, res: Response) => {
   // Only industry professionals can submit recruiter feedback
-  if (req.user.role !== 'industry_professional') {
+  if (req.user!.role !== 'industry_professional') {
     return res.status(403).json({ 
       error: "Forbidden: Only industry professionals can submit recruiter feedback" 
     });
@@ -64,7 +64,7 @@ router.post("/recruiter-feedback", isAuthenticated, async (req: AuthRequest, res
   try {
     const validatedData = insertRecruiterFeedbackSchema.parse({
       ...req.body,
-      recruiterId: req.user.id,
+      recruiterId: req.user!.id,
     });
 
     const [newFeedback] = await db
@@ -85,7 +85,7 @@ router.post("/recruiter-feedback", isAuthenticated, async (req: AuthRequest, res
         userId: newFeedback.studentId,
         type: 'recruiter_feedback',
         title: 'New Industry Feedback Received',
-        message: `${req.user.company || 'An industry professional'} has left feedback on your ${newFeedback.category} skills. Your rank has been updated!`,
+        message: `${req.user!.company || 'An industry professional'} has left feedback on your ${newFeedback.category} skills. Your rank has been updated!`,
         link: `/profile?userId=${newFeedback.studentId}`,
       });
     }
@@ -159,7 +159,7 @@ router.get("/recruiter-feedback/my-feedback", isAuthenticated, async (req: AuthR
     return res.status(401).send("Unauthorized");
   }
 
-  if (req.user.role !== 'industry_professional') {
+  if (req.user!.role !== 'industry_professional') {
     return res.status(403).json({ error: "Forbidden: Only industry professionals can access this endpoint" });
   }
 
@@ -185,7 +185,7 @@ router.get("/recruiter-feedback/my-feedback", isAuthenticated, async (req: AuthR
       })
       .from(recruiterFeedback)
       .leftJoin(users, eq(recruiterFeedback.studentId, users.id))
-      .where(eq(recruiterFeedback.recruiterId, req.user.id))
+      .where(eq(recruiterFeedback.recruiterId, req.user!.id))
       .orderBy(desc(recruiterFeedback.createdAt));
 
     res.json(myFeedback);

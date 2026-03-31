@@ -108,7 +108,7 @@ router.post("/endorsements", requireAuth, async (req: Request, res: Response) =>
   try {
     const validatedData = insertEndorsementSchema.parse({
       ...req.body,
-      endorserId: req.user.id,
+      endorserId: req.user!.id,
     });
 
     const [newEndorsement] = await db.insert(endorsements).values(validatedData).returning();
@@ -130,7 +130,7 @@ router.post("/endorsements", requireAuth, async (req: Request, res: Response) =>
       userId: validatedData.endorsedUserId,
       type: "endorsement",
       title: "New Endorsement!",
-      message: `${req.user.firstName} ${req.user.lastName} endorsed you`,
+      message: `${req.user!.firstName} ${req.user!.lastName} endorsed you`,
       link: "/profile",
     });
 
@@ -200,7 +200,7 @@ router.post("/users/skills", requireAuth, async (req: Request, res: Response) =>
     const [newUserSkill] = await db
       .insert(userSkills)
       .values({
-        userId: req.user.id,
+        userId: req.user!.id,
         skillId,
         level: level || "beginner",
       })

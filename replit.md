@@ -140,6 +140,7 @@ Preferred communication style: Simple, everyday language.
 - **Port**: Server runs on port 5000 (from `process.env.PORT || 5000`)
 
 ## Recent Changes
+- **2026-03-31**: Production-quality code review: fixed all TypeScript errors (`req.user!` non-null assertions in feed.ts, certifications.ts, recruiter.ts, skills.ts, users.ts; function-declaration-in-block in admin.ts; type-predicate filter in Messages.tsx), moved OpenAI client initialization before route definitions in ai.ts, removed duplicate OpenAI declaration, removed debug `console.debug` calls from PDF/Word text extraction helpers. Zero TypeScript errors confirmed.
 - **2024-12-05**: Added course deletion for teachers - cascade delete removes all materials, enrollments, discussions, and AI sessions
 - **2024-12-05**: Enabled university_admin role access to Network, Discovery, Messages, and Groups tabs (only master_admin is now restricted)
 - **2024-12-05**: Enhanced seed data with university admin conversations, messages, and group memberships for testing social features

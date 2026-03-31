@@ -225,7 +225,7 @@ router.get("/university/teachers", requireAuth, async (req: Request, res: Respon
   }
 
   try {
-    const universityName = req.user.university;
+    const universityName = req.user!.university;
     if (!universityName) {
       return res.status(400).json({ error: "University not set for this admin" });
     }
@@ -276,7 +276,7 @@ router.get("/users/search", requireAuth, async (req: Request, res: Response) => 
     }
 
     const searchPattern = `%${searchTerm}%`;
-    const currentUserId = req.user.id;
+    const currentUserId = req.user!.id;
     
     // Get connected user IDs to exclude from search results
     let connectedUserIds: string[] = [];
@@ -349,7 +349,7 @@ router.get("/users/groups", requireAuth, async (req: Request, res: Response) => 
       })
       .from(groupMembers)
       .leftJoin(groups, eq(groupMembers.groupId, groups.id))
-      .where(eq(groupMembers.userId, req.user.id))
+      .where(eq(groupMembers.userId, req.user!.id))
       .orderBy(desc(groupMembers.joinedAt));
 
     res.json(results);
@@ -544,7 +544,7 @@ router.get("/users/:userId/education", requireAuth, async (req: Request, res: Re
       return res.json([]);
     }
 
-    if (req.user.role !== 'student' && req.user.role !== 'teacher') {
+    if (req.user!.role !== 'student' && req.user!.role !== 'teacher') {
       return res.status(403).json({ error: "Access denied: Education records are only available for student and teacher roles" });
     }
 
@@ -564,7 +564,7 @@ router.post("/education", requireAuth, async (req: Request, res: Response) => {
   try {
     const validated = insertEducationRecordSchema.parse({
       ...req.body,
-      userId: req.user.id,
+      userId: req.user!.id,
     });
 
     const [record] = await db
@@ -592,7 +592,7 @@ router.patch("/education/:id", requireAuth, async (req: Request, res: Response) 
       return res.status(404).json({ error: "Education record not found" });
     }
 
-    if (existing.userId !== req.user.id) {
+    if (existing.userId !== req.user!.id) {
       return res.status(403).json({ error: "Not authorized to update this record" });
     }
 
@@ -622,7 +622,7 @@ router.delete("/education/:id", requireAuth, async (req: Request, res: Response)
       return res.status(404).json({ error: "Education record not found" });
     }
 
-    if (existing.userId !== req.user.id) {
+    if (existing.userId !== req.user!.id) {
       return res.status(403).json({ error: "Not authorized to delete this record" });
     }
 
@@ -656,7 +656,7 @@ router.post("/job-experience", requireAuth, async (req: Request, res: Response) 
   try {
     const validated = insertJobExperienceSchema.parse({
       ...req.body,
-      userId: req.user.id,
+      userId: req.user!.id,
     });
 
     const [experience] = await db
@@ -684,7 +684,7 @@ router.patch("/job-experience/:id", requireAuth, async (req: Request, res: Respo
       return res.status(404).json({ error: "Job experience not found" });
     }
 
-    if (existing.userId !== req.user.id) {
+    if (existing.userId !== req.user!.id) {
       return res.status(403).json({ error: "Not authorized to update this experience" });
     }
 
@@ -714,7 +714,7 @@ router.delete("/job-experience/:id", requireAuth, async (req: Request, res: Resp
       return res.status(404).json({ error: "Job experience not found" });
     }
 
-    if (existing.userId !== req.user.id) {
+    if (existing.userId !== req.user!.id) {
       return res.status(403).json({ error: "Not authorized to delete this experience" });
     }
 
@@ -762,7 +762,7 @@ router.post("/student-courses", requireAuth, async (req: Request, res: Response)
   try {
     const validated = insertStudentCourseSchema.parse({
       ...req.body,
-      userId: req.user.id,
+      userId: req.user!.id,
     });
 
     const [course] = await db
@@ -775,7 +775,7 @@ router.post("/student-courses", requireAuth, async (req: Request, res: Response)
         userId: validated.assignedTeacherId,
         type: "validation",
         title: "New Course Validation Request",
-        message: `${req.user.firstName} ${req.user.lastName} requested validation for "${validated.courseName}"`,
+        message: `${req.user!.firstName} ${req.user!.lastName} requested validation for "${validated.courseName}"`,
         link: "/teacher-dashboard",
       });
     }
@@ -800,8 +800,8 @@ router.patch("/student-courses/:id", requireAuth, async (req: Request, res: Resp
       return res.status(404).json({ error: "Course not found" });
     }
 
-    const isOwner = existing.userId === req.user.id;
-    const isPrivileged = req.user.role === "teacher" || req.user.role === "university_admin" || req.user.role === "master_admin";
+    const isOwner = existing.userId === req.user!.id;
+    const isPrivileged = req.user!.role === "teacher" || req.user!.role === "university_admin" || req.user!.role === "master_admin";
 
     if (!isOwner && !isPrivileged) {
       return res.status(403).json({ error: "Not authorized to update this course" });
@@ -825,7 +825,7 @@ router.patch("/student-courses/:id", requireAuth, async (req: Request, res: Resp
         userId: existing.userId,
         type: "validation",
         title: "Course Updated",
-        message: `Your course "${existing.courseName}" has been updated by ${req.user.firstName} ${req.user.lastName}`,
+        message: `Your course "${existing.courseName}" has been updated by ${req.user!.firstName} ${req.user!.lastName}`,
         link: "/profile",
       });
     }
@@ -850,7 +850,7 @@ router.delete("/student-courses/:id", requireAuth, async (req: Request, res: Res
       return res.status(404).json({ error: "Course not found" });
     }
 
-    if (existing.userId !== req.user.id) {
+    if (existing.userId !== req.user!.id) {
       return res.status(403).json({ error: "Not authorized to delete this course" });
     }
 
@@ -869,7 +869,7 @@ router.patch("/users/:userId/profile", requireAuth, async (req: Request, res: Re
   try {
     const { userId } = req.params;
 
-    if (userId !== req.user.id) {
+    if (userId !== req.user!.id) {
       return res.status(403).json({ error: "Not authorized to update this profile" });
     }
 

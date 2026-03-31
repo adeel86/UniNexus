@@ -581,10 +581,10 @@ router.get("/university/analytics", isAuthenticated, async (req: AuthRequest, re
     `);
 
     const mom = momResult.rows[0] as any;
-    function pctChange(current: number, prev: number): number {
+    const pctChange = (current: number, prev: number): number => {
       if (!prev || prev === 0) return 0;
       return Math.round(((current - prev) / prev) * 1000) / 10; // 1 decimal place
-    }
+    };
 
     const monthOverMonth = {
       totalStudentsDelta: pctChange(Number(mom?.current_month_total) || 0, Number(mom?.prev_month_total) || 0),
