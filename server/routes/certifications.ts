@@ -9,6 +9,7 @@ import {
   notifications,
   insertCertificationSchema,
 } from "@shared/schema";
+import { recalculateUserRank } from "../pointsHelper";
 
 const router = Router();
 
@@ -113,11 +114,25 @@ router.post("/certifications", isAuthenticated, async (req: Request, res: Respon
       })
       .returning();
 
+    // If the issuer is a teacher, recalculate the student's rank
+    // (teacher-issued certificates contribute 150 pts each to the student's ranking)
+    if (req.user.role === 'teacher' && recipient.role === 'student') {
+      try {
+        await recalculateUserRank(validatedData.userId);
+      } catch (rankErr) {
+        console.error("Failed to recalculate rank after teacher cert:", rankErr);
+      }
+    }
+
+    const certNotificationMessage = req.user.role === 'teacher'
+      ? `You've earned a certificate: "${validatedData.title}" — issued by ${req.user.firstName} ${req.user.lastName}. This has boosted your rank!`
+      : `You've earned a certificate: ${validatedData.title}`;
+
     await db.insert(notifications).values({
       userId: validatedData.userId,
       type: "achievement",
       title: "New Certificate Earned!",
-      message: `You've earned a certificate: ${validatedData.title}`,
+      message: certNotificationMessage,
       link: "/profile",
     });
 

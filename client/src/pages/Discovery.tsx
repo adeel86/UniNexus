@@ -49,6 +49,7 @@ export default function Discovery() {
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
+  const [actionedUserIds, setActionedUserIds] = useState<Set<string>>(new Set());
 
   const { data: searchResults = [], isLoading } = useQuery<User[]>({
     queryKey: ["/api/users/search", { q: searchTerm, role: roleFilter, excludeConnected: 'true' }],
@@ -59,6 +60,9 @@ export default function Discovery() {
     queryKey: ["/api/recommendations/friends"],
   });
 
+  const filteredSearchResults = searchResults.filter(u => !actionedUserIds.has(u.id));
+  const filteredRecommendations = friendRecommendations.filter(u => !actionedUserIds.has(u.id));
+
   const { data: universities = [], isLoading: universitiesLoading } = useQuery<UniversityDiscovery[]>({
     queryKey: ["/api/discovery/universities"],
   });
@@ -67,7 +71,8 @@ export default function Discovery() {
     mutationFn: async (receiverId: string) => {
       return await apiRequest("POST", "/api/connections/request", { receiverId });
     },
-    onSuccess: () => {
+    onSuccess: (_data, receiverId) => {
+      setActionedUserIds(prev => new Set(prev).add(receiverId));
       queryClient.invalidateQueries({ queryKey: ["/api/connections"] });
       queryClient.invalidateQueries({ queryKey: ["/api/recommendations/friends"] });
       toast({
@@ -88,7 +93,8 @@ export default function Discovery() {
     mutationFn: async (followingId: string) => {
       return await apiRequest("POST", "/api/follow", { followingId });
     },
-    onSuccess: () => {
+    onSuccess: (_data, followingId) => {
+      setActionedUserIds(prev => new Set(prev).add(followingId));
       queryClient.invalidateQueries({ queryKey: ["/api/following/me"] });
       toast({
         title: "Following",
@@ -163,14 +169,14 @@ export default function Discovery() {
                     </div>
                   ))}
                 </div>
-              ) : friendRecommendations.length === 0 ? (
+              ) : filteredRecommendations.length === 0 ? (
                 <div className="text-center py-6 text-muted-foreground">
                   <Users className="h-10 w-10 mx-auto mb-2 opacity-50" />
                   <p>Connect with more people to get recommendations</p>
                 </div>
               ) : (
                 <div className="flex gap-4 overflow-x-auto pb-2">
-                  {friendRecommendations.slice(0, 6).map((user) => (
+                  {filteredRecommendations.slice(0, 6).map((user) => (
                     <Card
                       key={user.id}
                       className="flex-shrink-0 w-64 hover-elevate"
@@ -342,11 +348,11 @@ export default function Discovery() {
               <p className="text-sm text-muted-foreground">
                 {isLoading
                   ? "Searching..."
-                  : `Found ${searchResults.length} ${searchResults.length === 1 ? "person" : "people"}`}
+                  : `Found ${filteredSearchResults.length} ${filteredSearchResults.length === 1 ? "person" : "people"}`}
               </p>
             </div>
 
-            {searchResults.length === 0 && !isLoading ? (
+            {filteredSearchResults.length === 0 && !isLoading ? (
               <Card className="p-12 text-center">
                 <Search className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
                 <h3 className="font-semibold text-lg mb-2">No results found</h3>
@@ -356,7 +362,7 @@ export default function Discovery() {
               </Card>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {searchResults.map((user) => (
+                {filteredSearchResults.map((user) => (
                   <Card
                     key={user.id}
                     className="overflow-hidden hover-elevate"

@@ -27,6 +27,15 @@ Preferred communication style: Simple, everyday language.
 - **Enrolled Courses Page**: Students can view their enrolled courses at `/courses`, each with an AI Tutor button. Routes include `/api/me/enrolled-courses` (GET - returns enrolled courses with stats).
 - **Problem-Solving Q&A System**: General Q&A feature for problem-solving with points system: +10 for asking, +15 for answering, +2/+5 for question/answer upvotes, +20 for accepted answers. Routes include `/api/qa/questions` (GET/POST), `/api/qa/questions/:id` (GET), `/api/qa/questions/:id/answers` (POST), `/api/qa/upvote` (POST), `/api/qa/questions/:id/resolve` (POST).
 - **Challenge Points System**: Challenges award challenge points: Join (+5), Submit (+25). Rankings award bonus: 1st (+500), 2nd (+300), 3rd (+200), Top 10% (+150), Top 25% (+100), Participation (+50). Uses `applyPointDelta` helper from `server/pointsHelper.ts` for atomic updates with automatic rank tier recalculation.
+- **Rank Tier Formula** (computed in `server/pointsHelper.ts`):
+  ```
+  totalPoints = engagementScore + problemSolverScore + endorsementScore
+              + challengePoints + (badgeCount × 50) + (endorsementCount × 25)
+              + (industryFeedbackRatingSum × 20) + (teacherCertCount × 150)
+  ```
+  Tiers: Bronze (0–999), Silver (1000–2999), Gold (3000–6999), Platinum (7000+).
+  - Industry feedback (from `recruiter_feedback` table): each rating (1-5) × 20 pts are added automatically when a `POST /api/recruiter-feedback` is submitted.
+  - Teacher-issued certificates (from `certifications` table where issuer role = teacher): each cert = 150 pts, recalculated automatically when `POST /api/certifications` is called by a teacher for a student.
 - **Middleware**: `express.json()`, `express.urlencoded()`, custom logging, session middleware, Passport.js.
 
 ### Data Storage Solutions

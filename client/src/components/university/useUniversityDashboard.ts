@@ -44,6 +44,30 @@ export interface CareerMetrics {
   };
 }
 
+export interface CoursesStats {
+  totalEnrollments: number;
+  activeEnrollments: number;
+  completed: number;
+  studentsEnrolled: number;
+  completionRate: number;
+  enrollmentRate: number;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  id: string;
+  firstName: string;
+  lastName: string;
+  displayName: string | null;
+  profileImageUrl: string | null;
+  major: string | null;
+  totalPoints: number;
+  rankTier: 'bronze' | 'silver' | 'gold' | 'platinum';
+  engagementScore: number;
+  problemSolverScore: number;
+  challengePoints: number;
+}
+
 export interface PendingCourse extends Course {
   instructor: {
     id: string;
@@ -85,6 +109,26 @@ export function useUniversityDashboard() {
 
   const { data: careerData, isLoading: isCareerLoading } = useQuery<CareerMetrics>({
     queryKey: ["/api/university/retention/career"],
+  });
+
+  const { data: analyticsData, isLoading: isAnalyticsLoading } = useQuery<{
+    engagementData: { month: string; total: number; active: number }[];
+    departmentRetentionData: { department: string; retention: number }[];
+    monthOverMonth: {
+      totalStudentsDelta: number;
+      activeStudentsDelta: number;
+      avgEngagementDelta: number;
+    };
+  }>({
+    queryKey: ["/api/university/analytics"],
+  });
+
+  const { data: coursesStats, isLoading: isCoursesStatsLoading } = useQuery<CoursesStats>({
+    queryKey: ["/api/university/courses-stats"],
+  });
+
+  const { data: leaderboard = [], isLoading: isLeaderboardLoading } = useQuery<LeaderboardEntry[]>({
+    queryKey: ["/api/university/leaderboard"],
   });
 
   const { data: pendingCourses = [], isLoading: isPendingLoading } = useQuery<PendingCourse[]>({
@@ -173,22 +217,9 @@ export function useUniversityDashboard() {
   const atRiskStudents = students.filter(s => (s.engagementScore || 0) < 30).length;
   const engagementRate = totalStudents > 0 ? Math.round((activeStudents / totalStudents) * 100) : 0;
 
-  const engagementData = [
-    { month: "Jan", active: 245, total: 320 },
-    { month: "Feb", active: 268, total: 325 },
-    { month: "Mar", active: 289, total: 330 },
-    { month: "Apr", active: 312, total: 340 },
-    { month: "May", active: 298, total: 338 },
-    { month: "Jun", active: 325, total: 350 },
-  ];
-
-  const departmentRetentionData = [
-    { department: "CS", retention: 94 },
-    { department: "Math", retention: 88 },
-    { department: "Physics", retention: 91 },
-    { department: "Chem", retention: 85 },
-    { department: "Bio", retention: 89 },
-  ];
+  const engagementData = analyticsData?.engagementData ?? [];
+  const departmentRetentionData = analyticsData?.departmentRetentionData ?? [];
+  const monthOverMonth = analyticsData?.monthOverMonth ?? { totalStudentsDelta: 0, activeStudentsDelta: 0, avgEngagementDelta: 0 };
 
   return {
     students,
@@ -196,6 +227,12 @@ export function useUniversityDashboard() {
     isRetentionLoading,
     careerData,
     isCareerLoading,
+    analyticsData,
+    isAnalyticsLoading,
+    coursesStats,
+    isCoursesStatsLoading,
+    leaderboard,
+    isLeaderboardLoading,
     pendingCourses,
     isPendingLoading,
     validateDialogOpen,
@@ -220,5 +257,6 @@ export function useUniversityDashboard() {
     engagementRate,
     engagementData,
     departmentRetentionData,
+    monthOverMonth,
   };
 }

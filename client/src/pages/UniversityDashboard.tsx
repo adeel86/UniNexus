@@ -2,8 +2,16 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TrendingUp, TrendingDown, Users, Award, Target, AlertTriangle, Trophy, GraduationCap, FileCheck, Briefcase, MessageSquare, CheckCircle, BookOpen, Loader2, Sparkles, MessageCircle, Trash2, Search, Plus } from "lucide-react";
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import {
+  TrendingUp, TrendingDown, Users, Award, Target, AlertTriangle,
+  Trophy, GraduationCap, FileCheck, Briefcase, MessageSquare, CheckCircle,
+  BookOpen, Loader2, Sparkles, MessageCircle, Trash2, Search, Plus,
+  Megaphone, Star, Medal,
+} from "lucide-react";
+import {
+  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from "recharts";
 import { UniversalFeed } from "@/components/UniversalFeed";
 import { CreatePostModal } from "@/components/CreatePostModal";
 import { useState } from "react";
@@ -11,11 +19,14 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/lib/AuthContext";
+import { formatDistanceToNow } from "date-fns";
 import {
   useUniversityDashboard,
   ValidateCourseDialog,
   RejectCourseDialog,
   PendingCourseCard,
+  type LeaderboardEntry,
 } from "@/components/university";
 import {
   AlertDialog,
@@ -30,8 +41,29 @@ import {
 } from "@/components/ui/alert-dialog";
 import { UserAvatar } from "@/components/UserAvatar";
 
+const TIER_COLORS: Record<string, string> = {
+  platinum: "bg-gradient-to-r from-purple-400 to-indigo-400 text-white",
+  gold: "bg-gradient-to-r from-yellow-400 to-amber-400 text-white",
+  silver: "bg-gradient-to-r from-gray-300 to-gray-400 text-gray-800",
+  bronze: "bg-gradient-to-r from-orange-300 to-amber-500 text-white",
+};
+
+function DeltaBadge({ delta }: { delta: number }) {
+  if (delta === 0) {
+    return <span className="text-xs text-muted-foreground">No change this month</span>;
+  }
+  const positive = delta > 0;
+  return (
+    <div className={`flex items-center text-xs ${positive ? "text-green-600" : "text-red-500"}`}>
+      {positive ? <TrendingUp className="h-3 w-3 mr-1" /> : <TrendingDown className="h-3 w-3 mr-1" />}
+      {positive ? "+" : ""}{delta}% from last month
+    </div>
+  );
+}
+
 export default function UniversityDashboard() {
   const { toast } = useToast();
+  const { userData: currentUser } = useAuth();
   const [userSearch, setUserSearch] = useState("");
   const [createPostOpen, setCreatePostOpen] = useState(false);
   const [postInitialValues, setPostInitialValues] = useState({
@@ -44,6 +76,10 @@ export default function UniversityDashboard() {
     isRetentionLoading,
     careerData,
     isCareerLoading,
+    coursesStats,
+    isCoursesStatsLoading,
+    leaderboard,
+    isLeaderboardLoading,
     pendingCourses,
     isPendingLoading,
     validateDialogOpen,
@@ -68,6 +104,7 @@ export default function UniversityDashboard() {
     engagementRate,
     engagementData,
     departmentRetentionData,
+    monthOverMonth,
   } = useUniversityDashboard() as any;
 
   const { data: students = [], isLoading: isStudentsLoading } = useQuery<any[]>({
@@ -76,6 +113,12 @@ export default function UniversityDashboard() {
 
   const { data: teachers = [], isLoading: isTeachersLoading } = useQuery<any[]>({
     queryKey: ["/api/university/teachers"],
+  });
+
+  // Announcements are now scoped at the backend — no client-side filtering needed
+  const { data: announcements = [], isLoading: isAnnouncementsLoading } = useQuery<any[]>({
+    queryKey: ["/api/announcements"],
+    select: (data: any[]) => data.slice(0, 5),
   });
 
   const removeUserMutation = useMutation({
@@ -100,31 +143,18 @@ export default function UniversityDashboard() {
     },
   });
 
-  const filteredStudents = students.filter(s => 
+  const filteredStudents = students.filter((s: any) =>
     `${s.firstName} ${s.lastName}`.toLowerCase().includes(userSearch.toLowerCase()) ||
     s.email.toLowerCase().includes(userSearch.toLowerCase())
   );
 
-  const filteredTeachers = teachers.filter(t => 
+  const filteredTeachers = teachers.filter((t: any) =>
     `${t.firstName} ${t.lastName}`.toLowerCase().includes(userSearch.toLowerCase()) ||
     t.email.toLowerCase().includes(userSearch.toLowerCase())
   );
 
-  const handleSelectSuggestion = (content: string, category: string, tags: string[]) => {
-    setPostInitialValues({
-      content,
-      category,
-      tags: tags.join(", ")
-    });
-    setCreatePostOpen(true);
-  };
-
   const handleCreatePost = () => {
-    setPostInitialValues({
-      content: "",
-      category: "social",
-      tags: ""
-    });
+    setPostInitialValues({ content: "", category: "social", tags: "" });
     setCreatePostOpen(true);
   };
 
@@ -133,7 +163,9 @@ export default function UniversityDashboard() {
       <div className="mb-6">
         <h1 className="font-heading text-3xl font-bold mb-2">University Dashboard</h1>
         <p className="text-muted-foreground">
-          Monitor institutional engagement, retention metrics, and engage with the community
+          {currentUser?.university
+            ? `Showing data for ${currentUser.university}`
+            : "Monitor institutional engagement, retention metrics, and engage with the community"}
         </p>
       </div>
 
@@ -162,6 +194,7 @@ export default function UniversityDashboard() {
           </TabsTrigger>
         </TabsList>
 
+        {/* ── USER MANAGEMENT ─────────────────────────────────────────────── */}
         <TabsContent value="users">
           <Card className="p-6">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -182,7 +215,7 @@ export default function UniversityDashboard() {
               <div>
                 <h3 className="font-heading font-medium mb-4 flex items-center gap-2">
                   <GraduationCap className="h-4 w-4 text-purple-600" />
-                  Students
+                  Students ({filteredStudents.length})
                 </h3>
                 {isStudentsLoading ? (
                   <div className="flex justify-center py-8"><Loader2 className="animate-spin" /></div>
@@ -191,40 +224,48 @@ export default function UniversityDashboard() {
                     {filteredStudents.length === 0 ? (
                       <p className="text-sm text-muted-foreground italic">No students found</p>
                     ) : (
-                      filteredStudents.map(student => (
+                      filteredStudents.map((student: any) => (
                         <div key={student.id} className="flex items-center justify-between p-3 border rounded-lg">
                           <div className="flex items-center gap-3">
                             <UserAvatar user={student} size="sm" />
                             <div>
                               <div className="font-medium text-sm">{student.firstName} {student.lastName}</div>
                               <div className="text-xs text-muted-foreground">{student.email}</div>
+                              {student.major && (
+                                <div className="text-xs text-muted-foreground">{student.major}</div>
+                              )}
                             </div>
                           </div>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="text-destructive" data-testid={`button-remove-student-${student.id}`}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Remove student permanently?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  This will completely delete {student.firstName}'s account and all their data from UniNexus.
-                                  This action is permanent and cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction 
-                                  onClick={() => removeUserMutation.mutate(student.id)}
-                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
+                          <div className="flex items-center gap-2">
+                            <Badge className={`text-xs capitalize ${TIER_COLORS[student.rankTier] || TIER_COLORS.bronze}`}>
+                              {student.rankTier}
+                            </Badge>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="text-destructive" data-testid={`button-remove-student-${student.id}`}>
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Remove student permanently?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This will completely delete {student.firstName}'s account and all their data from UniNexus.
+                                    This action is permanent and cannot be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => removeUserMutation.mutate(student.id)}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Delete
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
                         </div>
                       ))
                     )}
@@ -235,7 +276,7 @@ export default function UniversityDashboard() {
               <div>
                 <h3 className="font-heading font-medium mb-4 flex items-center gap-2">
                   <Users className="h-4 w-4 text-blue-600" />
-                  Teachers
+                  Teachers ({filteredTeachers.length})
                 </h3>
                 {isTeachersLoading ? (
                   <div className="flex justify-center py-8"><Loader2 className="animate-spin" /></div>
@@ -244,7 +285,7 @@ export default function UniversityDashboard() {
                     {filteredTeachers.length === 0 ? (
                       <p className="text-sm text-muted-foreground italic">No teachers found</p>
                     ) : (
-                      filteredTeachers.map(teacher => (
+                      filteredTeachers.map((teacher: any) => (
                         <div key={teacher.id} className="flex items-center justify-between p-3 border rounded-lg">
                           <div className="flex items-center gap-3">
                             <UserAvatar user={teacher} size="sm" />
@@ -269,7 +310,7 @@ export default function UniversityDashboard() {
                               </AlertDialogHeader>
                               <AlertDialogFooter>
                                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction 
+                                <AlertDialogAction
                                   onClick={() => removeUserMutation.mutate(teacher.id)}
                                   className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                                 >
@@ -288,6 +329,7 @@ export default function UniversityDashboard() {
           </Card>
         </TabsContent>
 
+        {/* ── FEED ────────────────────────────────────────────────────────── */}
         <TabsContent value="feed">
           <Tabs defaultValue="for-you" className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-4">
@@ -318,6 +360,7 @@ export default function UniversityDashboard() {
           </Tabs>
         </TabsContent>
 
+        {/* ── COURSE VALIDATIONS ──────────────────────────────────────────── */}
         <TabsContent value="validations">
           <Card className="p-6">
             <div className="flex items-center justify-between gap-4 mb-6">
@@ -361,103 +404,257 @@ export default function UniversityDashboard() {
           </Card>
         </TabsContent>
 
+        {/* ── ANALYTICS ───────────────────────────────────────────────────── */}
         <TabsContent value="analytics">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <Card className="p-6">
+
+          {/* ── Stat Cards ── */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <Card className="p-6" data-testid="stat-card-total-students">
               <div className="flex items-center justify-between mb-2">
                 <div className="text-sm text-muted-foreground">Total Students</div>
                 <Users className="h-5 w-5 text-primary" />
               </div>
-              <div className="text-3xl font-bold mb-1">{totalStudents}</div>
-              <div className="flex items-center text-xs text-green-600">
-                <TrendingUp className="h-3 w-3 mr-1" />
-                +5.2% from last month
-              </div>
+              <div className="text-3xl font-bold mb-1" data-testid="metric-total-students">{totalStudents}</div>
+              <DeltaBadge delta={monthOverMonth?.totalStudentsDelta ?? 0} />
             </Card>
 
-            <Card className="p-6">
+            <Card className="p-6" data-testid="stat-card-active-students">
               <div className="flex items-center justify-between mb-2">
                 <div className="text-sm text-muted-foreground">Active Students</div>
                 <Target className="h-5 w-5 text-green-600" />
               </div>
-              <div className="text-3xl font-bold mb-1">{activeStudents}</div>
+              <div className="text-3xl font-bold mb-1" data-testid="metric-active-students">{activeStudents}</div>
               <div className="text-xs text-muted-foreground">
                 {engagementRate}% engagement rate
               </div>
             </Card>
 
-            <Card className="p-6">
+            <Card className="p-6" data-testid="stat-card-avg-engagement">
               <div className="flex items-center justify-between mb-2">
                 <div className="text-sm text-muted-foreground">Avg Engagement</div>
                 <Award className="h-5 w-5 text-blue-600" />
               </div>
-              <div className="text-3xl font-bold mb-1">{avgEngagement}</div>
-              <div className="flex items-center text-xs text-green-600">
-                <TrendingUp className="h-3 w-3 mr-1" />
-                +12.5% from last month
-              </div>
+              <div className="text-3xl font-bold mb-1" data-testid="metric-avg-engagement">{avgEngagement}</div>
+              <DeltaBadge delta={monthOverMonth?.avgEngagementDelta ?? 0} />
             </Card>
 
-            <Card className="p-6">
+            <Card className="p-6" data-testid="stat-card-at-risk">
               <div className="flex items-center justify-between mb-2">
                 <div className="text-sm text-muted-foreground">At-Risk Students</div>
                 <AlertTriangle className="h-5 w-5 text-red-600" />
               </div>
-              <div className="text-3xl font-bold mb-1">{atRiskStudents}</div>
+              <div className="text-3xl font-bold mb-1" data-testid="metric-at-risk">{atRiskStudents}</div>
               <div className="flex items-center text-xs text-red-600">
                 <TrendingDown className="h-3 w-3 mr-1" />
-                Needs attention
+                Engagement score &lt; 30
               </div>
             </Card>
           </div>
 
+          {/* ── Course Enrollment Stats ── */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <Card className="p-6" data-testid="stat-card-course-enrollments">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm text-muted-foreground">Courses Enrolled</div>
+                <BookOpen className="h-5 w-5 text-indigo-600" />
+              </div>
+              {isCoursesStatsLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              ) : (
+                <>
+                  <div className="text-3xl font-bold mb-1" data-testid="metric-total-enrollments">
+                    {coursesStats?.totalEnrollments ?? 0}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {coursesStats?.studentsEnrolled ?? 0} students enrolled
+                    ({coursesStats?.enrollmentRate ?? 0}% of total)
+                  </div>
+                </>
+              )}
+            </Card>
+
+            <Card className="p-6" data-testid="stat-card-course-completion">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm text-muted-foreground">Course Completions</div>
+                <FileCheck className="h-5 w-5 text-green-600" />
+              </div>
+              {isCoursesStatsLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              ) : (
+                <>
+                  <div className="text-3xl font-bold mb-1" data-testid="metric-completed-courses">
+                    {coursesStats?.completed ?? 0}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {coursesStats?.completionRate ?? 0}% completion rate
+                  </div>
+                </>
+              )}
+            </Card>
+
+            <Card className="p-6" data-testid="stat-card-active-enrollments">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-sm text-muted-foreground">Currently Active</div>
+                <Briefcase className="h-5 w-5 text-purple-600" />
+              </div>
+              {isCoursesStatsLoading ? (
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+              ) : (
+                <>
+                  <div className="text-3xl font-bold mb-1" data-testid="metric-active-enrollments">
+                    {coursesStats?.activeEnrollments ?? 0}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Active course enrollments
+                  </div>
+                </>
+              )}
+            </Card>
+          </div>
+
+          {/* ── Charts ── */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
             <Card className="p-6">
               <h3 className="font-heading font-semibold text-lg mb-4">Engagement Trend</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={engagementData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="active" stroke="#8b5cf6" strokeWidth={2} />
-                  <Line type="monotone" dataKey="total" stroke="#ec4899" strokeWidth={2} />
-                </LineChart>
-              </ResponsiveContainer>
+              {engagementData.length === 0 ? (
+                <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
+                  No trend data yet
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={engagementData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="active" name="Active" stroke="#8b5cf6" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="total" name="Total" stroke="#ec4899" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
             </Card>
 
             <Card className="p-6">
               <h3 className="font-heading font-semibold text-lg mb-4">Retention by Department</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={departmentRetentionData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="department" />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="retention" fill="#8b5cf6" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {departmentRetentionData.length === 0 ? (
+                <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">
+                  No department data yet
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={departmentRetentionData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="department" />
+                    <YAxis unit="%" />
+                    <Tooltip formatter={(v: any) => `${v}%`} />
+                    <Bar dataKey="retention" name="Retention %" fill="#8b5cf6" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
             </Card>
           </div>
 
           <ChallengeMetricsSection retentionData={retentionData} isLoading={isRetentionLoading} />
           <CareerPathwaySection careerData={careerData} isLoading={isCareerLoading} />
 
+          {/* ── University Leaderboard ── */}
+          <Card className="p-6 mb-6">
+            <div className="flex items-center gap-2 mb-5">
+              <Trophy className="h-5 w-5 text-yellow-500" />
+              <h3 className="font-heading font-semibold text-lg">University Leaderboard</h3>
+              <Badge variant="secondary" className="ml-auto text-xs">
+                Top students · {currentUser?.university ?? 'your university'}
+              </Badge>
+            </div>
+
+            {isLeaderboardLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : leaderboard.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Trophy className="h-10 w-10 mx-auto mb-2 opacity-40" />
+                <p className="text-sm">No student data yet</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {leaderboard.map((entry: LeaderboardEntry) => (
+                  <div
+                    key={entry.id}
+                    className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors"
+                    data-testid={`leaderboard-entry-${entry.id}`}
+                  >
+                    <div className="w-8 text-center font-bold text-sm text-muted-foreground">
+                      {entry.rank === 1 ? "🥇" : entry.rank === 2 ? "🥈" : entry.rank === 3 ? "🥉" : `#${entry.rank}`}
+                    </div>
+                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-semibold shrink-0">
+                      {entry.firstName?.[0]}{entry.lastName?.[0]}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm truncate">
+                        {entry.firstName} {entry.lastName}
+                      </div>
+                      {entry.major && (
+                        <div className="text-xs text-muted-foreground truncate">{entry.major}</div>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="font-bold text-sm">{entry.totalPoints.toLocaleString()} pts</div>
+                      <Badge className={`text-xs capitalize ${TIER_COLORS[entry.rankTier] || TIER_COLORS.bronze}`}>
+                        {entry.rankTier}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          {/* ── Announcements ── */}
           <Card className="p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-heading font-semibold text-lg">Recent Announcements</h3>
-              <Button data-testid="button-create-announcement">Create Announcement</Button>
+              <Button
+                onClick={() => {/* TODO: open announcement dialog */}}
+                data-testid="button-create-announcement"
+              >
+                Create Announcement
+              </Button>
             </div>
-            <div className="space-y-3">
-              <div className="border-l-4 border-primary pl-4 py-2">
-                <div className="font-medium">Welcome to the new semester!</div>
-                <div className="text-sm text-muted-foreground">Posted 2 days ago</div>
+            {isAnnouncementsLoading ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
-              <div className="border-l-4 border-blue-500 pl-4 py-2">
-                <div className="font-medium">Career fair scheduled for next month</div>
-                <div className="text-sm text-muted-foreground">Posted 1 week ago</div>
+            ) : announcements.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground">
+                <Megaphone className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No announcements yet</p>
+                <p className="text-xs mt-1">Create your first announcement to notify students</p>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-3">
+                {announcements.map((announcement: any, idx: number) => (
+                  <div
+                    key={announcement.id}
+                    className={`border-l-4 ${idx % 2 === 0 ? 'border-primary' : 'border-blue-500'} pl-4 py-2`}
+                    data-testid={`announcement-${announcement.id}`}
+                  >
+                    <div className="font-medium">{announcement.title}</div>
+                    {announcement.content && (
+                      <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">
+                        {announcement.content}
+                      </p>
+                    )}
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {announcement.createdAt
+                        ? `Posted ${formatDistanceToNow(new Date(announcement.createdAt), { addSuffix: true })}`
+                        : 'Recently posted'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
         </TabsContent>
       </Tabs>
@@ -493,6 +690,8 @@ export default function UniversityDashboard() {
   );
 }
 
+// ── Sub-components ─────────────────────────────────────────────────────────────
+
 function ChallengeMetricsSection({ retentionData, isLoading }: { retentionData: any; isLoading: boolean }) {
   if (isLoading) {
     return (
@@ -512,123 +711,69 @@ function ChallengeMetricsSection({ retentionData, isLoading }: { retentionData: 
     );
   }
 
+  const { overview, badgeProgress, participationByCategory } = retentionData;
+  const badgeData = [
+    { name: "No badges", value: badgeProgress?.none || 0, color: "#6b7280" },
+    { name: "1–2 badges", value: badgeProgress?.low || 0, color: "#3b82f6" },
+    { name: "3–5 badges", value: badgeProgress?.medium || 0, color: "#8b5cf6" },
+    { name: "6+ badges", value: badgeProgress?.high || 0, color: "#ec4899" },
+  ];
+  const categoryData = Object.entries(participationByCategory || {}).map(([cat, count]) => ({
+    category: cat.charAt(0).toUpperCase() + cat.slice(1),
+    count: count as number,
+  }));
+
   return (
     <div className="mb-6">
       <h2 className="font-heading text-2xl font-bold mb-4">Challenge Participation Metrics</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card className="p-6">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-sm text-muted-foreground">Active Challenges</div>
-            <Trophy className="h-5 w-5 text-primary" />
-          </div>
-          <div className="text-3xl font-bold mb-1" data-testid="metric-active-challenges">
-            {retentionData.overview.activeChallenges}
-          </div>
-          <div className="text-xs text-muted-foreground">Currently ongoing</div>
+          <div className="text-sm text-muted-foreground mb-1">Total Students</div>
+          <div className="text-3xl font-bold" data-testid="metric-challenge-total-students">{overview?.totalStudents ?? 0}</div>
         </Card>
-
         <Card className="p-6">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-sm text-muted-foreground">Participating Students</div>
-            <Users className="h-5 w-5 text-blue-600" />
-          </div>
-          <div className="text-3xl font-bold mb-1" data-testid="metric-participating-students">
-            {retentionData.overview.participatingStudents}
-          </div>
-          <div className="text-xs text-muted-foreground">
-            {retentionData.overview.participationRate}% of total students
-          </div>
+          <div className="text-sm text-muted-foreground mb-1">Participating Students</div>
+          <div className="text-3xl font-bold text-purple-600" data-testid="metric-participating-students">{overview?.participatingStudents ?? 0}</div>
+          <div className="text-xs text-muted-foreground">{overview?.participationRate ?? 0}% participation rate</div>
         </Card>
-
         <Card className="p-6">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-sm text-muted-foreground">Participation Rate</div>
-            <Target className="h-5 w-5 text-green-600" />
-          </div>
-          <div className="text-3xl font-bold mb-1" data-testid="metric-participation-rate">
-            {retentionData.overview.participationRate}%
-          </div>
-          <div className="flex items-center text-xs text-green-600">
-            <TrendingUp className="h-3 w-3 mr-1" />
-            Retention indicator
-          </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-sm text-muted-foreground">Badge Progress</div>
-            <Award className="h-5 w-5 text-yellow-600" />
-          </div>
-          <div className="text-3xl font-bold mb-1" data-testid="metric-badge-achievers">
-            {retentionData.badgeProgress.medium + retentionData.badgeProgress.high}
-          </div>
-          <div className="text-xs text-muted-foreground">Students with 3+ badges</div>
+          <div className="text-sm text-muted-foreground mb-1">Active Challenges</div>
+          <div className="text-3xl font-bold text-blue-600" data-testid="metric-active-challenges">{overview?.activeChallenges ?? 0}</div>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="p-6">
-          <h3 className="font-heading font-semibold text-lg mb-4">Challenge Engagement Trend</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={retentionData.engagementTrend}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip />
-              <Line type="monotone" dataKey="participants" stroke="#8b5cf6" strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
-        </Card>
-
-        <Card className="p-6">
-          <h3 className="font-heading font-semibold text-lg mb-4">Badge Progress Distribution</h3>
-          <ResponsiveContainer width="100%" height={300}>
+          <h3 className="font-heading font-semibold mb-4">Badge Progress Distribution</h3>
+          <ResponsiveContainer width="100%" height={250}>
             <PieChart>
-              <Pie
-                data={[
-                  { name: 'No Badges', value: retentionData.badgeProgress.none, color: '#ef4444' },
-                  { name: '1-2 Badges', value: retentionData.badgeProgress.low, color: '#f59e0b' },
-                  { name: '3-5 Badges', value: retentionData.badgeProgress.medium, color: '#10b981' },
-                  { name: '6+ Badges', value: retentionData.badgeProgress.high, color: '#8b5cf6' },
-                ]}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={(entry) => `${entry.name}: ${entry.value}`}
-                outerRadius={100}
-                dataKey="value"
-              >
-                {[
-                  { color: '#ef4444' },
-                  { color: '#f59e0b' },
-                  { color: '#10b981' },
-                  { color: '#8b5cf6' },
-                ].map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
+              <Pie data={badgeData} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}>
+                {badgeData.map((entry, index) => (
+                  <Cell key={index} fill={entry.color} />
                 ))}
               </Pie>
               <Tooltip />
-              <Legend />
             </PieChart>
           </ResponsiveContainer>
         </Card>
 
-        <Card className="p-6 lg:col-span-2">
-          <h3 className="font-heading font-semibold text-lg mb-4">Challenge Participation by Category</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart
-              data={Object.entries(retentionData.participationByCategory).map(([category, count]) => ({
-                category: category.charAt(0).toUpperCase() + category.slice(1),
-                count,
-              }))}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="category" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="count" fill="#8b5cf6" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+        <Card className="p-6">
+          <h3 className="font-heading font-semibold mb-4">Participation by Category</h3>
+          {categoryData.length === 0 ? (
+            <div className="flex items-center justify-center h-[250px] text-muted-foreground text-sm">
+              No category data yet
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={categoryData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="category" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="count" name="Students" fill="#8b5cf6" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </Card>
       </div>
     </div>
@@ -639,7 +784,7 @@ function CareerPathwaySection({ careerData, isLoading }: { careerData: any; isLo
   if (isLoading) {
     return (
       <div className="mb-6">
-        <h2 className="font-heading text-2xl font-bold mb-4">Career Pathway Insights</h2>
+        <h2 className="font-heading text-2xl font-bold mb-4">Career Pathway Metrics</h2>
         <div className="text-center py-8 text-muted-foreground">Loading career metrics...</div>
       </div>
     );
@@ -648,129 +793,78 @@ function CareerPathwaySection({ careerData, isLoading }: { careerData: any; isLo
   if (!careerData) {
     return (
       <div className="mb-6">
-        <h2 className="font-heading text-2xl font-bold mb-4">Career Pathway Insights</h2>
-        <div className="text-center py-8 text-muted-foreground">No career pathway data available</div>
+        <h2 className="font-heading text-2xl font-bold mb-4">Career Pathway Metrics</h2>
+        <div className="text-center py-8 text-muted-foreground">No career data available</div>
       </div>
     );
   }
 
+  const { readiness, skills, certifications: certs } = careerData;
+  const skillLevelData = Object.entries(skills?.byLevel || {}).map(([level, count]) => ({
+    level: level.charAt(0).toUpperCase() + level.slice(1),
+    count: count as number,
+  }));
+  const skillCategoryData = Object.entries(skills?.byCategory || {}).map(([cat, count]) => ({
+    category: cat.charAt(0).toUpperCase() + cat.slice(1),
+    count: count as number,
+  }));
+
   return (
     <div className="mb-6">
-      <h2 className="font-heading text-2xl font-bold mb-4">Career Pathway Insights</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <h2 className="font-heading text-2xl font-bold mb-4">Career Pathway Metrics</h2>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card className="p-6">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-sm text-muted-foreground">AI Readiness Score</div>
-            <Briefcase className="h-5 w-5 text-primary" />
+          <div className="text-sm text-muted-foreground mb-1">Avg AI Readiness Score</div>
+          <div className="text-3xl font-bold text-purple-600" data-testid="metric-readiness-score">{readiness?.averageScore ?? 0}</div>
+          <div className="text-xs text-muted-foreground mt-1">
+            High: {readiness?.cohorts?.high ?? 0} · Mid: {readiness?.cohorts?.medium ?? 0} · Low: {readiness?.cohorts?.low ?? 0}
           </div>
-          <div className="text-3xl font-bold mb-1" data-testid="metric-readiness-score">
-            {careerData.readiness.averageScore}
-          </div>
-          <div className="text-xs text-muted-foreground">Average employability</div>
         </Card>
-
         <Card className="p-6">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-sm text-muted-foreground">Total Skills</div>
-            <GraduationCap className="h-5 w-5 text-blue-600" />
-          </div>
-          <div className="text-3xl font-bold mb-1" data-testid="metric-total-skills">
-            {careerData.skills.totalSkills}
-          </div>
-          <div className="text-xs text-muted-foreground">Across all students</div>
+          <div className="text-sm text-muted-foreground mb-1">Total Skills</div>
+          <div className="text-3xl font-bold text-blue-600" data-testid="metric-total-skills">{skills?.totalSkills ?? 0}</div>
         </Card>
-
         <Card className="p-6">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-sm text-muted-foreground">Certifications Issued</div>
-            <FileCheck className="h-5 w-5 text-green-600" />
-          </div>
-          <div className="text-3xl font-bold mb-1" data-testid="metric-certifications">
-            {careerData.certifications.total}
-          </div>
+          <div className="text-sm text-muted-foreground mb-1">Certifications</div>
+          <div className="text-3xl font-bold" data-testid="metric-certifications">{certs?.total ?? 0}</div>
           <div className="text-xs text-muted-foreground">
-            {careerData.certifications.active} currently active
+            {certs?.active ?? 0} currently active · {certs?.certificationRate ?? 0}% cert rate
           </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-2">
-            <div className="text-sm text-muted-foreground">Certification Rate</div>
-            <Award className="h-5 w-5 text-yellow-600" />
-          </div>
-          <div className="text-3xl font-bold mb-1" data-testid="metric-certification-rate">
-            {careerData.certifications.certificationRate}%
-          </div>
-          <div className="text-xs text-muted-foreground">Students with certificates</div>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="p-6">
-          <h3 className="font-heading font-semibold text-lg mb-4">Employability Readiness Cohorts</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={[
-                  { name: 'Low Readiness', value: careerData.readiness.cohorts.low, color: '#ef4444' },
-                  { name: 'Medium Readiness', value: careerData.readiness.cohorts.medium, color: '#f59e0b' },
-                  { name: 'High Readiness', value: careerData.readiness.cohorts.high, color: '#10b981' },
-                ]}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={(entry) => `${entry.name}: ${entry.value}`}
-                outerRadius={100}
-                dataKey="value"
-              >
-                {[
-                  { color: '#ef4444' },
-                  { color: '#f59e0b' },
-                  { color: '#10b981' },
-                ].map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
+          <h3 className="font-heading font-semibold mb-4">Skills by Level</h3>
+          {skillLevelData.length === 0 ? (
+            <div className="flex items-center justify-center h-[250px] text-muted-foreground text-sm">No skill data yet</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={skillLevelData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="level" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="count" name="Students" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </Card>
-
         <Card className="p-6">
-          <h3 className="font-heading font-semibold text-lg mb-4">Skills Distribution by Level</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart
-              data={Object.entries(careerData.skills.byLevel).map(([level, count]) => ({
-                level: level.charAt(0).toUpperCase() + level.slice(1),
-                count,
-              }))}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="level" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="count" fill="#3b82f6" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </Card>
-
-        <Card className="p-6 lg:col-span-2">
-          <h3 className="font-heading font-semibold text-lg mb-4">Skills Distribution by Category</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart
-              data={Object.entries(careerData.skills.byCategory).map(([category, count]) => ({
-                category: category.charAt(0).toUpperCase() + category.slice(1).replace('_', ' '),
-                count,
-              }))}
-            >
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="category" />
-              <YAxis />
-              <Tooltip />
-              <Bar dataKey="count" fill="#ec4899" radius={[8, 8, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
+          <h3 className="font-heading font-semibold mb-4">Skills by Category</h3>
+          {skillCategoryData.length === 0 ? (
+            <div className="flex items-center justify-center h-[250px] text-muted-foreground text-sm">No category data yet</div>
+          ) : (
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={skillCategoryData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="category" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="count" name="Students" fill="#ec4899" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </Card>
       </div>
     </div>

@@ -8,6 +8,7 @@ import {
   notifications,
   insertRecruiterFeedbackSchema,
 } from "@shared/schema";
+import { recalculateUserRank } from "../pointsHelper";
 
 const router = express.Router();
 
@@ -71,13 +72,20 @@ router.post("/recruiter-feedback", isAuthenticated, async (req: AuthRequest, res
       .values(validatedData)
       .returning();
 
+    // Recalculate student rank — industry feedback rating contributes to points
+    try {
+      await recalculateUserRank(newFeedback.studentId);
+    } catch (rankErr) {
+      console.error("Failed to recalculate rank after recruiter feedback:", rankErr);
+    }
+
     // If feedback is public, send notification to student
     if (newFeedback.isPublic) {
       await db.insert(notifications).values({
         userId: newFeedback.studentId,
         type: 'recruiter_feedback',
-        title: 'New Recruiter Feedback',
-        message: `${req.user.company || 'A recruiter'} has left feedback on your ${newFeedback.category} skills`,
+        title: 'New Industry Feedback Received',
+        message: `${req.user.company || 'An industry professional'} has left feedback on your ${newFeedback.category} skills. Your rank has been updated!`,
         link: `/profile?userId=${newFeedback.studentId}`,
       });
     }

@@ -349,49 +349,53 @@ export default function Network() {
                 </p>
               </Card>
             ) : (
-              <div className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {receivedRequests.map((request) => (
                   <Card
                     key={request.id}
-                    className="p-4"
+                    className="p-4 hover-elevate"
                     data-testid={`request-card-${request.id}`}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <UserAvatar user={request.user} size="md" />
-                        <div>
-                          <p className="font-medium">
-                            {request.user.firstName} {request.user.lastName}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {request.user.role === 'student' && request.user.major}
-                            {request.user.role === 'teacher' && 'Teacher'}
-                            {request.user.role === 'industry_professional' && request.user.company}
-                            {request.user.role === 'university_admin' && request.user.university}
-                          </p>
-                        </div>
+                    <div className="flex items-start gap-3">
+                      <UserAvatar user={request.user} size="lg" />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">
+                          {request.user.firstName} {request.user.lastName}
+                        </p>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {request.user.role === 'student' && request.user.major}
+                          {request.user.role === 'teacher' && 'Teacher'}
+                          {request.user.role === 'industry_professional' && request.user.company}
+                          {request.user.role === 'university_admin' && request.user.university}
+                        </p>
+                        <Badge variant="secondary" className="mt-2">
+                          {request.user.role.replace('_', ' ')}
+                        </Badge>
                       </div>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => respondToRequest.mutate({ id: request.id, status: 'accepted' })}
-                          disabled={respondToRequest.isPending}
-                          data-testid={`button-accept-${request.id}`}
-                        >
-                          <UserCheck className="h-4 w-4 mr-2" />
-                          Accept
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => respondToRequest.mutate({ id: request.id, status: 'rejected' })}
-                          disabled={respondToRequest.isPending}
-                          data-testid={`button-reject-${request.id}`}
-                        >
-                          <UserX className="h-4 w-4 mr-2" />
-                          Reject
-                        </Button>
-                      </div>
+                    </div>
+                    <div className="mt-4 flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => respondToRequest.mutate({ id: request.id, status: 'accepted' })}
+                        disabled={respondToRequest.isPending}
+                        data-testid={`button-accept-${request.id}`}
+                      >
+                        <UserCheck className="h-4 w-4 mr-2" />
+                        Accept
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => respondToRequest.mutate({ id: request.id, status: 'rejected' })}
+                        disabled={respondToRequest.isPending}
+                        data-testid={`button-reject-${request.id}`}
+                      >
+                        <UserX className="h-4 w-4 mr-2" />
+                        Reject
+                      </Button>
                     </div>
                   </Card>
                 ))}
