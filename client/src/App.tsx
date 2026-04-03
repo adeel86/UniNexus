@@ -31,6 +31,7 @@ import CourseDetail from "@/pages/CourseDetail";
 import Courses from "@/pages/Courses";
 import DiscussionDetail from "@/pages/DiscussionDetail";
 import VerifyCertificate from "@/pages/VerifyCertificate";
+import VerifyEmail from "@/pages/VerifyEmail";
 import Network from "@/pages/Network";
 import Messages from "@/pages/Messages";
 import GroupsDiscovery from "@/pages/GroupsDiscovery";
@@ -70,8 +71,9 @@ function Router() {
         <Route path="/register" component={Register} />
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/reset-password" component={ResetPassword} />
-        {/* Public verification route */}
+        {/* Public verification routes */}
         <Route path="/verify/:hash" component={VerifyCertificate} />
+        <Route path="/verify-email" component={VerifyEmail} />
         <Route component={Login} />
       </Switch>
     );
@@ -175,8 +177,9 @@ function Router() {
           <Route path="/courses/:courseId" component={CourseDetail} />
           <Route path="/forums/:courseId/:discussionId" component={DiscussionDetail} />
           
-          {/* Public verification route */}
+          {/* Public verification routes */}
           <Route path="/verify/:hash" component={VerifyCertificate} />
+          <Route path="/verify-email" component={VerifyEmail} />
           
           {/* Admin/Ethics routes */}
           <Route path="/ethics" component={EthicsDashboard} />

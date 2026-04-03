@@ -175,7 +175,11 @@ export class DatabaseStorage implements IStorage {
   async updateEmailVerified(userId: string, emailVerified: boolean): Promise<void> {
     await db
       .update(users)
-      .set({ emailVerified, updatedAt: new Date() })
+      .set({
+        emailVerified,
+        ...(emailVerified ? { verifiedAt: new Date() } : {}),
+        updatedAt: new Date(),
+      })
       .where(eq(users.id, userId));
   }
 
@@ -188,13 +192,15 @@ export class DatabaseStorage implements IStorage {
 
   async getUnverifiedExpiredUsers(gracePeriodDays: number): Promise<User[]> {
     const cutoff = new Date(Date.now() - gracePeriodDays * 24 * 60 * 60 * 1000);
+    // Use the most recent of verificationSentAt and createdAt so that resending
+    // the verification email resets the grace period clock.
     return db
       .select()
       .from(users)
       .where(
         and(
           eq(users.emailVerified, false),
-          sql`${users.createdAt} < ${cutoff}`
+          sql`COALESCE(${users.verificationSentAt}, ${users.createdAt}) < ${cutoff}`
         )
       );
   }
@@ -202,14 +208,15 @@ export class DatabaseStorage implements IStorage {
   async getUnverifiedWarningUsers(gracePeriodDays: number, warningDaysBefore: number): Promise<User[]> {
     const deletionCutoff = new Date(Date.now() - gracePeriodDays * 24 * 60 * 60 * 1000);
     const warningCutoff = new Date(Date.now() - (gracePeriodDays - warningDaysBefore) * 24 * 60 * 60 * 1000);
+    // Same COALESCE approach so resending resets the warning window too.
     return db
       .select()
       .from(users)
       .where(
         and(
           eq(users.emailVerified, false),
-          sql`${users.createdAt} < ${warningCutoff}`,
-          sql`${users.createdAt} >= ${deletionCutoff}`
+          sql`COALESCE(${users.verificationSentAt}, ${users.createdAt}) < ${warningCutoff}`,
+          sql`COALESCE(${users.verificationSentAt}, ${users.createdAt}) >= ${deletionCutoff}`
         )
       );
   }
@@ -609,10 +616,12 @@ export class DatabaseStorage implements IStorage {
       await tx.delete(courseDiscussions).where(eq(courseDiscussions.authorId, userId));
 
       // 5. Clean up AI and Tutor data
-      await tx.delete(studentPersonalTutorMessages).where(eq(studentPersonalTutorMessages.sessionId, userId));
-      await tx.delete(studentPersonalTutorSessions).where(eq(studentPersonalTutorSessions.studentId, userId));
+      // Messages are linked to sessions via a cascade FK, so deleting the sessions
+      // is sufficient. Explicitly deleting sessions here first (before the user row
+      // is removed) ensures the ordering is correct inside the transaction.
       await tx.delete(studentPersonalTutorMaterials).where(eq(studentPersonalTutorMaterials.studentId, userId));
-      await tx.delete(aiChatMessages).where(eq(aiChatMessages.sessionId, userId));
+      await tx.delete(studentPersonalTutorSessions).where(eq(studentPersonalTutorSessions.studentId, userId));
+      // aiChatMessages cascade from aiChatSessions; aiChatSessions cascade from users.
       await tx.delete(aiChatSessions).where(eq(aiChatSessions.userId, userId));
 
       // 6. Clean up profile and records

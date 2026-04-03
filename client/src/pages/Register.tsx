@@ -20,7 +20,7 @@ const registerSchema = z.object({
   confirmPassword: z.string(),
   displayName: z.string().min(2, 'Name must be at least 2 characters'),
   role: z.enum(['student', 'teacher', 'industry_professional', 'university_admin', 'master_admin']),
-  university: z.any().optional(), // Will accept AutocompleteOption or string
+  institute: z.any().optional(), // Will accept AutocompleteOption or string
   major: z.any().optional(), // Will accept AutocompleteOption or string
   company: z.string().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -76,7 +76,7 @@ export default function Register() {
       confirmPassword: '',
       displayName: '',
       role: 'student',
-      university: '',
+      institute: '',
       major: '',
       company: '',
     },
@@ -97,16 +97,19 @@ export default function Register() {
       message: result.message,
       detectedUniversity: result.detectedUniversity,
     });
-    // Auto-fill university field for students/teachers/admins when domain is recognised
+    // Auto-fill institute field for students/teachers/admins when domain is recognised.
+    // Always update so the field stays in sync with the email domain — the user can
+    // still clear or override it afterwards.
     if (
       result.detectedUniversity &&
       result.status === 'approved' &&
       ['student', 'teacher', 'university_admin'].includes(selectedRole)
     ) {
-      const current = form.getValues('university');
-      if (!current) {
-        form.setValue('university', result.detectedUniversity, { shouldValidate: false });
-      }
+      form.setValue(
+        'institute',
+        { id: result.detectedUniversity, name: result.detectedUniversity } as AutocompleteOption,
+        { shouldValidate: false }
+      );
     }
   }, [watchedEmail, selectedRole]);
 
@@ -126,15 +129,15 @@ export default function Register() {
       const additionalData: any = {};
       
       if (data.role === 'student') {
-        additionalData.university = data.university || null;
+        additionalData.university = data.institute || null;
         additionalData.major = data.major || null;
       } else if (data.role === 'industry_professional') {
         additionalData.company = data.company || '';
       } else if (data.role === 'teacher') {
-        additionalData.university = data.university || null;
+        additionalData.university = data.institute || null;
         additionalData.major = data.major || null;
       } else if (data.role === 'university_admin') {
-        additionalData.university = data.university || null;
+        additionalData.university = data.institute || null;
       }
 
       await signUp(data.email, data.password, data.displayName, data.role, additionalData);
@@ -348,22 +351,21 @@ export default function Register() {
               {(selectedRole === 'student' || selectedRole === 'teacher' || selectedRole === 'university_admin') && (
                 <FormField
                   control={form.control}
-                  name="university"
+                  name="institute"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>University</FormLabel>
+                      <FormLabel>Institute</FormLabel>
                       <FormControl>
                         <Autocomplete
-                          placeholder="Search your university..."
+                          placeholder="Search your institute..."
                           value={field.value as AutocompleteOption | null}
                           onChange={(option) => field.onChange(option)}
                           onCustomEntry={(text) => {
-                            // Store as object with name property
                             field.onChange({ id: text, name: text });
                           }}
                           searchEndpoint="/api/universities/search"
                           allowCustomEntry={true}
-                          testId="autocomplete-university"
+                          testId="autocomplete-institute"
                         />
                       </FormControl>
                       <FormMessage />

@@ -219,7 +219,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(userCredential.user, { displayName });
 
-    // Send verification email before doing anything else
     await sendEmailVerification(userCredential.user);
 
     // Create the DB record while we still have a valid token
