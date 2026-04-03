@@ -4,6 +4,9 @@ import { db } from "../db";
 import { isAuthenticated, type AuthRequest } from "../firebaseAuth";
 import {
   users,
+  userStats,
+  universities,
+  majors,
   recruiterFeedback,
   notifications,
   insertRecruiterFeedbackSchema,
@@ -176,13 +179,16 @@ router.get("/recruiter-feedback/my-feedback", isAuthenticated, async (req: AuthR
           id: users.id,
           firstName: users.firstName,
           lastName: users.lastName,
-          major: users.major,
-          university: users.university,
-          engagementScore: users.engagementScore,
+          major: majors.name,
+          university: universities.name,
+          engagementScore: userStats.engagementScore,
         },
       })
       .from(recruiterFeedback)
       .leftJoin(users, eq(recruiterFeedback.studentId, users.id))
+      .leftJoin(userStats, eq(users.id, userStats.userId))
+      .leftJoin(majors, eq(users.majorId, majors.id))
+      .leftJoin(universities, eq(users.universityId, universities.id))
       .where(eq(recruiterFeedback.recruiterId, req.user!.id))
       .orderBy(desc(recruiterFeedback.createdAt));
 

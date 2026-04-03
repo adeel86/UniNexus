@@ -6,6 +6,7 @@ import { storage as dbStorage } from "../storage";
 import { isAuthenticated, type AuthRequest } from "../firebaseAuth";
 import {
   users,
+  userStats,
   universities,
   posts,
   announcements,
@@ -370,10 +371,11 @@ router.get("/university/retention/career", isAuthenticated, async (req: AuthRequ
     const readinessResult = await db.execute(sql`
       WITH student_readiness AS (
         SELECT 
-          id,
-          ROUND((COALESCE(engagement_score, 0) + COALESCE(problem_solver_score, 0) + COALESCE(endorsement_score, 0)) / 3.0) as readiness_score
-        FROM ${users}
-        WHERE role = 'student'
+          u.id,
+          ROUND((COALESCE(us.engagement_score, 0) + COALESCE(us.problem_solver_score, 0) + COALESCE(us.endorsement_score, 0)) / 3.0) as readiness_score
+        FROM ${users} u
+        LEFT JOIN ${userStats} us ON us.user_id = u.id
+        WHERE u.role = 'student'
           ${uniSimpleClause}
       )
       SELECT 
@@ -529,12 +531,13 @@ router.get("/university/analytics", isAuthenticated, async (req: AuthRequest, re
       SELECT
         to_char(m.month_start, 'Mon') AS month,
         COUNT(u.id)::int AS total,
-        COUNT(CASE WHEN COALESCE(u.engagement_score, 0) > 50 THEN 1 END)::int AS active
+        COUNT(CASE WHEN COALESCE(us.engagement_score, 0) > 50 THEN 1 END)::int AS active
       FROM months m
       LEFT JOIN ${users} u
         ON u.role = 'student'
         ${uniJoinClause}
         AND date_trunc('month', u.created_at) <= m.month_start
+      LEFT JOIN ${userStats} us ON us.user_id = u.id
       GROUP BY m.month_start
       ORDER BY m.month_start
     `);
@@ -548,13 +551,15 @@ router.get("/university/analytics", isAuthenticated, async (req: AuthRequest, re
     // Department retention: group by major, compute retention rate (engagement > 30)
     const departmentResult = await db.execute(sql`
       SELECT
-        COALESCE(NULLIF(TRIM(major), ''), 'Undeclared') AS department,
-        COUNT(*)::int AS total,
-        COUNT(CASE WHEN COALESCE(engagement_score, 0) > 30 THEN 1 END)::int AS retained
-      FROM ${users}
-      WHERE role = 'student'
+        COALESCE(m.name, 'Undeclared') AS department,
+        COUNT(u.id)::int AS total,
+        COUNT(CASE WHEN COALESCE(us.engagement_score, 0) > 30 THEN 1 END)::int AS retained
+      FROM ${users} u
+      LEFT JOIN majors m ON m.id = u.major_id
+      LEFT JOIN ${userStats} us ON us.user_id = u.id
+      WHERE u.role = 'student'
         ${uniSimpleClause}
-      GROUP BY major
+      GROUP BY m.name
       ORDER BY total DESC
       LIMIT 8
     `);
@@ -569,16 +574,17 @@ router.get("/university/analytics", isAuthenticated, async (req: AuthRequest, re
     // Month-over-month stats: compare current month vs previous month for the four stat cards
     const momResult = await db.execute(sql`
       SELECT
-        COUNT(CASE WHEN date_trunc('month', created_at) = date_trunc('month', NOW()) THEN 1 END)::int           AS current_month_total,
-        COUNT(CASE WHEN date_trunc('month', created_at) = date_trunc('month', NOW()) - INTERVAL '1 month' THEN 1 END)::int AS prev_month_total,
-        COUNT(CASE WHEN date_trunc('month', created_at) = date_trunc('month', NOW()) AND COALESCE(engagement_score,0) > 50 THEN 1 END)::int           AS current_month_active,
-        COUNT(CASE WHEN date_trunc('month', created_at) = date_trunc('month', NOW()) - INTERVAL '1 month' AND COALESCE(engagement_score,0) > 50 THEN 1 END)::int AS prev_month_active,
-        ROUND(AVG(CASE WHEN date_trunc('month', created_at) = date_trunc('month', NOW()) THEN COALESCE(engagement_score,0) END))::int           AS current_avg_eng,
-        ROUND(AVG(CASE WHEN date_trunc('month', created_at) = date_trunc('month', NOW()) - INTERVAL '1 month' THEN COALESCE(engagement_score,0) END))::int AS prev_avg_eng
-      FROM ${users}
-      WHERE role = 'student'
+        COUNT(CASE WHEN date_trunc('month', u.created_at) = date_trunc('month', NOW()) THEN 1 END)::int           AS current_month_total,
+        COUNT(CASE WHEN date_trunc('month', u.created_at) = date_trunc('month', NOW()) - INTERVAL '1 month' THEN 1 END)::int AS prev_month_total,
+        COUNT(CASE WHEN date_trunc('month', u.created_at) = date_trunc('month', NOW()) AND COALESCE(us.engagement_score,0) > 50 THEN 1 END)::int           AS current_month_active,
+        COUNT(CASE WHEN date_trunc('month', u.created_at) = date_trunc('month', NOW()) - INTERVAL '1 month' AND COALESCE(us.engagement_score,0) > 50 THEN 1 END)::int AS prev_month_active,
+        ROUND(AVG(CASE WHEN date_trunc('month', u.created_at) = date_trunc('month', NOW()) THEN COALESCE(us.engagement_score,0) END))::int           AS current_avg_eng,
+        ROUND(AVG(CASE WHEN date_trunc('month', u.created_at) = date_trunc('month', NOW()) - INTERVAL '1 month' THEN COALESCE(us.engagement_score,0) END))::int AS prev_avg_eng
+      FROM ${users} u
+      LEFT JOIN ${userStats} us ON us.user_id = u.id
+      WHERE u.role = 'student'
         ${uniSimpleClause}
-        AND created_at >= date_trunc('month', NOW()) - INTERVAL '1 month'
+        AND u.created_at >= date_trunc('month', NOW()) - INTERVAL '1 month'
     `);
 
     const mom = momResult.rows[0] as any;
@@ -690,22 +696,32 @@ router.get("/university/leaderboard", isAuthenticated, async (req: AuthRequest, 
     const leaderboard = isMasterAdmin
       ? await db.execute(sql`
           SELECT
-            id, first_name, last_name, profile_image_url, display_name,
-            major_id, total_points, rank_tier, engagement_score,
-            problem_solver_score, challenge_points
-          FROM ${users}
-          WHERE role = 'student'
+            u.id, u.first_name, u.last_name, u.profile_image_url, u.display_name,
+            u.major_id,
+            COALESCE(us.total_points, 0) AS total_points,
+            COALESCE(us.rank_tier, 'bronze') AS rank_tier,
+            COALESCE(us.engagement_score, 0) AS engagement_score,
+            COALESCE(us.problem_solver_score, 0) AS problem_solver_score,
+            COALESCE(us.challenge_points, 0) AS challenge_points
+          FROM ${users} u
+          LEFT JOIN ${userStats} us ON us.user_id = u.id
+          WHERE u.role = 'student'
           ORDER BY total_points DESC, engagement_score DESC
           LIMIT ${limit}
         `)
       : await db.execute(sql`
           SELECT
-            id, first_name, last_name, profile_image_url, display_name,
-            major_id, total_points, rank_tier, engagement_score,
-            problem_solver_score, challenge_points
-          FROM ${users}
-          WHERE role = 'student'
-            AND university_id = ${uniParam}
+            u.id, u.first_name, u.last_name, u.profile_image_url, u.display_name,
+            u.major_id,
+            COALESCE(us.total_points, 0) AS total_points,
+            COALESCE(us.rank_tier, 'bronze') AS rank_tier,
+            COALESCE(us.engagement_score, 0) AS engagement_score,
+            COALESCE(us.problem_solver_score, 0) AS problem_solver_score,
+            COALESCE(us.challenge_points, 0) AS challenge_points
+          FROM ${users} u
+          LEFT JOIN ${userStats} us ON us.user_id = u.id
+          WHERE u.role = 'student'
+            AND u.university_id = ${uniParam}
           ORDER BY total_points DESC, engagement_score DESC
           LIMIT ${limit}
         `);
@@ -740,12 +756,13 @@ router.get("/ethics/metrics", isAuthenticated, async (req: AuthRequest, res: Res
     // Ranking distribution by tier
     const rankingRows = await db
       .select({
-        rankTier: users.rankTier,
+        rankTier: userStats.rankTier,
         count: sql<number>`count(*)::int`,
       })
       .from(users)
+      .innerJoin(userStats, eq(users.id, userStats.userId))
       .where(eq(users.role, 'student'))
-      .groupBy(users.rankTier);
+      .groupBy(userStats.rankTier);
 
     const rankingDistribution = { bronze: 0, silver: 0, gold: 0, platinum: 0 };
     for (const row of rankingRows) {
@@ -760,8 +777,9 @@ router.get("/ethics/metrics", isAuthenticated, async (req: AuthRequest, res: Res
       .select({ universityId: users.universityId, universityName: universities.name })
       .from(users)
       .leftJoin(universities, eq(users.universityId, universities.id))
+      .leftJoin(userStats, eq(users.id, userStats.userId))
       .where(eq(users.role, 'student'))
-      .orderBy(desc(users.totalPoints))
+      .orderBy(desc(userStats.totalPoints))
       .limit(100);
 
     const univCounts: Record<string, number> = {};
@@ -820,8 +838,8 @@ router.get("/transparency/metrics", isAuthenticated, async (req: AuthRequest, re
 
     const [activeUsersRow] = await db
       .select({ count: sql<number>`count(*)::int` })
-      .from(users)
-      .where(sql`total_points > 0`);
+      .from(userStats)
+      .where(sql`${userStats.totalPoints} > 0`);
 
     const univRows = await db
       .select({ universityId: users.universityId })
@@ -881,13 +899,14 @@ router.get("/transparency/metrics", isAuthenticated, async (req: AuthRequest, re
     // Win rate by tier
     const tierRows = await db
       .select({
-        rankTier: users.rankTier,
+        rankTier: userStats.rankTier,
         total: sql<number>`count(*)::int`,
         wins: sql<number>`sum(case when ${challengeParticipants.rank} = 1 then 1 else 0 end)::int`,
       })
       .from(challengeParticipants)
       .innerJoin(users, eq(challengeParticipants.userId, users.id))
-      .groupBy(users.rankTier);
+      .innerJoin(userStats, eq(users.id, userStats.userId))
+      .groupBy(userStats.rankTier);
 
     const winRateByTier = tierRows.map(r => ({
       tier: r.rankTier || 'bronze',
@@ -898,13 +917,14 @@ router.get("/transparency/metrics", isAuthenticated, async (req: AuthRequest, re
     const avgPointsRows = await db
       .select({
         universityName: universities.name,
-        avgPoints: sql<number>`avg(${users.totalPoints})::int`,
+        avgPoints: sql<number>`avg(${userStats.totalPoints})::int`,
       })
       .from(users)
       .innerJoin(universities, eq(users.universityId, universities.id))
+      .innerJoin(userStats, eq(users.id, userStats.userId))
       .where(sql`${users.universityId} is not null`)
       .groupBy(universities.name)
-      .orderBy(sql`avg(${users.totalPoints}) desc`)
+      .orderBy(sql`avg(${userStats.totalPoints}) desc`)
       .limit(20);
 
     const avgPointsByUniversity = avgPointsRows

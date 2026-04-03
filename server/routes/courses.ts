@@ -6,6 +6,7 @@ import { isAuthenticated, type AuthRequest } from "../firebaseAuth";
 import { updateTotalPointsAfterScoreChange } from "../pointsHelper";
 import {
   users,
+  userStats,
   universities,
   majors,
   courses,
@@ -636,7 +637,7 @@ router.post("/discussions", isAuthenticated, async (req: Request, res: Response)
   try {
     const validatedData = insertCourseDiscussionSchema.parse({ ...req.body, authorId: req.user.id });
     const newDiscussion = await storage.createDiscussion(validatedData);
-    await db.update(users).set({ engagementScore: sql`${users.engagementScore} + 5` }).where(eq(users.id, req.user.id));
+    await db.update(userStats).set({ engagementScore: sql`${userStats.engagementScore} + 5` }).where(eq(userStats.userId, req.user.id));
     
     // Recalculate totalPoints after engagement score change
     await updateTotalPointsAfterScoreChange(req.user.id).catch((err: any) => 
@@ -741,7 +742,7 @@ router.post("/replies", isAuthenticated, async (req: Request, res: Response) => 
   try {
     const validatedData = insertDiscussionReplySchema.parse({ ...req.body, authorId: req.user.id });
     const newReply = await storage.createReply(validatedData);
-    await db.update(users).set({ engagementScore: sql`${users.engagementScore} + 3` }).where(eq(users.id, req.user.id));
+    await db.update(userStats).set({ engagementScore: sql`${userStats.engagementScore} + 3` }).where(eq(userStats.userId, req.user.id));
 
     // Recalculate totalPoints after engagement score change
     await updateTotalPointsAfterScoreChange(req.user.id).catch((err: any) => 

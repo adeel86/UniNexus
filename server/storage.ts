@@ -48,6 +48,7 @@ import {
   reactions,
   postShares,
   postBoosts,
+  userStats,
   userBadges,
   userSkills,
   endorsements,
@@ -150,6 +151,7 @@ export class DatabaseStorage implements IStorage {
         },
       })
       .returning();
+    await db.insert(userStats).values({ userId: user.id }).onConflictDoNothing();
     return user;
   }
 
@@ -168,6 +170,7 @@ export class DatabaseStorage implements IStorage {
         },
       })
       .returning();
+    await db.insert(userStats).values({ userId: user.id }).onConflictDoNothing();
     return user;
   }
 

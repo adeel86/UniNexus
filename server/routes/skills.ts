@@ -4,6 +4,7 @@ import { db } from "../db";
 import { updateTotalPointsAfterScoreChange } from "../pointsHelper";
 import {
   users,
+  userStats,
   badges,
   userBadges,
   skills,
@@ -114,12 +115,12 @@ router.post("/endorsements", requireAuth, async (req: Request, res: Response) =>
     const [newEndorsement] = await db.insert(endorsements).values(validatedData).returning();
 
     await db
-      .update(users)
+      .update(userStats)
       .set({
-        endorsementScore: sql`${users.endorsementScore} + 10`,
-        engagementScore: sql`${users.engagementScore} + 15`,
+        endorsementScore: sql`${userStats.endorsementScore} + 10`,
+        engagementScore: sql`${userStats.engagementScore} + 15`,
       })
-      .where(eq(users.id, validatedData.endorsedUserId));
+      .where(eq(userStats.userId, validatedData.endorsedUserId));
 
     // Recalculate totalPoints after both endorsement and engagement score changes
     await updateTotalPointsAfterScoreChange(validatedData.endorsedUserId).catch((err: any) => 

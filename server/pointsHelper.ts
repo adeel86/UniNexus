@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { users, userBadges, endorsements, challengeParticipants, certifications, recruiterFeedback } from "@shared/schema";
+import { users, userStats, userBadges, endorsements, challengeParticipants, certifications, recruiterFeedback } from "@shared/schema";
 import { eq, count, sum, and, inArray } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 
@@ -18,14 +18,12 @@ export interface PointDelta {
  * - Teacher-issued certificates: 150 pts each
  */
 async function computeExternalPoints(userId: string): Promise<{ industryFeedbackPoints: number; certificationPoints: number }> {
-  // Sum all industry-professional ratings for this student
   const feedbackResult = await db
     .select({ totalRating: sql<number>`COALESCE(SUM(rating), 0)::int` })
     .from(recruiterFeedback)
     .where(eq(recruiterFeedback.studentId, userId));
   const industryFeedbackPoints = (Number(feedbackResult[0]?.totalRating) || 0) * 20;
 
-  // Count teacher-issued certifications for this student
   const certResult = await db.execute(sql`
     SELECT COUNT(*)::int as count
     FROM certifications c
@@ -43,19 +41,21 @@ async function computeExternalPoints(userId: string): Promise<{ industryFeedback
  * Includes badge count, endorsement count, industry feedback, and teacher certs.
  */
 export async function applyPointDelta(userId: string, delta: PointDelta): Promise<void> {
-  const [currentUser] = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, userId));
+  await db.insert(userStats).values({ userId }).onConflictDoNothing();
 
-  if (!currentUser) {
-    throw new Error("User not found");
+  const [currentStats] = await db
+    .select()
+    .from(userStats)
+    .where(eq(userStats.userId, userId));
+
+  if (!currentStats) {
+    throw new Error("User stats not found");
   }
 
-  const newEngagement = Math.max(0, (currentUser.engagementScore || 0) + (delta.engagementDelta || 0));
-  const newProblemSolver = Math.max(0, (currentUser.problemSolverScore || 0) + (delta.problemSolverDelta || 0));
-  const newEndorsement = Math.max(0, (currentUser.endorsementScore || 0) + (delta.endorsementDelta || 0));
-  const newChallenge = Math.max(0, (currentUser.challengePoints || 0) + (delta.challengeDelta || 0));
+  const newEngagement = Math.max(0, (currentStats.engagementScore || 0) + (delta.engagementDelta || 0));
+  const newProblemSolver = Math.max(0, (currentStats.problemSolverScore || 0) + (delta.problemSolverDelta || 0));
+  const newEndorsement = Math.max(0, (currentStats.endorsementScore || 0) + (delta.endorsementDelta || 0));
+  const newChallenge = Math.max(0, (currentStats.challengePoints || 0) + (delta.challengeDelta || 0));
 
   const [badgeCount] = await db
     .select({ count: count() })
@@ -86,8 +86,8 @@ export async function applyPointDelta(userId: string, delta: PointDelta): Promis
   else if (newTotalPoints >= 3000) newRankTier = 'gold';
   else if (newTotalPoints >= 1000) newRankTier = 'silver';
 
-  const [updatedUser] = await db
-    .update(users)
+  const [updatedStats] = await db
+    .update(userStats)
     .set({
       engagementScore: newEngagement,
       problemSolverScore: newProblemSolver,
@@ -95,34 +95,32 @@ export async function applyPointDelta(userId: string, delta: PointDelta): Promis
       challengePoints: newChallenge,
       totalPoints: newTotalPoints,
       rankTier: newRankTier,
+      updatedAt: new Date(),
     })
-    .where(eq(users.id, userId))
+    .where(eq(userStats.userId, userId))
     .returning({
-      totalPoints: users.totalPoints,
-      rankTier: users.rankTier,
+      totalPoints: userStats.totalPoints,
+      rankTier: userStats.rankTier,
     });
 
-  if (!updatedUser) {
+  if (!updatedStats) {
     throw new Error("Failed to update user rank");
   }
 }
 
 /**
  * Recalculate user rank based on all achievement metrics.
- *
- * Formula:
- *   totalPoints = engagementScore + problemSolverScore + endorsementScore
- *               + challengePoints + (badgeCount × 50) + (endorsementCount × 25)
- *               + (industryFeedbackRatingSum × 20) + (teacherCertCount × 150)
  */
 export async function recalculateUserRank(userId: string): Promise<void> {
-  const [currentUser] = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, userId));
+  await db.insert(userStats).values({ userId }).onConflictDoNothing();
 
-  if (!currentUser) {
-    throw new Error("User not found");
+  const [currentStats] = await db
+    .select()
+    .from(userStats)
+    .where(eq(userStats.userId, userId));
+
+  if (!currentStats) {
+    throw new Error("User stats not found");
   }
 
   const [badgeCount] = await db
@@ -140,10 +138,10 @@ export async function recalculateUserRank(userId: string): Promise<void> {
   const badgePoints = (badgeCount?.count || 0) * 50;
   const endorsementPoints = (endorsementCount?.count || 0) * 25;
   const totalPoints =
-    (currentUser.engagementScore || 0) +
-    (currentUser.problemSolverScore || 0) +
-    (currentUser.endorsementScore || 0) +
-    (currentUser.challengePoints || 0) +
+    (currentStats.engagementScore || 0) +
+    (currentStats.problemSolverScore || 0) +
+    (currentStats.endorsementScore || 0) +
+    (currentStats.challengePoints || 0) +
     badgePoints +
     endorsementPoints +
     industryFeedbackPoints +
@@ -154,19 +152,20 @@ export async function recalculateUserRank(userId: string): Promise<void> {
   else if (totalPoints >= 3000) newRankTier = 'gold';
   else if (totalPoints >= 1000) newRankTier = 'silver';
 
-  const [updatedUser] = await db
-    .update(users)
+  const [updatedStats] = await db
+    .update(userStats)
     .set({
       totalPoints,
       rankTier: newRankTier,
+      updatedAt: new Date(),
     })
-    .where(eq(users.id, userId))
+    .where(eq(userStats.userId, userId))
     .returning({
-      totalPoints: users.totalPoints,
-      rankTier: users.rankTier,
+      totalPoints: userStats.totalPoints,
+      rankTier: userStats.rankTier,
     });
 
-  if (!updatedUser) {
+  if (!updatedStats) {
     throw new Error("Failed to recalculate user rank");
   }
 }
@@ -175,13 +174,15 @@ export async function recalculateUserRank(userId: string): Promise<void> {
  * Update totalPoints after individual score fields are directly updated via SQL.
  */
 export async function updateTotalPointsAfterScoreChange(userId: string): Promise<void> {
-  const [currentUser] = await db
-    .select()
-    .from(users)
-    .where(eq(users.id, userId));
+  await db.insert(userStats).values({ userId }).onConflictDoNothing();
 
-  if (!currentUser) {
-    throw new Error("User not found");
+  const [currentStats] = await db
+    .select()
+    .from(userStats)
+    .where(eq(userStats.userId, userId));
+
+  if (!currentStats) {
+    throw new Error("User stats not found");
   }
 
   const [badgeCount] = await db
@@ -199,10 +200,10 @@ export async function updateTotalPointsAfterScoreChange(userId: string): Promise
   const badgePoints = (badgeCount?.count || 0) * 50;
   const endorsementPoints = (endorsementCount?.count || 0) * 25;
   const totalPoints =
-    (currentUser.engagementScore || 0) +
-    (currentUser.problemSolverScore || 0) +
-    (currentUser.endorsementScore || 0) +
-    (currentUser.challengePoints || 0) +
+    (currentStats.engagementScore || 0) +
+    (currentStats.problemSolverScore || 0) +
+    (currentStats.endorsementScore || 0) +
+    (currentStats.challengePoints || 0) +
     badgePoints +
     endorsementPoints +
     industryFeedbackPoints +
@@ -214,10 +215,11 @@ export async function updateTotalPointsAfterScoreChange(userId: string): Promise
   else if (totalPoints >= 1000) newRankTier = 'silver';
 
   await db
-    .update(users)
+    .update(userStats)
     .set({
       totalPoints,
       rankTier: newRankTier,
+      updatedAt: new Date(),
     })
-    .where(eq(users.id, userId));
+    .where(eq(userStats.userId, userId));
 }

@@ -5,7 +5,7 @@ import admin from "firebase-admin";
 import jwt from "jsonwebtoken";
 import { eq } from "drizzle-orm";
 import { db } from "./db";
-import { users, universities, majors, userProfiles, type User } from "@shared/schema";
+import { users, universities, majors, userProfiles, userStats, type User } from "@shared/schema";
 
 export let firebaseAdmin: admin.app.App | null = null;
 
@@ -130,7 +130,7 @@ declare global {
   }
 }
 
-// Resolve related display names for a user in a single JOIN query
+// Resolve related display names and stats for a user in a single JOIN query
 async function resolveUserRelations(user: User) {
   const [rel] = await db
     .select({
@@ -138,11 +138,19 @@ async function resolveUserRelations(user: User) {
       majorName: majors.name,
       companyName: userProfiles.companyName,
       jobTitle: userProfiles.jobTitle,
+      engagementScore: userStats.engagementScore,
+      problemSolverScore: userStats.problemSolverScore,
+      endorsementScore: userStats.endorsementScore,
+      challengePoints: userStats.challengePoints,
+      totalPoints: userStats.totalPoints,
+      rankTier: userStats.rankTier,
+      streak: userStats.streak,
     })
     .from(users)
     .leftJoin(universities, eq(users.universityId, universities.id))
     .leftJoin(majors, eq(users.majorId, majors.id))
     .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
+    .leftJoin(userStats, eq(users.id, userStats.userId))
     .where(eq(users.id, user.id))
     .limit(1);
   return rel ?? {};
@@ -169,13 +177,13 @@ async function buildUserForReq(
     bio: user.bio || undefined,
     avatarUrl: user.profileImageUrl || undefined,
     ...(emailVerified !== undefined ? { emailVerified } : {}),
-    engagementScore: user.engagementScore,
-    problemSolverScore: user.problemSolverScore,
-    endorsementScore: user.endorsementScore,
-    challengePoints: user.challengePoints,
-    totalPoints: user.totalPoints,
-    rankTier: user.rankTier,
-    streak: user.streak || 0,
+    engagementScore: rel.engagementScore ?? 0,
+    problemSolverScore: rel.problemSolverScore ?? 0,
+    endorsementScore: rel.endorsementScore ?? 0,
+    challengePoints: rel.challengePoints ?? 0,
+    totalPoints: rel.totalPoints ?? 0,
+    rankTier: rel.rankTier ?? 'bronze',
+    streak: rel.streak ?? 0,
   };
 }
 

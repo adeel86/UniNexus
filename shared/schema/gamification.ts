@@ -5,6 +5,33 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { users } from "./users";
 
+export const userStats = pgTable("user_stats", {
+  userId: varchar("user_id").primaryKey().references(() => users.id, { onDelete: 'cascade' }),
+  engagementScore: integer("engagement_score").notNull().default(0),
+  problemSolverScore: integer("problem_solver_score").notNull().default(0),
+  endorsementScore: integer("endorsement_score").notNull().default(0),
+  challengePoints: integer("challenge_points").notNull().default(0),
+  totalPoints: integer("total_points").notNull().default(0),
+  rankTier: varchar("rank_tier", { length: 20 }).notNull().default('bronze'),
+  streak: integer("streak").notNull().default(0),
+  lastStreakIncrementDate: timestamp("last_streak_increment_date"),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const userStatsRelations = relations(userStats, ({ one }) => ({
+  user: one(users, {
+    fields: [userStats.userId],
+    references: [users.id],
+  }),
+}));
+
+export const insertUserStatsSchema = createInsertSchema(userStats).omit({
+  updatedAt: true,
+});
+
+export type UserStats = typeof userStats.$inferSelect;
+export type InsertUserStats = z.infer<typeof insertUserStatsSchema>;
+
 export const badges = pgTable("badges", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: varchar("name", { length: 100 }).notNull(),

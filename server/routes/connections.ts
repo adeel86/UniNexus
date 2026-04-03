@@ -6,6 +6,7 @@ import {
   userConnections,
   followers,
   users,
+  userStats,
   universities,
   majors,
   notifications,
@@ -683,10 +684,11 @@ router.get("/discovery/universities", isAuthenticated, async (req: AuthRequest, 
         universityId: users.universityId,
         university: universities.name,
         studentCount: sql<number>`count(*)::int`,
-        avgEngagement: sql<number>`coalesce(avg(${users.engagementScore}), 0)::int`,
+        avgEngagement: sql<number>`coalesce(avg(${userStats.engagementScore}), 0)::int`,
       })
       .from(users)
       .innerJoin(universities, eq(users.universityId, universities.id))
+      .leftJoin(userStats, eq(users.id, userStats.userId))
       .where(sql`${users.universityId} IS NOT NULL`)
       .groupBy(universities.name, users.universityId)
       .orderBy(sql`count(*) DESC`)

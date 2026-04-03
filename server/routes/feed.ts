@@ -9,6 +9,7 @@ import {
   comments,
   reactions,
   users,
+  userStats,
   followers,
   notifications,
   insertPostSchema,
@@ -416,11 +417,11 @@ router.post("/posts", blockRestrictedRoles, async (req: Request, res: Response) 
     const [newPost] = await db.insert(posts).values(validatedData).returning();
 
     await db
-      .update(users)
+      .update(userStats)
       .set({
-        engagementScore: sql`${users.engagementScore} + 10`,
+        engagementScore: sql`${userStats.engagementScore} + 10`,
       })
-      .where(eq(users.id, req.user!.id));
+      .where(eq(userStats.userId, req.user!.id));
 
     // Recalculate totalPoints after engagement score change
     await updateTotalPointsAfterScoreChange(req.user!.id).catch((err: any) => 
@@ -529,11 +530,11 @@ router.post("/comments", isAuthenticated, async (req: AuthRequest, res: Response
       .where(eq(comments.id, newComment.id));
 
     await db
-      .update(users)
+      .update(userStats)
       .set({
-        engagementScore: sql`${users.engagementScore} + 5`,
+        engagementScore: sql`${userStats.engagementScore} + 5`,
       })
-      .where(eq(users.id, req.user!.id));
+      .where(eq(userStats.userId, req.user!.id));
 
     // Recalculate totalPoints after engagement score change
     await updateTotalPointsAfterScoreChange(req.user!.id).catch((err: any) => 
@@ -620,11 +621,11 @@ router.post("/reactions", isAuthenticated, async (req: AuthRequest, res: Respons
     const [newReaction] = await db.insert(reactions).values(validatedData).returning();
 
     await db
-      .update(users)
+      .update(userStats)
       .set({
-        engagementScore: sql`${users.engagementScore} + 2`,
+        engagementScore: sql`${userStats.engagementScore} + 2`,
       })
-      .where(eq(users.id, req.user!.id));
+      .where(eq(userStats.userId, req.user!.id));
 
     // Recalculate totalPoints after engagement score change
     await updateTotalPointsAfterScoreChange(req.user!.id).catch((err: any) => 

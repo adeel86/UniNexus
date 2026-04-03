@@ -11,6 +11,7 @@ import { requireAuth } from "./shared";
 import { recalculateUserRank } from "../pointsHelper";
 import {
   users,
+  userStats,
   universities,
   courses,
   groups,
@@ -139,23 +140,26 @@ router.get("/teachers", requireAuth, async (req: Request, res: Response) => {
 router.get("/students", requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.user as any;
-    let query = db.select().from(users).where(eq(users.role, "student"));
 
     // Scope restriction: Teachers and University Admins only see affiliated students
     if (user.role === 'teacher' || user.role === 'university_admin' || user.role === 'university') {
       if (!user.universityId) {
         return res.json([]);
       }
-      query = db.select().from(users).where(
-        and(
-          eq(users.role, "student"),
-          eq(users.universityId, user.universityId)
-        )
-      );
     }
 
-    const students = await query.orderBy(desc(users.engagementScore));
-    res.json(students);
+    const whereClause = (user.role === 'teacher' || user.role === 'university_admin' || user.role === 'university') && user.universityId
+      ? and(eq(users.role, "student"), eq(users.universityId, user.universityId))
+      : eq(users.role, "student");
+
+    const students = await db
+      .select({ user: users })
+      .from(users)
+      .leftJoin(userStats, eq(users.id, userStats.userId))
+      .where(whereClause)
+      .orderBy(desc(userStats.engagementScore));
+
+    res.json(students.map(r => r.user));
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

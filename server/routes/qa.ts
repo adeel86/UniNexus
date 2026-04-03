@@ -5,6 +5,7 @@ import { isAuthenticated } from "../firebaseAuth";
 import { updateTotalPointsAfterScoreChange } from "../pointsHelper";
 import {
   users,
+  userStats,
   courseDiscussions,
   discussionReplies,
   discussionUpvotes,
@@ -45,11 +46,12 @@ router.get("/qa/questions", isAuthenticated, async (req: Request, res: Response)
           lastName: users.lastName,
           displayName: users.displayName,
           profileImageUrl: users.profileImageUrl,
-          rankTier: users.rankTier,
+          rankTier: userStats.rankTier,
         }
       })
       .from(courseDiscussions)
       .leftJoin(users, eq(courseDiscussions.authorId, users.id))
+      .leftJoin(userStats, eq(users.id, userStats.userId))
       .where(whereClause)
       .orderBy(desc(courseDiscussions.createdAt))
       .limit(50);

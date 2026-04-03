@@ -5,6 +5,15 @@
  * Import from here for convenience, or import specific domains for clarity.
  */
 
+// Academia (universities + majors — moved here to avoid circular deps)
+export {
+  universities,
+  majors,
+  insertUniversitySchema,
+  insertMajorSchema,
+} from "./academia";
+export type { University, InsertUniversity, Major, InsertMajor } from "./academia";
+
 // Auth
 export { sessions, emailOtps } from "./auth";
 export type { EmailOtp } from "./auth";
@@ -81,6 +90,9 @@ export type {
 
 // Gamification
 export {
+  userStats,
+  userStatsRelations,
+  insertUserStatsSchema,
   badges,
   badgesRelations,
   userBadges,
@@ -99,6 +111,8 @@ export {
   insertChallengeSchema,
 } from "./gamification";
 export type {
+  UserStats,
+  InsertUserStats,
   Badge,
   UserBadge,
   Skill,
@@ -112,8 +126,6 @@ export type {
 
 // Courses
 export {
-  universities,
-  majors,
   courses,
   courseEnrollments,
   courseEnrollmentsRelations,
@@ -122,8 +134,6 @@ export {
   discussionUpvotes,
   courseMilestones,
   studentCourses,
-  insertUniversitySchema,
-  insertMajorSchema,
   insertCourseSchema,
   insertCourseDiscussionSchema,
   insertDiscussionReplySchema,
@@ -132,10 +142,6 @@ export {
   insertStudentCourseSchema,
 } from "./courses";
 export type {
-  University,
-  InsertUniversity,
-  Major,
-  InsertMajor,
   Course,
   InsertCourse,
   CourseEnrollment,
@@ -264,11 +270,15 @@ export type {
   InsertStudentPersonalTutorMessage,
 } from "./ai";
 
-// Re-export relations for users (needs to be defined here to avoid circular deps)
+// =====================================================================
+// Cross-module relations (defined here to avoid circular dependencies)
+// =====================================================================
+
 import { relations } from 'drizzle-orm';
 import { users } from "./users";
+import { universities, majors } from "./academia";
 import { posts, comments, reactions, postShares, postBoosts } from "./feed";
-import { userBadges, userSkills, endorsements, challengeParticipants } from "./gamification";
+import { userStats, userBadges, userSkills, endorsements, challengeParticipants } from "./gamification";
 import { courseEnrollments, studentCourses } from "./courses";
 import { notifications } from "./notifications";
 import { certifications } from "./certifications";
@@ -277,7 +287,7 @@ import { groupMembers } from "./groups";
 import { educationRecords, jobExperience } from "./users";
 import { messages } from "./messaging";
 
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ many, one }) => ({
   posts: many(posts),
   comments: many(comments),
   reactions: many(reactions),
@@ -299,6 +309,18 @@ export const usersRelations = relations(users, ({ many }) => ({
   workExperience: many(jobExperience),
   studentCourses: many(studentCourses),
   coursesValidated: many(studentCourses, { relationName: "validator" }),
+  stats: one(userStats, {
+    fields: [users.id],
+    references: [userStats.userId],
+  }),
+}));
+
+export const universitiesRelations = relations(universities, ({ many }) => ({
+  students: many(users),
+}));
+
+export const majorsRelations = relations(majors, ({ many }) => ({
+  students: many(users),
 }));
 
 // Course relations

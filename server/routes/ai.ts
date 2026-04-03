@@ -5,6 +5,7 @@ import { db } from "../db";
 import { updateTotalPointsAfterScoreChange } from "../pointsHelper";
 import {
   users,
+  userStats,
   skills,
   userSkills,
   endorsements,
@@ -485,11 +486,11 @@ Example responses:
     const assistantMessage = completion.choices[0]?.message?.content || "I'm sorry, I couldn't generate a response. Please try again.";
 
     await db
-      .update(users)
+      .update(userStats)
       .set({
-        engagementScore: sql`${users.engagementScore} + 3`,
+        engagementScore: sql`${userStats.engagementScore} + 3`,
       })
-      .where(eq(users.id, req.user!.id));
+      .where(eq(userStats.userId, req.user!.id));
 
     // Recalculate totalPoints after engagement score change
     await updateTotalPointsAfterScoreChange(req.user!.id).catch((err: any) => 

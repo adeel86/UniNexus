@@ -1,8 +1,9 @@
 import { sql } from 'drizzle-orm';
 import { relations } from 'drizzle-orm';
-import { pgTable, timestamp, varchar, text, integer, boolean, uniqueIndex, foreignKey } from "drizzle-orm/pg-core";
+import { pgTable, timestamp, varchar, text, integer, boolean, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { universities, majors } from "./academia";
 
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -14,22 +15,14 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role", { length: 50 }).notNull().default('student'),
   bio: text("bio"),
-  universityId: varchar("university_id"),
-  majorId: varchar("major_id"),
+  universityId: varchar("university_id").references(() => universities.id, { onDelete: 'set null' }),
+  majorId: varchar("major_id").references(() => majors.id, { onDelete: 'set null' }),
   graduationYear: integer("graduation_year"),
   interests: text("interests").array().default(sql`ARRAY[]::text[]`),
   emailVerified: boolean("email_verified").notNull().default(false),
   verificationSentAt: timestamp("verification_sent_at"),
   isVerified: boolean("is_verified").notNull().default(false),
   verifiedAt: timestamp("verified_at"),
-  engagementScore: integer("engagement_score").notNull().default(0),
-  problemSolverScore: integer("problem_solver_score").notNull().default(0),
-  endorsementScore: integer("endorsement_score").notNull().default(0),
-  challengePoints: integer("challenge_points").notNull().default(0),
-  totalPoints: integer("total_points").notNull().default(0),
-  rankTier: varchar("rank_tier", { length: 20 }).notNull().default('bronze'),
-  streak: integer("streak").notNull().default(0),
-  lastStreakIncrementDate: timestamp("last_streak_increment_date"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -37,13 +30,9 @@ export const users = pgTable("users", {
 export type User = typeof users.$inferSelect;
 export type UpsertUser = typeof users.$inferInsert;
 
-// Relations will be defined after imports are available
-// (defined in courses.ts to avoid circular dependencies)
-
 export const userProfiles = pgTable("user_profiles", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }).unique(),
-  programme: varchar("programme"),
   modules: text("modules").array().default(sql`ARRAY[]::text[]`),
   yearOfStudy: integer("year_of_study"),
   academicGoals: text("academic_goals"),
@@ -204,20 +193,16 @@ export const insertFollowerSchema = createInsertSchema(followers).omit({
 export type Follower = typeof followers.$inferSelect;
 export type InsertFollower = z.infer<typeof insertFollowerSchema>;
 
-// User Preferences and Settings
 export const userPreferences = pgTable("user_preferences", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }).unique(),
-  // Notification preferences
   emailNotifications: boolean("email_notifications").notNull().default(true),
   pushNotifications: boolean("push_notifications").notNull().default(true),
   commentNotifications: boolean("comment_notifications").notNull().default(true),
   endorsementNotifications: boolean("endorsement_notifications").notNull().default(true),
-  // Privacy settings
   publicProfile: boolean("public_profile").notNull().default(true),
   showEmail: boolean("show_email").notNull().default(false),
   showActivity: boolean("show_activity").notNull().default(true),
-  // Two-factor authentication
   twoFactorEnabled: boolean("two_factor_enabled").notNull().default(false),
   twoFactorSecret: varchar("two_factor_secret"),
   backupCodes: text("backup_codes"),
