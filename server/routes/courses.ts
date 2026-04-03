@@ -323,7 +323,7 @@ router.get("/me/created-courses", isAuthenticated, async (req: Request, res: Res
 
   try {
     const instructorId = req.user.id;
-    const university = req.user.university;
+    const universityId = req.user.universityId;
 
     // Teachers only see their own courses. University admins/Master admins might see more.
     const createdCoursesData = await db
@@ -334,7 +334,7 @@ router.get("/me/created-courses", isAuthenticated, async (req: Request, res: Res
           ? undefined 
           : and(
               eq(courses.instructorId, instructorId),
-              university ? eq(courses.university, university) : undefined
+              universityId ? eq(courses.universityId, universityId) : undefined
             )
       )
       .orderBy(desc(courses.createdAt));

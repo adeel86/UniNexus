@@ -37,7 +37,6 @@ export function EditGroupModal({
       description: "",
       groupType: "skill",
       category: "",
-      university: "",
       coverImageUrl: "",
       isPrivate: false,
     },
@@ -50,7 +49,6 @@ export function EditGroupModal({
         description: group.description || "",
         groupType: group.groupType as any,
         category: group.category || "",
-        university: group.university || "",
         coverImageUrl: group.coverImageUrl || "",
         isPrivate: group.isPrivate,
       });

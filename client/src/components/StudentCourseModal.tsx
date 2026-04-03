@@ -68,7 +68,7 @@ export function StudentCourseModal({ open, onOpenChange, course, userId }: Stude
         form.reset({
           courseName: '',
           courseCode: '',
-          institution: userData?.university || '',
+          institution: '',
           assignedTeacherId: null,
           courseId: null,
         });
@@ -192,7 +192,7 @@ export function StudentCourseModal({ open, onOpenChange, course, userId }: Stude
   const selectedTeacherId = form.watch('assignedTeacherId');
   const filteredCourses = allCourses.filter(c => 
     (!selectedTeacherId || c.instructorId === selectedTeacherId) &&
-    (!userData?.university || c.university === userData.university)
+    (!userData?.universityId || c.universityId === userData.universityId)
   );
 
   return (
@@ -221,7 +221,7 @@ export function StudentCourseModal({ open, onOpenChange, course, userId }: Stude
               </SelectTrigger>
               <SelectContent>
                 {teachers
-                  .filter(t => !userData?.university || t.university === userData.university)
+                  .filter(t => !userData?.universityId || t.universityId === userData.universityId)
                   .map((teacher) => (
                     <SelectItem key={teacher.id} value={teacher.id}>
                       {teacher.displayName || `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim() || teacher.email}
@@ -240,7 +240,7 @@ export function StudentCourseModal({ open, onOpenChange, course, userId }: Stude
                 form.setValue('courseName', val);
                 if (selected) {
                   form.setValue('courseCode', selected.code);
-                  form.setValue('institution', selected.university || '');
+                  form.setValue('institution', userData?.university || '');
                   form.setValue('courseId', selected.id);
                 }
               }}

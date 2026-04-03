@@ -4,6 +4,7 @@ import { pgTable, timestamp, varchar, text, integer, boolean, uniqueIndex } from
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { users } from "./users";
+import { universities } from "./academia";
 
 export { universities, majors, insertUniversitySchema, insertMajorSchema } from "./academia";
 export type { University, InsertUniversity, Major, InsertMajor } from "./academia";
@@ -13,7 +14,7 @@ export const courses = pgTable("courses", {
   name: varchar("name", { length: 200 }).notNull(),
   code: varchar("code", { length: 50 }).notNull(),
   description: text("description"),
-  universityId: varchar("university_id"),
+  universityId: varchar("university_id").references(() => universities.id, { onDelete: 'set null' }),
   instructorId: varchar("instructor_id").references(() => users.id, { onDelete: 'set null' }),
   semester: varchar("semester"),
   universityValidationStatus: varchar("university_validation_status", { length: 20 }).notNull().default('pending'),

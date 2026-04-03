@@ -344,7 +344,7 @@ export function TeacherContentUpload({ teacherId }: TeacherContentUploadProps) {
         courseForm={courseForm}
         isPending={mutations.createCourse.isPending}
         onSubmit={handleCreateCourse}
-        defaultUniversity={userData?.university || undefined}
+        defaultUniversity={undefined}
       />
 
       <CourseFormModal

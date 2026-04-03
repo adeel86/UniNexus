@@ -119,25 +119,6 @@ export function GroupFormFields({ form, testIdPrefix }: GroupFormFieldsProps) {
 
       <FormField
         control={form.control}
-        name="university"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>University (optional)</FormLabel>
-            <FormControl>
-              <Input
-                placeholder="e.g., Tech University"
-                data-testid={`input-${testIdPrefix}-university`}
-                {...field}
-                value={field.value || ""}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        control={form.control}
         name="coverImageUrl"
         render={({ field }) => (
           <FormItem>

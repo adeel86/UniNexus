@@ -33,7 +33,6 @@ export function CreateGroupModal({
       description: "",
       groupType: "skill",
       category: "",
-      university: "",
       coverImageUrl: "",
       isPrivate: false,
     },

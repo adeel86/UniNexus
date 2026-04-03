@@ -373,11 +373,11 @@ router.post("/qa/questions/:questionId/resolve", isAuthenticated, async (req: Re
 
       if (answer) {
         await db
-          .update(users)
+          .update(userStats)
           .set({
-            problemSolverScore: sql`COALESCE(${users.problemSolverScore}, 0) + 20`,
+            problemSolverScore: sql`COALESCE(${userStats.problemSolverScore}, 0) + 20`,
           })
-          .where(eq(users.id, answer.authorId));
+          .where(eq(userStats.userId, answer.authorId));
 
         // Recalculate totalPoints after problem solver score change
         await updateTotalPointsAfterScoreChange(answer.authorId).catch((err: any) => 

@@ -128,15 +128,15 @@ router.get("/admin/posts", isAuthenticated, async (req: AuthRequest, res: Respon
 router.get("/announcements", isAuthenticated, async (req: AuthRequest, res: Response) => {
   try {
     const role = req.user?.role;
-    const university = req.user?.university;
+    const universityId = req.user?.universityId;
 
     // University admins only see their own university's announcements (scoped at DB level)
     // master_admin sees all; other roles see only their university's announcements
     let whereClause;
     if (role === 'master_admin') {
       whereClause = undefined; // no filter — see everything
-    } else if (university) {
-      whereClause = eq(announcements.university, university);
+    } else if (universityId) {
+      whereClause = eq(announcements.universityId, universityId);
     } else {
       // No university set → return empty (prevent data leakage)
       return res.json([]);
@@ -148,7 +148,7 @@ router.get("/announcements", isAuthenticated, async (req: AuthRequest, res: Resp
         authorId: announcements.authorId,
         title: announcements.title,
         content: announcements.content,
-        university: announcements.university,
+        universityId: announcements.universityId,
         isPinned: announcements.isPinned,
         createdAt: announcements.createdAt,
         updatedAt: announcements.updatedAt,

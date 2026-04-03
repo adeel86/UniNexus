@@ -9,7 +9,7 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { insertGroupSchema } from "@shared/schema";
 import { z } from "zod";
 
-export const createGroupFormSchema = insertGroupSchema.omit({ creatorId: true });
+export const createGroupFormSchema = insertGroupSchema.omit({ creatorId: true, universityId: true });
 export type CreateGroupFormData = z.infer<typeof createGroupFormSchema>;
 
 export type GroupWithMembership = Group & {

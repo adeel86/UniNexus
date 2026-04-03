@@ -35,7 +35,7 @@ export function CreateAnnouncementModal({ open, onOpenChange }: CreateAnnounceme
         title,
         content,
         isPinned,
-        university: userData?.university || "",
+        universityId: userData?.universityId || "",
       });
     },
     onSuccess: () => {

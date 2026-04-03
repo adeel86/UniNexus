@@ -4,6 +4,7 @@ import { pgTable, timestamp, varchar, text, boolean } from "drizzle-orm/pg-core"
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { users } from "./users";
+import { universities } from "./academia";
 
 export const notifications = pgTable("notifications", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -30,7 +31,7 @@ export const announcements = pgTable("announcements", {
   authorId: varchar("author_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   title: varchar("title", { length: 200 }).notNull(),
   content: text("content").notNull(),
-  university: varchar("university"),
+  universityId: varchar("university_id").references(() => universities.id, { onDelete: 'set null' }),
   isPinned: boolean("is_pinned").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

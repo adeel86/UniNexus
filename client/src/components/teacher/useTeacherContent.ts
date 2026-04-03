@@ -64,7 +64,7 @@ export function useTeacherContent(teacherId: string) {
         code: courseCode,
         description: courseDescription || null,
         semester: courseSemester || null,
-        university: courseUniversity || userData?.university || null,
+        universityId: userData?.universityId || null,
       });
     },
     onSuccess: () => {
@@ -90,7 +90,7 @@ export function useTeacherContent(teacherId: string) {
         code: courseCode,
         description: courseDescription || null,
         semester: courseSemester || null,
-        university: courseUniversity || null,
+        universityId: userData?.universityId || null,
       });
     },
     onSuccess: () => {

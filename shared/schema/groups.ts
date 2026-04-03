@@ -4,6 +4,7 @@ import { pgTable, timestamp, varchar, text, integer, boolean, uniqueIndex } from
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { users } from "./users";
+import { universities } from "./academia";
 
 export const groups = pgTable("groups", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -11,7 +12,7 @@ export const groups = pgTable("groups", {
   description: text("description"),
   groupType: varchar("group_type", { length: 50 }).notNull(),
   category: varchar("category"),
-  university: varchar("university"),
+  universityId: varchar("university_id").references(() => universities.id, { onDelete: 'set null' }),
   coverImageUrl: varchar("cover_image_url"),
   isPrivate: boolean("is_private").notNull().default(false),
   memberCount: integer("member_count").notNull().default(0),

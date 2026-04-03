@@ -1037,11 +1037,11 @@ router.post("/users/:userId/recalculate-points", requireAuth, async (req: Reques
 
     await recalculateUserRank(userId);
 
-    const updated = await dbStorage.getUser(userId);
+    const [updatedStats] = await db.select().from(userStats).where(eq(userStats.userId, userId)).limit(1);
     res.json({
       message: "Points recalculated successfully",
-      totalPoints: updated?.totalPoints,
-      rankTier: updated?.rankTier,
+      totalPoints: updatedStats?.totalPoints,
+      rankTier: updatedStats?.rankTier,
     });
   } catch (error: any) {
     console.error("Error recalculating points:", error);

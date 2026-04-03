@@ -137,12 +137,6 @@ export function TeacherValidatedCoursesSection({ teacherId, isOwnProfile = false
                 )}
 
                 <div className="flex items-center gap-4 mt-3 text-sm text-muted-foreground">
-                  {course.university && (
-                    <span className="flex items-center gap-1">
-                      <BookOpen className="h-3 w-3" />
-                      {course.university}
-                    </span>
-                  )}
                   {course.semester && (
                     <span>{course.semester}</span>
                   )}

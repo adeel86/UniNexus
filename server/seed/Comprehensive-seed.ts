@@ -493,7 +493,7 @@ async function seedAcademicData(
   // Create course discussions
   const discussionsToCreate: any[] = [];
   for (const course of insertedCourses) {
-    const enrolledStudents = usersByRole.students.filter((s: any) => s.university === course.university);
+    const enrolledStudents = usersByRole.students.filter((s: any) => s.universityId === course.universityId);
     const numDiscussions = faker.number.int({ min: 3, max: 8 });
 
     for (let i = 0; i < numDiscussions; i++) {
@@ -524,7 +524,7 @@ async function seedAcademicData(
   const repliesToCreate: any[] = [];
   for (const discussion of insertedDiscussions) {
     const course = insertedCourses.find((c: any) => c.id === discussion.courseId);
-    const enrolledStudents = usersByRole.students.filter((s: any) => s.university === course?.university);
+    const enrolledStudents = usersByRole.students.filter((s: any) => s.universityId === course?.universityId);
     const numReplies = faker.number.int({ min: 1, max: 5 });
 
     for (let i = 0; i < numReplies; i++) {

@@ -68,7 +68,7 @@ async function seedSupplementalData() {
     };
 
     if (user.role === "student") {
-      baseProfile.programme = user.major || "Computer Science";
+      baseProfile.programme = user.majorId || "Computer Science";
       baseProfile.modules = randomItems(["CS101", "CS201", "CS301", "MATH201", "PHYS101"], 3);
       baseProfile.yearOfStudy = faker.number.int({ min: 1, max: 4 });
       baseProfile.academicGoals = faker.lorem.sentence();
@@ -103,9 +103,9 @@ async function seedSupplementalData() {
     const numRecords = faker.number.int({ min: 1, max: 2 });
     return Array.from({ length: numRecords }, () => ({
       userId: student.id,
-      institution: student.university || faker.company.name() + " University",
+      institution: faker.company.name() + " University",
       degree: randomItem(["Bachelor of Science", "Master of Science", "Bachelor of Arts"]),
-      fieldOfStudy: student.major || "Computer Science",
+      fieldOfStudy: student.majorId || "Computer Science",
       startDate: "2020-09",
       endDate: faker.datatype.boolean(0.5) ? "2024-05" : null,
       grade: randomItem(["3.8 GPA", "3.5 GPA", "4.0 GPA", "First Class Honours"]),
@@ -351,7 +351,7 @@ async function seedSupplementalData() {
   console.log("📋 Creating student course requests...");
   const studentCoursesToCreate = students.slice(0, 40).map(student => {
     const course = randomItem(allCourses);
-    const teacher = teachers.find(t => t.university === student.university) || randomItem(teachers);
+    const teacher = teachers.find(t => t.universityId === student.universityId) || randomItem(teachers);
     const status = randomItem(["pending", "approved", "approved", "rejected"]);
     const isApproved = status === "approved";
     

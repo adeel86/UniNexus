@@ -498,7 +498,7 @@ export function PersonalTutor() {
                 <h2 className="font-semibold text-sm leading-tight">Personal AI Tutor</h2>
                 {!isMobile && (
                   <p className="text-xs text-muted-foreground">
-                    {user?.major || "Academic"} · {user?.university || "University"}
+                    {"Academic"} · {"University"}
                   </p>
                 )}
               </div>

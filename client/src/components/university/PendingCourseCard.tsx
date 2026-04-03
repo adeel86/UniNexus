@@ -47,9 +47,6 @@ export function PendingCourseCard({
             {course.semester && (
               <span>Semester: {course.semester}</span>
             )}
-            {course.university && (
-              <span>University: {course.university}</span>
-            )}
             {course.validationRequestedAt || course.createdAt ? (
               <span>
                 Requested: {new Date((course.validationRequestedAt || course.createdAt) as string | number | Date).toLocaleDateString()}

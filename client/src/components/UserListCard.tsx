@@ -3,7 +3,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { Users, GraduationCap, BookOpen, Building2, Mail, ExternalLink } from "lucide-react";
+import { BookOpen, ExternalLink } from "lucide-react";
 import type { User } from "@shared/schema";
 
 interface UserListCardProps {
@@ -62,17 +62,9 @@ export function UserListCard({ user, showTeacherStats, showStudentStats }: UserL
                 </Badge>
               </div>
               
-              {user.major && (
-                <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
-                  <GraduationCap className="h-3 w-3" />
-                  {user.major}
-                </p>
-              )}
-              
-              {user.university && (
-                <p className="text-sm text-muted-foreground flex items-center gap-1">
-                  <Building2 className="h-3 w-3" />
-                  {user.university}
+              {user.bio && (
+                <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
+                  {user.bio}
                 </p>
               )}
 

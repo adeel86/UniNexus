@@ -20,6 +20,7 @@ router.post("/groups", isAuthenticated, async (req: AuthRequest, res: Response) 
     const validatedData = insertGroupSchema.parse({
       ...req.body,
       creatorId: req.user!.id,
+      universityId: req.body.universityId || req.user!.universityId || null,
     });
 
     const [group] = await db
@@ -69,7 +70,7 @@ router.get("/groups", isAuthenticated, async (req: AuthRequest, res: Response) =
       conditions.push(eq(groups.category, category as string));
     }
     if (university) {
-      conditions.push(eq(groups.university, university as string));
+      conditions.push(eq(groups.universityId, university as string));
     }
     if (search) {
       const searchPattern = `%${search}%`;
