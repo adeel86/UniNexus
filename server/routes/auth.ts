@@ -6,7 +6,9 @@ import { users, universities, majors } from "@shared/schema";
 import { verifyToken, isAuthenticated, type AuthRequest } from "../firebaseAuth";
 import { storage } from "../storage";
 import { getUniversityByEmail } from "@shared/universities";
+import { validateInstitutionalEmail } from "@shared/emailValidation";
 import { updateUserStreak } from "../streakHelper";
+import { cleanupUnverifiedUsers } from "../unverifiedUserCleanup";
 
 const router = Router();
 
@@ -83,7 +85,23 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
     }
 
     const { email, displayName, role, university, major, company, position, bio, firebaseUid } = req.body;
-    
+
+    // ── Institutional email validation (skip for dev/demo users) ──────────
+    const isDevUser =
+      !firebaseUid ||
+      firebaseUid.startsWith("dev_user_") ||
+      DEV_AUTH_ENABLED;
+
+    if (!isDevUser && email) {
+      const emailValidation = validateInstitutionalEmail(email, role);
+      if (emailValidation.status === "blocked") {
+        return res.status(400).json({
+          message: emailValidation.message,
+          code: "email-domain-blocked",
+        });
+      }
+    }
+
     // Use provided firebaseUid or fallback to user id if available
     const effectiveUid = firebaseUid || req.user?.id || `dev_user_${Date.now()}`;
     
@@ -196,6 +214,10 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
       }
     }
 
+    // Set verificationSentAt when the user is a real Firebase user
+    // (firebaseUid provided means the frontend sent a verification email before calling this)
+    const isRealFirebaseUser = !!firebaseUid && !firebaseUid.startsWith('dev_user_');
+
     const user = await storage.createUserFromFirebase(effectiveUid, {
       email,
       displayName,
@@ -211,6 +233,7 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
       company: company || null,
       position: position || null,
       bio: bio || null,
+      verificationSentAt: isRealFirebaseUser ? new Date() : null,
     });
 
     // Update streak on registration (first activity)
@@ -395,6 +418,57 @@ router.post("/2fa/enable", isAuthenticated, async (req: AuthRequest, res: Respon
   } catch (error: any) {
     console.error("Error enabling 2FA:", error);
     res.status(500).json({ message: "Failed to enable two-factor authentication" });
+  }
+});
+
+// ── Resend verification: syncs verificationSentAt in DB ──────────────────────
+// Called by the frontend after Firebase sends a new verification email.
+// Uses the setupAuth general middleware (not verifyToken) so it works for
+// unverified users. The firebaseUid is used to look up the DB record.
+router.post("/resend-verification", async (req: AuthRequest, res: Response) => {
+  try {
+    const { firebaseUid } = req.body;
+
+    if (!firebaseUid) {
+      return res.status(400).json({ message: "firebaseUid is required" });
+    }
+
+    const user = await storage.getUserByFirebaseUid(firebaseUid);
+    if (!user) {
+      // Not an error — user may not be in DB yet (race condition)
+      return res.json({ message: "ok" });
+    }
+
+    if (user.emailVerified) {
+      // Nothing to update
+      return res.json({ message: "already_verified" });
+    }
+
+    await storage.updateVerificationSentAt(user.id, new Date());
+    return res.json({ message: "ok" });
+  } catch (error: any) {
+    console.error("Error updating verificationSentAt:", error);
+    // Non-fatal: don't return an error to the frontend
+    return res.json({ message: "ok" });
+  }
+});
+
+// ── Dev-only: manually trigger the unverified user cleanup job ────────────────
+// This allows developers to test the cleanup logic without waiting for 2 AM.
+// Blocked in production (DEV_AUTH_ENABLED must be true).
+router.post("/dev/trigger-cleanup", async (req: Request, res: Response) => {
+  if (!DEV_AUTH_ENABLED) {
+    return res.status(403).json({ message: "This endpoint is only available in development mode." });
+  }
+
+  try {
+    console.log("[DEV] Manually triggering unverified user cleanup...");
+    const stats = await cleanupUnverifiedUsers();
+    console.log("[DEV] Cleanup complete:", stats);
+    return res.json({ message: "Cleanup complete", stats });
+  } catch (error: any) {
+    console.error("[DEV] Cleanup trigger error:", error);
+    return res.status(500).json({ message: error.message });
   }
 });
 

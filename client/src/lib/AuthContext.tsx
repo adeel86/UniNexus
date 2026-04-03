@@ -6,7 +6,10 @@ import {
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   updateProfile,
-  sendPasswordResetEmail
+  sendPasswordResetEmail,
+  sendEmailVerification,
+  deleteUser as firebaseDeleteUser,
+  reload,
 } from 'firebase/auth';
 import { auth } from './firebase';
 import type { User as DBUser } from '@shared/schema';
@@ -20,6 +23,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, displayName: string, role: string, additionalData: any) => Promise<void>;
   signOut: () => Promise<void>;
   refreshUserData: () => Promise<void>;
+  resendVerificationEmail: (email: string, password: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -91,6 +95,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return;
     }
 
+    // Do not load user data if email is not verified
+    if (!user.emailVerified) {
+      setUserData(null);
+      return;
+    }
+
     try {
       const token = await user.getIdToken();
       const response = await fetch('/api/auth/user', {
@@ -128,7 +138,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
-      if (user) {
+      if (user && user.emailVerified) {
         await refreshUserData();
       } else {
         setUserData(null);
@@ -171,7 +181,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (!auth) {
       throw new Error('Firebase authentication is not configured');
     }
-    await signInWithEmailAndPassword(auth, email, password);
+    
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    
+    // Reload the user to get the latest emailVerified status from Firebase
+    await reload(userCredential.user);
+    
+    if (!userCredential.user.emailVerified) {
+      // Sign out immediately — user must verify their email first
+      await firebaseSignOut(auth);
+      const error = new Error('Please verify your email before logging in. Check your inbox.');
+      (error as any).code = 'auth/email-not-verified';
+      throw error;
+    }
+    
     await refreshUserData();
   };
 
@@ -196,6 +219,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(userCredential.user, { displayName });
 
+    // Send verification email before doing anything else
+    await sendEmailVerification(userCredential.user);
+
+    // Create the DB record while we still have a valid token
     const token = await userCredential.user.getIdToken();
     const response = await fetch('/api/auth/register', {
       method: 'POST',
@@ -213,10 +240,65 @@ export function AuthProvider({ children }: AuthProviderProps) {
     });
 
     if (!response.ok) {
-      throw new Error('Failed to create user profile');
+      // Parse the actual error from the backend (e.g. domain-blocked message)
+      let errorMessage = 'Failed to create user profile. Please try again.';
+      try {
+        const errorData = await response.json();
+        if (errorData.message) errorMessage = errorData.message;
+      } catch {
+        // ignore JSON parse errors
+      }
+
+      // Critical: clean up the Firebase user we just created so the
+      // email is not permanently locked out of registering again.
+      try {
+        await firebaseDeleteUser(userCredential.user);
+      } catch (deleteError: any) {
+        console.error('Failed to clean up Firebase user after registration error:', deleteError);
+      }
+
+      throw new Error(errorMessage);
     }
 
-    await refreshUserData();
+    // Sign out so the user must verify their email before getting access
+    await firebaseSignOut(auth);
+    setCurrentUser(null);
+    setUserData(null);
+  };
+
+  const resendVerificationEmail = async (email: string, password: string) => {
+    if (!auth) {
+      throw new Error('Firebase authentication is not configured');
+    }
+
+    // Sign in temporarily to get the Firebase user object
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+
+    if (userCredential.user.emailVerified) {
+      // Already verified — sign out the temporary session
+      await firebaseSignOut(auth);
+      throw new Error('Your email is already verified. You can now log in.');
+    }
+
+    await sendEmailVerification(userCredential.user);
+
+    // Sync verificationSentAt in the DB (non-fatal — don't block the flow)
+    try {
+      const token = await userCredential.user.getIdToken();
+      await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ firebaseUid: userCredential.user.uid }),
+      });
+    } catch (syncError) {
+      console.warn('Could not sync verificationSentAt to DB:', syncError);
+    }
+
+    // Sign out again — user must verify before accessing the app
+    await firebaseSignOut(auth);
   };
 
   const signOut = async () => {
@@ -243,6 +325,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     signUp,
     signOut,
     refreshUserData,
+    resendVerificationEmail,
   };
 
   return (

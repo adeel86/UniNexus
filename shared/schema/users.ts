@@ -25,6 +25,8 @@ export const users = pgTable("users", {
   company: varchar("company"),
   position: varchar("position"),
   interests: text("interests").array().default(sql`ARRAY[]::text[]`),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  verificationSentAt: timestamp("verification_sent_at"),
   isVerified: boolean("is_verified").notNull().default(false),
   verifiedAt: timestamp("verified_at"),
   engagementScore: integer("engagement_score").notNull().default(0),

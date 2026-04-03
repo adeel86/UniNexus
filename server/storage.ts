@@ -75,7 +75,11 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   createUserFromFirebase(firebaseUid: string, userData: Partial<UpsertUser>): Promise<User>;
-  
+  updateEmailVerified(userId: string, emailVerified: boolean): Promise<void>;
+  updateVerificationSentAt(userId: string, sentAt: Date): Promise<void>;
+  getUnverifiedExpiredUsers(gracePeriodDays: number): Promise<User[]>;
+  getUnverifiedWarningUsers(gracePeriodDays: number, warningDaysBefore: number): Promise<User[]>;
+
   // Course Forum operations
   getCourses(): Promise<Course[]>;
   getCourse(id: string): Promise<Course | undefined>;
@@ -166,6 +170,48 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return user;
+  }
+
+  async updateEmailVerified(userId: string, emailVerified: boolean): Promise<void> {
+    await db
+      .update(users)
+      .set({ emailVerified, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+  }
+
+  async updateVerificationSentAt(userId: string, sentAt: Date): Promise<void> {
+    await db
+      .update(users)
+      .set({ verificationSentAt: sentAt, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+  }
+
+  async getUnverifiedExpiredUsers(gracePeriodDays: number): Promise<User[]> {
+    const cutoff = new Date(Date.now() - gracePeriodDays * 24 * 60 * 60 * 1000);
+    return db
+      .select()
+      .from(users)
+      .where(
+        and(
+          eq(users.emailVerified, false),
+          sql`${users.createdAt} < ${cutoff}`
+        )
+      );
+  }
+
+  async getUnverifiedWarningUsers(gracePeriodDays: number, warningDaysBefore: number): Promise<User[]> {
+    const deletionCutoff = new Date(Date.now() - gracePeriodDays * 24 * 60 * 60 * 1000);
+    const warningCutoff = new Date(Date.now() - (gracePeriodDays - warningDaysBefore) * 24 * 60 * 60 * 1000);
+    return db
+      .select()
+      .from(users)
+      .where(
+        and(
+          eq(users.emailVerified, false),
+          sql`${users.createdAt} < ${warningCutoff}`,
+          sql`${users.createdAt} >= ${deletionCutoff}`
+        )
+      );
   }
 
   async getCourses(): Promise<Course[]> {

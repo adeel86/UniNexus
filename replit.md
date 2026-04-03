@@ -139,7 +139,28 @@ Preferred communication style: Simple, everyday language.
 - **Database**: Schema pushed via `drizzle-kit push` — all tables are synced
 - **Port**: Server runs on port 5000 (from `process.env.PORT || 5000`)
 
+## Email Security Features
+
+### Email Verification (Firebase)
+- `signUp` sends a Firebase verification email then immediately signs the user out.
+- `signIn` blocks login for unverified users with a clear error + resend button.
+- Backend `verifyToken` middleware returns 403 with `code:'email-not-verified'` for unverified Firebase tokens.
+- `setupAuth` syncs Firebase `email_verified` status to the DB on every authenticated request.
+- Daily cron (2 AM UTC) runs `cleanupUnverifiedUsers`: warns accounts in days 5–7 window, deletes after 7 days (Firebase first, then DB). Dev/demo accounts (UID prefix `dev_user_`) are excluded.
+
+### Institutional Email Validation
+- **`shared/emailValidation.ts`**: Central validation logic (frontend + backend shared).
+  - `BLOCKED_DOMAINS` set — 50+ personal providers (Gmail, Yahoo, Hotmail, iCloud, ProtonMail, disposable addresses, etc.) blocked for all roles.
+  - `validateInstitutionalEmail(email, role)` returns `status: 'blocked' | 'approved' | 'unknown'` plus a human-readable message and optional `detectedUniversity`.
+  - `.ac.uk` domains auto-approved for all academic roles.
+  - Industry professionals: any non-personal domain is approved (company emails).
+  - Unknown non-personal domains: allowed but flagged with an amber warning.
+- **`shared/universities.ts`**: Extended to ~100+ entries covering UK Russell Group, post-92 universities, US, Canada, Australia, Europe, Asia. `getUniversityByEmail` also handles `.ac.uk` wildcard.
+- **Register page** (`client/src/pages/Register.tsx`): Real-time domain feedback as the user types — red banner (blocked), amber banner (unknown), green banner (approved). Submit button disabled while blocked. Auto-fills the University field when a known domain is detected.
+- **Backend** (`server/routes/auth.ts`): Validates domain on `/api/auth/register`; returns 400 with `code:'email-domain-blocked'` if blocked. Skipped for dev/demo users.
+
 ## Recent Changes
+- **2026-04-03**: Implemented institutional email validation — personal providers blocked, real-time domain feedback on Register page, backend enforcement, expanded university domain list (~100 entries).
 - **2026-03-31**: Production-quality code review: fixed all TypeScript errors (`req.user!` non-null assertions in feed.ts, certifications.ts, recruiter.ts, skills.ts, users.ts; function-declaration-in-block in admin.ts; type-predicate filter in Messages.tsx), moved OpenAI client initialization before route definitions in ai.ts, removed duplicate OpenAI declaration, removed debug `console.debug` calls from PDF/Word text extraction helpers. Zero TypeScript errors confirmed.
 - **2024-12-05**: Added course deletion for teachers - cascade delete removes all materials, enrollments, discussions, and AI sessions
 - **2024-12-05**: Enabled university_admin role access to Network, Discovery, Messages, and Groups tabs (only master_admin is now restricted)

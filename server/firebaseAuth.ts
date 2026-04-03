@@ -105,6 +105,7 @@ export interface AuthRequest extends Request {
     company?: string;
     bio?: string;
     avatarUrl?: string;
+    emailVerified?: boolean;
     engagementScore: number;
     problemSolverScore: number;
     endorsementScore: number;
@@ -255,6 +256,12 @@ export async function setupAuth(app: Express): Promise<void> {
         const user = await storage.getUserByFirebaseUid(decodedToken.uid);
 
         if (user) {
+          // Sync emailVerified from Firebase token to DB
+          if (decodedToken.email_verified && !user.emailVerified) {
+            storage.updateEmailVerified(user.id, true).catch(err =>
+              console.error('Failed to sync emailVerified to DB:', err)
+            );
+          }
           req.user = {
             id: user.id,
             email: user.email || '',
@@ -266,6 +273,7 @@ export async function setupAuth(app: Express): Promise<void> {
             company: user.company || undefined,
             bio: user.bio || undefined,
             avatarUrl: user.profileImageUrl || undefined,
+            emailVerified: decodedToken.email_verified ?? user.emailVerified,
             engagementScore: user.engagementScore,
             problemSolverScore: user.problemSolverScore,
             endorsementScore: user.endorsementScore,
@@ -282,6 +290,7 @@ export async function setupAuth(app: Express): Promise<void> {
             role: 'student',
             firstName: '',
             lastName: '',
+            emailVerified: decodedToken.email_verified ?? false,
             engagementScore: 0,
             problemSolverScore: 0,
             endorsementScore: 0,
@@ -424,25 +433,24 @@ export const verifyToken = async (
     }
 
     const decodedToken = await admin.auth().verifyIdToken(token);
-    
-    req.user = {
-      id: decodedToken.uid,
-      email: decodedToken.email || '',
-      role: 'student',
-      firstName: '',
-      lastName: '',
-      engagementScore: 0,
-      problemSolverScore: 0,
-      endorsementScore: 0,
-      challengePoints: 0,
-      totalPoints: 0,
-      rankTier: 'bronze',
-      streak: 0,
-    };
+
+    // Enforce email verification for production Firebase users
+    if (!decodedToken.email_verified) {
+      return res.status(403).json({
+        message: 'Please verify your email before logging in. Check your inbox.',
+        code: 'email-not-verified',
+      });
+    }
 
     const user = await storage.getUserByFirebaseUid(decodedToken.uid);
-    
+
     if (user) {
+      // Sync emailVerified status from Firebase to DB if out of sync
+      if (!user.emailVerified) {
+        storage.updateEmailVerified(user.id, true).catch(err =>
+          console.error('Failed to sync emailVerified to DB:', err)
+        );
+      }
       req.user = {
         id: user.id,
         email: user.email || '',
@@ -454,6 +462,7 @@ export const verifyToken = async (
         company: user.company || undefined,
         bio: user.bio || undefined,
         avatarUrl: user.profileImageUrl || undefined,
+        emailVerified: true,
         engagementScore: user.engagementScore,
         problemSolverScore: user.problemSolverScore,
         endorsementScore: user.endorsementScore,
@@ -461,6 +470,22 @@ export const verifyToken = async (
         totalPoints: user.totalPoints,
         rankTier: user.rankTier,
         streak: user.streak || 0,
+      };
+    } else {
+      req.user = {
+        id: decodedToken.uid,
+        email: decodedToken.email || '',
+        role: 'student',
+        firstName: '',
+        lastName: '',
+        emailVerified: true,
+        engagementScore: 0,
+        problemSolverScore: 0,
+        endorsementScore: 0,
+        challengePoints: 0,
+        totalPoints: 0,
+        rankTier: 'bronze',
+        streak: 0,
       };
     }
 

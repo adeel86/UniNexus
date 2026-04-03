@@ -9,6 +9,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
+import { MailWarning, RefreshCw } from 'lucide-react';
 
 const DEV_AUTH_ENABLED = import.meta.env.VITE_DEV_AUTH_ENABLED === 'true';
 
@@ -28,14 +29,17 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function Login() {
-  const { signIn, resetPassword, currentUser, userData } = useAuth();
+  const { signIn, resetPassword, resendVerificationEmail, currentUser, userData } = useAuth();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [emailNotVerified, setEmailNotVerified] = useState(false);
+  const [unverifiedEmail, setUnverifiedEmail] = useState('');
+  const [unverifiedPassword, setUnverifiedPassword] = useState('');
 
   // If user is authenticated, show loading while Router updates
-  // This prevents showing 404 during the brief moment before Router re-renders
   if (currentUser && userData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-500 via-pink-500 to-blue-500">
@@ -57,21 +61,29 @@ export default function Login() {
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
+    setEmailNotVerified(false);
     try {
       await signIn(data.email, data.password);
       navigate('/');
     } catch (error: any) {
       setIsLoading(false);
-      toast({
-        title: 'Login failed',
-        description: error.message || 'Please check your credentials and try again.',
-        variant: 'destructive',
-      });
+      if (error.code === 'auth/email-not-verified') {
+        setEmailNotVerified(true);
+        setUnverifiedEmail(data.email);
+        setUnverifiedPassword(data.password);
+      } else {
+        toast({
+          title: 'Login failed',
+          description: error.message || 'Please check your credentials and try again.',
+          variant: 'destructive',
+        });
+      }
     }
   };
 
   const loginAsDemo = async (email: string) => {
     setIsLoading(true);
+    setEmailNotVerified(false);
     form.setValue('email', email);
     form.setValue('password', 'demo123');
     try {
@@ -116,6 +128,33 @@ export default function Login() {
     }
   };
 
+  const onResendVerification = async () => {
+    setIsResending(true);
+    try {
+      await resendVerificationEmail(unverifiedEmail, unverifiedPassword);
+      toast({
+        title: 'Verification email sent',
+        description: 'Please check your inbox and click the link to verify your email.',
+      });
+    } catch (error: any) {
+      if (error.message?.includes('already verified')) {
+        setEmailNotVerified(false);
+        toast({
+          title: 'Email already verified',
+          description: 'Your email is verified. Please try logging in again.',
+        });
+      } else {
+        toast({
+          title: 'Could not resend',
+          description: error.message || 'Failed to resend verification email. Please try again.',
+          variant: 'destructive',
+        });
+      }
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-purple-500 via-pink-500 to-blue-500">
       <Card className="w-full max-w-md">
@@ -127,6 +166,33 @@ export default function Login() {
           <CardDescription>Sign in to your account to continue</CardDescription>
         </CardHeader>
         <CardContent className="gap-4 flex flex-col">
+
+          {emailNotVerified && (
+            <div className="flex flex-col gap-3 p-4 rounded-lg border border-amber-200 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800" data-testid="alert-email-not-verified">
+              <div className="flex items-start gap-3">
+                <MailWarning className="h-5 w-5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">Email not verified</p>
+                  <p className="text-sm text-amber-700 dark:text-amber-400">
+                    Please verify your email before logging in. Check your inbox for a verification link.
+                  </p>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full border-amber-300 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-300 dark:hover:bg-amber-900/30"
+                onClick={onResendVerification}
+                disabled={isResending}
+                data-testid="button-resend-verification"
+              >
+                <RefreshCw className={`h-4 w-4 mr-2 ${isResending ? 'animate-spin' : ''}`} />
+                {isResending ? 'Sending...' : 'Resend verification email'}
+              </Button>
+            </div>
+          )}
+
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="gap-4 flex flex-col">
               <FormField
