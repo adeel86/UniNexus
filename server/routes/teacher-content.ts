@@ -81,7 +81,7 @@ router.post("/upload", requireAuth, requireRole('teacher', 'master_admin'), docu
 
     // Teacher must be the instructor AND both must be in the same university (if applicable)
     const isOwner = targetCourse.instructorId === user.id;
-    const sameUniversity = !user.university || !targetCourse.university || user.university === targetCourse.university;
+    const sameUniversity = !user.universityId || !targetCourse.universityId || user.universityId === targetCourse.universityId;
 
     if (!isOwner && user.role !== 'master_admin') {
       return res.status(403).json({ error: "You can only upload to your own courses" });

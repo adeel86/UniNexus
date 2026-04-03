@@ -329,7 +329,7 @@ router.post("/api/ai/personal-tutor/chat", requireAuth, async (req: Request, res
           .join('\n\n');
 
     const systemPrompt = `You are a Personal Academic Tutor for ${req.user!.firstName} ${req.user!.lastName}.
-Student level: ${req.user!.major || 'Student'} at ${req.user!.university || 'University'}.
+Student level: ${req.user!.major || 'Student'} at ${req.user!.university || req.user!.universityId || 'University'}.
 Current mode: ${mode || 'Explain'}
 
 INSTRUCTIONS:

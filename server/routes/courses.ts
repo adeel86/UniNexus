@@ -175,7 +175,7 @@ router.post("/student-courses/:id/validate", isAuthenticated, async (req: Reques
     const validated = await validateStudentCourse(
       req.params.id,
       req.user.id,
-      req.user.university ?? null,
+      req.user.universityId ?? null,
       validationNote
     );
     res.json(validated);
@@ -222,7 +222,7 @@ router.get("/teacher/courses", isAuthenticated, async (req: Request, res: Respon
           firstName: users.firstName,
           lastName: users.lastName,
           profileImageUrl: users.profileImageUrl,
-          university: users.university,
+          universityId: users.universityId,
         },
       })
       .from(studentCourses)
@@ -247,7 +247,7 @@ router.get("/teacher/pending-validations", isAuthenticated, async (req: Request,
   if (req.user.role !== "teacher") return res.status(403).json({ error: "Only teachers can view pending validations" });
 
   try {
-    const teacherUniversity = req.user.university;
+    const teacherUniversityId = req.user.universityId;
     const pending = await db
       .select({
         course: studentCourses,
@@ -257,8 +257,8 @@ router.get("/teacher/pending-validations", isAuthenticated, async (req: Request,
           firstName: users.firstName,
           lastName: users.lastName,
           profileImageUrl: users.profileImageUrl,
-          university: users.university,
-          major: users.major,
+          universityId: users.universityId,
+          majorId: users.majorId,
           graduationYear: users.graduationYear,
         },
       })
@@ -373,7 +373,7 @@ router.post("/courses", isAuthenticated, async (req: Request, res: Response) => 
       return res.status(400).json({ error: "Invalid course data", details: courseValidation.error.errors });
     }
 
-    const { name, code, description, university, semester } = courseValidation.data;
+    const { name, code, description, universityId, semester } = courseValidation.data;
     if (!name || !code) return res.status(400).json({ error: "Course name and code are required" });
 
     const existingCourse = await db.select().from(courses).where(eq(courses.code, code)).limit(1);
@@ -385,7 +385,7 @@ router.post("/courses", isAuthenticated, async (req: Request, res: Response) => 
         name,
         code,
         description: description || null,
-        university: university || req.user.university || null,
+        universityId: universityId || req.user.universityId || null,
         instructorId: req.user.id,
         semester: semester || null,
       })
@@ -453,14 +453,14 @@ router.post("/courses/:id/request-validation", isAuthenticated, async (req: Requ
     if (!existingCourse) return res.status(404).json({ error: "Course not found" });
     if (existingCourse.instructorId !== req.user.id) return res.status(403).json({ error: "Not authorized to request validation for this course" });
     if (existingCourse.isUniversityValidated) return res.status(400).json({ error: "Course is already validated by the university" });
-    if (!req.user.university) return res.status(400).json({ error: "You must have a university set to request validation" });
+    if (!req.user.universityId) return res.status(400).json({ error: "You must have a university set to request validation" });
 
     const [updatedCourse] = await db
       .update(courses)
       .set({
         universityValidationStatus: "pending",
         validationRequestedAt: new Date(),
-        university: existingCourse.university || req.user.university,
+        universityId: existingCourse.universityId || req.user.universityId,
         updatedAt: new Date(),
       })
       .where(eq(courses.id, courseId))
@@ -478,8 +478,8 @@ router.get("/university/pending-course-validations", isAuthenticated, async (req
   }
 
   try {
-    const adminUniversity = req.user.university;
-    if (!adminUniversity && req.user.role !== "master_admin") {
+    const adminUniversityId = req.user.universityId;
+    if (!adminUniversityId && req.user.role !== "master_admin") {
       return res.status(400).json({ error: "University admin must have a university set" });
     }
 
@@ -487,13 +487,13 @@ router.get("/university/pending-course-validations", isAuthenticated, async (req
       .select({ course: courses, instructor: users })
       .from(courses)
       .leftJoin(users, eq(courses.instructorId, users.id))
-      .where(and(eq(courses.universityValidationStatus, "pending"), req.user.role === "master_admin" ? undefined : eq(courses.university, adminUniversity!)))
+      .where(and(eq(courses.universityValidationStatus, "pending"), req.user.role === "master_admin" ? undefined : eq(courses.universityId, adminUniversityId!)))
       .orderBy(desc(courses.validationRequestedAt));
 
     const result = pendingCourses.map(({ course, instructor }) => ({
       ...course,
       instructor: instructor
-        ? { id: instructor.id, firstName: instructor.firstName, lastName: instructor.lastName, displayName: instructor.displayName, email: instructor.email, profileImageUrl: instructor.profileImageUrl, university: instructor.university }
+        ? { id: instructor.id, firstName: instructor.firstName, lastName: instructor.lastName, displayName: instructor.displayName, email: instructor.email, profileImageUrl: instructor.profileImageUrl, universityId: instructor.universityId }
         : null,
     }));
     res.json(result);
@@ -517,7 +517,7 @@ router.post("/courses/:id/university-validation", isAuthenticated, async (req: R
     if (!existingCourse) return res.status(404).json({ error: "Course not found" });
     
     // Check if admin belongs to the same university
-    if (req.user.role !== "master_admin" && existingCourse.university !== req.user.university) {
+    if (req.user.role !== "master_admin" && existingCourse.universityId !== req.user.universityId) {
       return res.status(403).json({ error: "Can only validate courses from your university" });
     }
 

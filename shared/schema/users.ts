@@ -14,16 +14,9 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role", { length: 50 }).notNull().default('student'),
   bio: text("bio"),
-  // Structured university and major references (new)
   universityId: varchar("university_id"),
   majorId: varchar("major_id"),
-  // Legacy fields for backward compatibility (deprecated)
-  university: varchar("university"),
-  major: varchar("major"),
   graduationYear: integer("graduation_year"),
-  institution: varchar("institution"),
-  company: varchar("company"),
-  position: varchar("position"),
   interests: text("interests").array().default(sql`ARRAY[]::text[]`),
   emailVerified: boolean("email_verified").notNull().default(false),
   verificationSentAt: timestamp("verification_sent_at"),
@@ -70,6 +63,8 @@ export const userProfiles = pgTable("user_profiles", {
   industryFocus: text("industry_focus").array().default(sql`ARRAY[]::text[]`),
   partnershipOpportunities: text("partnership_opportunities"),
   hiringOpportunities: text("hiring_opportunities"),
+  companyName: varchar("company_name"),
+  jobTitle: varchar("job_title"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

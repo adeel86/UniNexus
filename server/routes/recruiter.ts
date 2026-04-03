@@ -37,8 +37,6 @@ router.get("/recruiter-feedback/student/:studentId", isAuthenticated, async (req
           id: users.id,
           firstName: users.firstName,
           lastName: users.lastName,
-          company: users.company,
-          position: users.position,
         },
       })
       .from(recruiterFeedback)
@@ -85,7 +83,7 @@ router.post("/recruiter-feedback", isAuthenticated, async (req: AuthRequest, res
         userId: newFeedback.studentId,
         type: 'recruiter_feedback',
         title: 'New Industry Feedback Received',
-        message: `${req.user!.company || 'An industry professional'} has left feedback on your ${newFeedback.category} skills. Your rank has been updated!`,
+        message: `${req.user!.companyName || 'An industry professional'} has left feedback on your ${newFeedback.category} skills. Your rank has been updated!`,
         link: `/profile?userId=${newFeedback.studentId}`,
       });
     }

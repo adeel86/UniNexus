@@ -6,6 +6,7 @@ import { storage as dbStorage } from "../storage";
 import { isAuthenticated, type AuthRequest } from "../firebaseAuth";
 import {
   users,
+  universities,
   posts,
   announcements,
   challenges,
@@ -71,7 +72,7 @@ router.delete("/university/users/:userId", isAuthenticated, async (req: AuthRequ
     }
 
     // Verify affiliation
-    if (user.university !== req.user.university) {
+    if (user.universityId !== req.user.universityId) {
       return res.status(403).json({ error: "You can only remove users from your own university" });
     }
 
@@ -186,7 +187,7 @@ router.post("/announcements", isAuthenticated, async (req: AuthRequest, res: Res
       .where(
         and(
           eq(users.role, 'student'),
-          sql`${users.university} = ${validatedData.university}`
+          eq(users.universityId, req.user!.universityId!)
         )
       );
 
@@ -221,7 +222,7 @@ router.get("/university/retention/overview", isAuthenticated, async (req: AuthRe
 
   try {
     const isMasterAdmin = req.user.role === 'master_admin';
-    const uniFilter = req.user.university ?? '';
+    const uniFilter = req.user.universityId ?? '';
 
     if (!isMasterAdmin && !uniFilter) {
       return res.json({
@@ -232,8 +233,8 @@ router.get("/university/retention/overview", isAuthenticated, async (req: AuthRe
       });
     }
 
-    const uniJoinClause = isMasterAdmin ? sql`` : sql`AND u.university = ${uniFilter}`;
-    const uniSimpleClause = isMasterAdmin ? sql`` : sql`AND university = ${uniFilter}`;
+    const uniJoinClause = isMasterAdmin ? sql`` : sql`AND u.university_id = ${uniFilter}`;
+    const uniSimpleClause = isMasterAdmin ? sql`` : sql`AND university_id = ${uniFilter}`;
 
     // Get total students count scoped to this university
     const totalStudentsResult = await db.execute(sql`
@@ -344,7 +345,7 @@ router.get("/university/retention/career", isAuthenticated, async (req: AuthRequ
 
   try {
     const isMasterAdmin = req.user.role === 'master_admin';
-    const uniFilter = req.user.university ?? '';
+    const uniFilter = req.user.universityId ?? '';
 
     if (!isMasterAdmin && !uniFilter) {
       return res.json({
@@ -354,8 +355,8 @@ router.get("/university/retention/career", isAuthenticated, async (req: AuthRequ
       });
     }
 
-    const uniSimpleClause = isMasterAdmin ? sql`` : sql`AND university = ${uniFilter}`;
-    const uniJoinClause = isMasterAdmin ? sql`` : sql`AND u.university = ${uniFilter}`;
+    const uniSimpleClause = isMasterAdmin ? sql`` : sql`AND university_id = ${uniFilter}`;
+    const uniJoinClause = isMasterAdmin ? sql`` : sql`AND u.university_id = ${uniFilter}`;
 
     // Get total students count scoped to this university
     const totalStudentsResult = await db.execute(sql`
@@ -503,7 +504,7 @@ router.get("/university/analytics", isAuthenticated, async (req: AuthRequest, re
 
   try {
     const isMasterAdmin = req.user.role === 'master_admin';
-    const uniFilter = req.user.university ?? '';
+    const uniFilter = req.user.universityId ?? '';
 
     if (!isMasterAdmin && !uniFilter) {
       return res.json({
@@ -513,8 +514,8 @@ router.get("/university/analytics", isAuthenticated, async (req: AuthRequest, re
       });
     }
 
-    const uniSimpleClause = isMasterAdmin ? sql`` : sql`AND university = ${uniFilter}`;
-    const uniJoinClause = isMasterAdmin ? sql`` : sql`AND u.university = ${uniFilter}`;
+    const uniSimpleClause = isMasterAdmin ? sql`` : sql`AND university_id = ${uniFilter}`;
+    const uniJoinClause = isMasterAdmin ? sql`` : sql`AND u.university_id = ${uniFilter}`;
 
     // Engagement trend: count total and active students per month for the last 6 months
     const engagementTrendResult = await db.execute(sql`
@@ -606,7 +607,7 @@ router.get("/university/courses-stats", isAuthenticated, async (req: AuthRequest
 
   try {
     const isMasterAdmin = req.user.role === 'master_admin';
-    const uniFilter = req.user.university ?? '';
+    const uniFilter = req.user.universityId ?? '';
 
     if (!isMasterAdmin && !uniFilter) {
       return res.json({
@@ -619,8 +620,8 @@ router.get("/university/courses-stats", isAuthenticated, async (req: AuthRequest
       });
     }
 
-    const uniSimpleClause = isMasterAdmin ? sql`` : sql`AND university = ${uniFilter}`;
-    const uniJoinClause = isMasterAdmin ? sql`` : sql`AND u.university = ${uniFilter}`;
+    const uniSimpleClause = isMasterAdmin ? sql`` : sql`AND university_id = ${uniFilter}`;
+    const uniJoinClause = isMasterAdmin ? sql`` : sql`AND u.university_id = ${uniFilter}`;
 
     // Total enrollments, active (currently enrolled), and completed (validated) for uni students
     const enrollmentResult = await db.execute(sql`
@@ -678,7 +679,7 @@ router.get("/university/leaderboard", isAuthenticated, async (req: AuthRequest, 
 
   try {
     const isMasterAdmin = req.user.role === 'master_admin';
-    const uniParam = req.user.university ?? '';
+    const uniParam = req.user.universityId ?? '';
     const limit = Math.min(Number(req.query.limit) || 10, 50);
 
     // University admins must have an affiliated university — return empty if not set
@@ -690,7 +691,7 @@ router.get("/university/leaderboard", isAuthenticated, async (req: AuthRequest, 
       ? await db.execute(sql`
           SELECT
             id, first_name, last_name, profile_image_url, display_name,
-            major, total_points, rank_tier, engagement_score,
+            major_id, total_points, rank_tier, engagement_score,
             problem_solver_score, challenge_points
           FROM ${users}
           WHERE role = 'student'
@@ -700,11 +701,11 @@ router.get("/university/leaderboard", isAuthenticated, async (req: AuthRequest, 
       : await db.execute(sql`
           SELECT
             id, first_name, last_name, profile_image_url, display_name,
-            major, total_points, rank_tier, engagement_score,
+            major_id, total_points, rank_tier, engagement_score,
             problem_solver_score, challenge_points
           FROM ${users}
           WHERE role = 'student'
-            AND university = ${uniParam}
+            AND university_id = ${uniParam}
           ORDER BY total_points DESC, engagement_score DESC
           LIMIT ${limit}
         `);
@@ -716,7 +717,7 @@ router.get("/university/leaderboard", isAuthenticated, async (req: AuthRequest, 
       lastName: row.last_name,
       displayName: row.display_name,
       profileImageUrl: row.profile_image_url,
-      major: row.major,
+      majorId: row.major_id,
       totalPoints: Number(row.total_points) || 0,
       rankTier: row.rank_tier || 'bronze',
       engagementScore: Number(row.engagement_score) || 0,
@@ -756,18 +757,19 @@ router.get("/ethics/metrics", isAuthenticated, async (req: AuthRequest, res: Res
 
     // Top ranker demographics – universities with most top-100 students
     const topRankerRows = await db
-      .select({ university: users.university })
+      .select({ universityId: users.universityId, universityName: universities.name })
       .from(users)
+      .leftJoin(universities, eq(users.universityId, universities.id))
       .where(eq(users.role, 'student'))
       .orderBy(desc(users.totalPoints))
       .limit(100);
 
     const univCounts: Record<string, number> = {};
     for (const row of topRankerRows) {
-      const u = row.university || 'Unknown';
+      const u = row.universityName || 'Unknown';
       univCounts[u] = (univCounts[u] || 0) + 1;
     }
-    const universities = Object.entries(univCounts)
+    const universitiesList = Object.entries(univCounts)
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
@@ -791,7 +793,7 @@ router.get("/ethics/metrics", isAuthenticated, async (req: AuthRequest, res: Res
       },
       rankingDistribution,
       topRankerDemographics: {
-        universities,
+        universities: universitiesList,
         avgEngagementByGender: [],
       },
       contentModeration: {
@@ -822,10 +824,10 @@ router.get("/transparency/metrics", isAuthenticated, async (req: AuthRequest, re
       .where(sql`total_points > 0`);
 
     const univRows = await db
-      .select({ university: users.university })
+      .select({ universityId: users.universityId })
       .from(users)
-      .where(sql`university is not null`)
-      .groupBy(users.university);
+      .where(sql`university_id is not null`)
+      .groupBy(users.universityId);
 
     const [challengeParticRow] = await db
       .select({ count: sql<number>`count(*)::int` })
@@ -847,17 +849,18 @@ router.get("/transparency/metrics", isAuthenticated, async (req: AuthRequest, re
     // Winners by university – students who placed 1st in any challenge
     const winnersRows = await db
       .select({
-        university: users.university,
+        universityName: universities.name,
         count: sql<number>`count(*)::int`,
       })
       .from(challengeParticipants)
       .innerJoin(users, eq(challengeParticipants.userId, users.id))
+      .leftJoin(universities, eq(users.universityId, universities.id))
       .where(eq(challengeParticipants.rank, 1))
-      .groupBy(users.university);
+      .groupBy(universities.name);
 
     const winnersByUniversity = winnersRows
-      .filter(r => r.university)
-      .map(r => ({ university: r.university!, count: r.count }))
+      .filter(r => r.universityName)
+      .map(r => ({ university: r.universityName!, count: r.count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 10);
 
@@ -894,18 +897,19 @@ router.get("/transparency/metrics", isAuthenticated, async (req: AuthRequest, re
     // Diversity – avg points by university
     const avgPointsRows = await db
       .select({
-        university: users.university,
-        avgPoints: sql<number>`avg(total_points)::int`,
+        universityName: universities.name,
+        avgPoints: sql<number>`avg(${users.totalPoints})::int`,
       })
       .from(users)
-      .where(sql`university is not null`)
-      .groupBy(users.university)
-      .orderBy(sql`avg(total_points) desc`)
+      .innerJoin(universities, eq(users.universityId, universities.id))
+      .where(sql`${users.universityId} is not null`)
+      .groupBy(universities.name)
+      .orderBy(sql`avg(${users.totalPoints}) desc`)
       .limit(20);
 
     const avgPointsByUniversity = avgPointsRows
-      .filter(r => r.university)
-      .map(r => ({ university: r.university!, avgPoints: r.avgPoints || 0 }));
+      .filter(r => r.universityName)
+      .map(r => ({ university: r.universityName!, avgPoints: r.avgPoints || 0 }));
 
     res.json({
       participation: {

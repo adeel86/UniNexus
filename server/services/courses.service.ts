@@ -79,7 +79,7 @@ export async function getEnrolledCoursesForStudent(userId: string) {
         courseName: course?.name || studentCourse.courseName,
         courseCode: course?.code || studentCourse.courseCode,
         description: course?.description || studentCourse.description,
-        institution: course?.university || studentCourse.institution,
+        institution: course?.universityId || studentCourse.institution,
         semester: course?.semester || studentCourse.semester,
         teacher: teacher || null,
         enrolledAt: studentCourse.enrolledAt,
@@ -102,7 +102,7 @@ export async function validateStudentCourse(
       course: studentCourses,
       student: {
         id: users.id,
-        university: users.university,
+        universityId: users.universityId,
       },
     })
     .from(studentCourses)
@@ -121,17 +121,17 @@ export async function validateStudentCourse(
   }
 
   // Teacher and student must belong to the same institution to validate courses
-  const studentUniversity = student.university;
+  const studentUniversityId = student.universityId;
   if (
     !teacherUniversity ||
-    !studentUniversity ||
-    teacherUniversity !== studentUniversity
+    !studentUniversityId ||
+    teacherUniversity !== studentUniversityId
   ) {
     const errorMsg = !teacherUniversity 
       ? "Teacher has no institution set" 
-      : !studentUniversity 
+      : !studentUniversityId 
         ? "Student has no institution set" 
-        : `Institutions do not match: Teacher (${teacherUniversity}) vs Student (${studentUniversity})`;
+        : `Institutions do not match (university IDs differ)`;
     throw new Error(errorMsg);
   }
 
@@ -378,7 +378,7 @@ export async function getTeacherStudents(teacherId: string) {
 
 export async function getStudentTeachers(studentId: string) {
   const [student] = await db.select().from(users).where(eq(users.id, studentId)).limit(1);
-  const studentUniversity = student?.university;
+  const studentUniversityId = student?.universityId;
 
   const teacherData = await db
     .select({
@@ -389,7 +389,7 @@ export async function getStudentTeachers(studentId: string) {
     .innerJoin(users, eq(courses.instructorId, users.id))
     .where(and(
       eq(courses.isUniversityValidated, true),
-      studentUniversity ? eq(users.university, studentUniversity) : sql`true`
+      studentUniversityId ? eq(users.universityId, studentUniversityId) : sql`true`
     ))
     .orderBy(users.firstName, users.lastName);
 
@@ -403,7 +403,7 @@ export async function getStudentTeachers(studentId: string) {
         displayName: row.teacher.displayName,
         email: row.teacher.email,
         profileImageUrl: row.teacher.profileImageUrl,
-        university: row.teacher.university,
+        universityId: row.teacher.universityId,
         bio: row.teacher.bio,
         courses: [],
       });

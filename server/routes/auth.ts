@@ -65,9 +65,8 @@ router.post("/dev-login", async (req: Request, res: Response) => {
         lastName: user.lastName,
         displayName: user.displayName,
         role: user.role,
-        university: user.university,
-        major: user.major,
-        company: user.company,
+        universityId: user.universityId,
+        majorId: user.majorId,
         profileImageUrl: user.profileImageUrl,
       },
     });
@@ -211,15 +210,28 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
       role: role || 'student',
       universityId: universityId || null,
       majorId: majorId || null,
-      university: universityName || null,
-      institution: universityName || null,
-      major: majorName || null,
-      company: company || null,
-      position: position || null,
       bio: bio || null,
       emailVerified: false,
       verificationSentAt: isRealFirebaseUser ? new Date() : null,
     });
+
+    // Persist company / position to user_profiles for industry users
+    if (company || position) {
+      const { db: dbConn } = await import('../db');
+      const { userProfiles } = await import('@shared/schema');
+      const { eq: eqFn, sql: sqlFn } = await import('drizzle-orm');
+      await dbConn
+        .insert(userProfiles)
+        .values({ userId: user.id, companyName: company || null, jobTitle: position || null })
+        .onConflictDoUpdate({
+          target: userProfiles.userId,
+          set: {
+            companyName: sqlFn`COALESCE(EXCLUDED.company_name, ${userProfiles.companyName})`,
+            jobTitle: sqlFn`COALESCE(EXCLUDED.job_title, ${userProfiles.jobTitle})`,
+            updatedAt: new Date(),
+          },
+        });
+    }
 
     updateUserStreak(user.id).catch(err => 
       console.error("Failed to update streak on registration:", err)

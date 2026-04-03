@@ -11,6 +11,7 @@ import { requireAuth } from "./shared";
 import { recalculateUserRank } from "../pointsHelper";
 import {
   users,
+  universities,
   courses,
   groups,
   groupMembers,
@@ -117,13 +118,13 @@ router.get("/teachers", requireAuth, async (req: Request, res: Response) => {
 
     // Scope restriction: University Admins only see affiliated teachers
     if (user.role === 'university_admin' || user.role === 'university') {
-      if (!user.university) {
+      if (!user.universityId) {
         return res.json([]);
       }
       query = db.select().from(users).where(
         and(
           eq(users.role, "teacher"),
-          eq(users.university, user.university)
+          eq(users.universityId, user.universityId)
         )
       );
     }
@@ -142,13 +143,13 @@ router.get("/students", requireAuth, async (req: Request, res: Response) => {
 
     // Scope restriction: Teachers and University Admins only see affiliated students
     if (user.role === 'teacher' || user.role === 'university_admin' || user.role === 'university') {
-      if (!user.university) {
+      if (!user.universityId) {
         return res.json([]);
       }
       query = db.select().from(users).where(
         and(
           eq(users.role, "student"),
-          eq(users.university, user.university)
+          eq(users.universityId, user.universityId)
         )
       );
     }
@@ -167,15 +168,16 @@ router.get("/teachers/university/:university", requireAuth, async (req: Request,
     const teachers = await db
       .select()
       .from(users)
+      .leftJoin(universities, eq(users.universityId, universities.id))
       .where(
         and(
           eq(users.role, "teacher"),
-          eq(users.university, university)
+          eq(universities.name, university)
         )
       )
       .orderBy(users.lastName, users.firstName);
 
-    res.json(teachers);
+    res.json(teachers.map(r => r.users));
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -225,8 +227,8 @@ router.get("/university/teachers", requireAuth, async (req: Request, res: Respon
   }
 
   try {
-    const universityName = req.user!.university;
-    if (!universityName) {
+    const universityId = req.user!.universityId;
+    if (!universityId) {
       return res.status(400).json({ error: "University not set for this admin" });
     }
 
@@ -236,7 +238,7 @@ router.get("/university/teachers", requireAuth, async (req: Request, res: Respon
       .where(
         and(
           eq(users.role, "teacher"),
-          eq(users.university, universityName)
+          eq(users.universityId, universityId)
         )
       )
       .orderBy(users.lastName, users.firstName);
@@ -307,10 +309,7 @@ router.get("/users/search", requireAuth, async (req: Request, res: Response) => 
       or(
         sql`${users.firstName} ILIKE ${searchPattern}`,
         sql`${users.lastName} ILIKE ${searchPattern}`,
-        sql`${users.email} ILIKE ${searchPattern}`,
-        sql`${users.major} ILIKE ${searchPattern}`,
-        sql`${users.company} ILIKE ${searchPattern}`,
-        sql`${users.university} ILIKE ${searchPattern}`
+        sql`${users.email} ILIKE ${searchPattern}`
       )
     );
 
@@ -394,7 +393,7 @@ router.patch("/users/profile", requireAuth, async (req: Request, res: Response) 
   try {
     const userId = req.user!.id;
 
-    const { firstName, lastName, email, university, universityId, major, majorId } = req.body;
+    const { firstName, lastName, email, universityId, majorId } = req.body;
 
     const [updated] = await db
       .update(users)
@@ -402,9 +401,7 @@ router.patch("/users/profile", requireAuth, async (req: Request, res: Response) 
         firstName,
         lastName,
         email,
-        university: university ?? undefined,
         universityId: universityId ?? undefined,
-        major: major ?? undefined,
         majorId: majorId ?? undefined,
         updatedAt: new Date(),
       })
@@ -954,7 +951,7 @@ router.get("/cv-export/:userId", requireAuth, async (req: Request, res: Response
         firstName: users.firstName,
         lastName: users.lastName,
         email: users.email,
-        university: users.university,
+        universityId: users.universityId,
         bio: users.bio,
         role: users.role,
       })

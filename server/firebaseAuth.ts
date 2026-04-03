@@ -3,7 +3,9 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import admin from "firebase-admin";
 import jwt from "jsonwebtoken";
-import { storage } from "./storage";
+import { eq } from "drizzle-orm";
+import { db } from "./db";
+import { users, universities, majors, userProfiles, type User } from "@shared/schema";
 
 export let firebaseAdmin: admin.app.App | null = null;
 
@@ -100,9 +102,12 @@ export interface AuthRequest extends Request {
     role: string;
     firstName: string;
     lastName: string;
-    major?: string;
+    universityId?: string;
+    majorId?: string;
     university?: string;
-    company?: string;
+    major?: string;
+    companyName?: string;
+    jobTitle?: string;
     bio?: string;
     avatarUrl?: string;
     emailVerified?: boolean;
@@ -125,15 +130,73 @@ declare global {
   }
 }
 
+// Resolve related display names for a user in a single JOIN query
+async function resolveUserRelations(user: User) {
+  const [rel] = await db
+    .select({
+      universityName: universities.name,
+      majorName: majors.name,
+      companyName: userProfiles.companyName,
+      jobTitle: userProfiles.jobTitle,
+    })
+    .from(users)
+    .leftJoin(universities, eq(users.universityId, universities.id))
+    .leftJoin(majors, eq(users.majorId, majors.id))
+    .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
+    .where(eq(users.id, user.id))
+    .limit(1);
+  return rel ?? {};
+}
+
+// Build a fully resolved req.user object for a given DB user
+async function buildUserForReq(
+  user: User,
+  emailVerified?: boolean
+): Promise<NonNullable<AuthRequest['user']>> {
+  const rel = await resolveUserRelations(user);
+  return {
+    id: user.id,
+    email: user.email || '',
+    role: user.role,
+    firstName: user.firstName || '',
+    lastName: user.lastName || '',
+    universityId: user.universityId || undefined,
+    majorId: user.majorId || undefined,
+    university: rel.universityName || undefined,
+    major: rel.majorName || undefined,
+    companyName: rel.companyName || undefined,
+    jobTitle: rel.jobTitle || undefined,
+    bio: user.bio || undefined,
+    avatarUrl: user.profileImageUrl || undefined,
+    ...(emailVerified !== undefined ? { emailVerified } : {}),
+    engagementScore: user.engagementScore,
+    problemSolverScore: user.problemSolverScore,
+    endorsementScore: user.endorsementScore,
+    challengePoints: user.challengePoints,
+    totalPoints: user.totalPoints,
+    rankTier: user.rankTier,
+    streak: user.streak || 0,
+  };
+}
+
+// Simple storage shim for user lookups (avoids circular import with storage.ts)
+async function findUserByFirebaseUid(uid: string): Promise<User | undefined> {
+  const [user] = await db.select().from(users).where(eq(users.firebaseUid, uid)).limit(1);
+  return user;
+}
+async function findUserByEmail(email: string): Promise<User | undefined> {
+  const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  return user;
+}
+async function findUserById(id: string): Promise<User | undefined> {
+  const [user] = await db.select().from(users).where(eq(users.id, id)).limit(1);
+  return user;
+}
+
 export async function setupAuth(app: Express): Promise<void> {
   console.log("Firebase authentication middleware ready");
 
-  // Attach a non-fatal authentication middleware that attempts to
-  // populate `req.user` when an Authorization header is present.
-  // This middleware will NOT send responses on auth failure — it only
-  // sets `req.user` when valid so route handlers can use `req.isAuthenticated()`.
   app.use(async (req: any, _res, next) => {
-    // default helper
     req.isAuthenticated = () => !!req.user;
 
     // Block any request to /api/auth/dev-login if DEV_AUTH_ENABLED is false
@@ -143,9 +206,6 @@ export async function setupAuth(app: Express): Promise<void> {
 
     const authHeader = req.headers?.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      // In development, if no token is provided but we are on a registration/login path, 
-      // we might want to allow it to proceed or provide a dummy user for the register route 
-      // if the frontend expects one from the middleware.
       return next();
     }
 
@@ -153,13 +213,10 @@ export async function setupAuth(app: Express): Promise<void> {
 
     try {
       // Development JWT authentication bypass (priority: check dev token first)
-      // Process dev tokens regardless of whether Firebase Admin is initialized or DEV_AUTH_ENABLED
-      // This allows testing with dev tokens even in production-like configurations
       if (token.startsWith('dev-') || token === 'development-secret-key-12345') {
-        let user;
+        let user: User | undefined;
         if (token === 'development-secret-key-12345') {
-          // Fallback for demo users if direct token is passed
-          user = await storage.getUserByEmail('student@example.com');
+          user = await findUserByEmail('student@example.com');
         } else {
           const devToken = token.substring(4);
           if (!DEV_JWT_SECRET) {
@@ -168,79 +225,40 @@ export async function setupAuth(app: Express): Promise<void> {
           }
           try {
             const decoded = jwt.verify(devToken, DEV_JWT_SECRET) as { firebaseUid?: string; email: string; userId?: string };
-            user = decoded.userId ? await storage.getUser(decoded.userId) : undefined;
+            user = decoded.userId ? await findUserById(decoded.userId) : undefined;
             if (!user && decoded.firebaseUid) {
-              user = await storage.getUserByFirebaseUid(decoded.firebaseUid);
+              user = await findUserByFirebaseUid(decoded.firebaseUid);
             }
             if (!user && decoded.email) {
-              user = await storage.getUserByEmail(decoded.email);
+              user = await findUserByEmail(decoded.email);
             }
           } catch (e) {
             console.error('Non-fatal dev token verification failed:', e);
           }
         }
         if (user) {
-          req.user = {
-            id: user.id,
-            email: user.email || '',
-            role: user.role,
-            firstName: user.firstName || '',
-            lastName: user.lastName || '',
-            major: user.major || undefined,
-            university: user.university || undefined,
-            company: user.company || undefined,
-            bio: user.bio || undefined,
-            avatarUrl: user.profileImageUrl || undefined,
-            engagementScore: user.engagementScore,
-            problemSolverScore: user.problemSolverScore,
-            endorsementScore: user.endorsementScore,
-            challengePoints: user.challengePoints,
-            totalPoints: user.totalPoints,
-            rankTier: user.rankTier,
-            streak: user.streak || 0,
-          };
+          req.user = await buildUserForReq(user);
         }
-
         req.isAuthenticated = () => !!req.user;
         return next();
       }
 
       // Production Firebase verification (non-fatal)
       if (!firebaseAdmin) {
-        // If Firebase Admin is not configured but dev auth is enabled,
-        // decode the Firebase ID token without verification to identify the user
         if (DEV_AUTH_ENABLED) {
           try {
             const decoded = jwt.decode(token) as { sub?: string; uid?: string; email?: string; user_id?: string } | null;
             if (decoded) {
               const firebaseUid = decoded.sub || decoded.uid || decoded.user_id;
-              let user;
+              let user: User | undefined;
               if (firebaseUid) {
-                user = await storage.getUserByFirebaseUid(firebaseUid);
+                user = await findUserByFirebaseUid(firebaseUid);
               }
               if (!user && decoded.email) {
-                user = await storage.getUserByEmail(decoded.email);
+                user = await findUserByEmail(decoded.email);
               }
               if (user) {
-                req.user = {
-                  id: user.id,
-                  email: user.email || '',
-                  role: user.role,
-                  firstName: user.firstName || '',
-                  lastName: user.lastName || '',
-                  major: user.major || undefined,
-                  university: user.university || undefined,
-                  company: user.company || undefined,
-                  bio: user.bio || undefined,
-                  avatarUrl: user.profileImageUrl || undefined,
-                  engagementScore: user.engagementScore,
-                  problemSolverScore: user.problemSolverScore,
-                  endorsementScore: user.endorsementScore,
-                  challengePoints: user.challengePoints,
-                  totalPoints: user.totalPoints,
-                  rankTier: user.rankTier,
-                  streak: user.streak || 0,
-                };
+                req.user = await buildUserForReq(user);
                 req.isAuthenticated = () => !!req.user;
               }
             }
@@ -253,37 +271,11 @@ export async function setupAuth(app: Express): Promise<void> {
 
       try {
         const decodedToken = await admin.auth().verifyIdToken(token);
-        const user = await storage.getUserByFirebaseUid(decodedToken.uid);
+        const user = await findUserByFirebaseUid(decodedToken.uid);
 
         if (user) {
-          // Sync emailVerified from Firebase token to DB
-          if (decodedToken.email_verified && !user.emailVerified) {
-            storage.updateEmailVerified(user.id, true).catch(err =>
-              console.error('Failed to sync emailVerified to DB:', err)
-            );
-          }
-          req.user = {
-            id: user.id,
-            email: user.email || '',
-            role: user.role,
-            firstName: user.firstName || '',
-            lastName: user.lastName || '',
-            major: user.major || undefined,
-            university: user.university || undefined,
-            company: user.company || undefined,
-            bio: user.bio || undefined,
-            avatarUrl: user.profileImageUrl || undefined,
-            emailVerified: decodedToken.email_verified ?? user.emailVerified,
-            engagementScore: user.engagementScore,
-            problemSolverScore: user.problemSolverScore,
-            endorsementScore: user.endorsementScore,
-            challengePoints: user.challengePoints,
-            totalPoints: user.totalPoints,
-            rankTier: user.rankTier,
-            streak: user.streak || 0,
-          };
+          req.user = await buildUserForReq(user, decodedToken.email_verified ?? user.emailVerified);
         } else {
-          // minimal info from token
           req.user = {
             id: decodedToken.uid,
             email: decodedToken.email || '',
@@ -329,29 +321,25 @@ export const verifyToken = async (
 
   try {
     // Development JWT authentication bypass (priority: check dev token first)
-    // Process dev tokens regardless of whether Firebase Admin is initialized
     if (DEV_AUTH_ENABLED && (token.startsWith('dev-') || token === 'development-secret-key-12345')) {
-      let user;
+      let user: User | undefined;
       if (token === 'development-secret-key-12345') {
-        user = await storage.getUserByEmail('student@example.com');
+        user = await findUserByEmail('student@example.com');
       } else {
-        const devToken = token.substring(4); // Remove 'dev-' prefix
+        const devToken = token.substring(4);
         
-        // DEV_JWT_SECRET is validated at startup when DEV_AUTH_ENABLED is true
         if (!DEV_JWT_SECRET) {
           return res.status(503).json({ message: 'Development auth not properly configured' });
         }
         
         try {
           const decoded = jwt.verify(devToken, DEV_JWT_SECRET) as { firebaseUid?: string; email: string; userId?: string };
-          
-          // Try to find user by userId (preferred), then firebaseUid, then email
-          user = decoded.userId ? await storage.getUser(decoded.userId) : undefined;
+          user = decoded.userId ? await findUserById(decoded.userId) : undefined;
           if (!user && decoded.firebaseUid) {
-            user = await storage.getUserByFirebaseUid(decoded.firebaseUid);
+            user = await findUserByFirebaseUid(decoded.firebaseUid);
           }
           if (!user && decoded.email) {
-            user = await storage.getUserByEmail(decoded.email);
+            user = await findUserByEmail(decoded.email);
           }
         } catch (jwtError) {
           console.error('Dev JWT verification error:', jwtError);
@@ -363,64 +351,26 @@ export const verifyToken = async (
         return res.status(401).json({ message: 'User not found' });
       }
 
-      req.user = {
-        id: user.id,
-        email: user.email || '',
-        role: user.role,
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        major: user.major || undefined,
-        university: user.university || undefined,
-        company: user.company || undefined,
-        bio: user.bio || undefined,
-        avatarUrl: user.profileImageUrl || undefined,
-        engagementScore: user.engagementScore,
-        problemSolverScore: user.problemSolverScore,
-        endorsementScore: user.endorsementScore,
-        challengePoints: user.challengePoints,
-        totalPoints: user.totalPoints,
-        rankTier: user.rankTier,
-        streak: user.streak || 0,
-      };
-
+      req.user = await buildUserForReq(user);
       return next();
     }
 
     // Production Firebase authentication
     if (!firebaseAdmin) {
       if (DEV_AUTH_ENABLED) {
-        // Decode Firebase ID token without verification to identify the user in dev mode
         try {
           const decoded = jwt.decode(token) as { sub?: string; uid?: string; email?: string; user_id?: string } | null;
           if (decoded) {
             const firebaseUid = decoded.sub || decoded.uid || decoded.user_id;
-            let user;
+            let user: User | undefined;
             if (firebaseUid) {
-              user = await storage.getUserByFirebaseUid(firebaseUid);
+              user = await findUserByFirebaseUid(firebaseUid);
             }
             if (!user && decoded.email) {
-              user = await storage.getUserByEmail(decoded.email);
+              user = await findUserByEmail(decoded.email);
             }
             if (user) {
-              req.user = {
-                id: user.id,
-                email: user.email || '',
-                role: user.role,
-                firstName: user.firstName || '',
-                lastName: user.lastName || '',
-                major: user.major || undefined,
-                university: user.university || undefined,
-                company: user.company || undefined,
-                bio: user.bio || undefined,
-                avatarUrl: user.profileImageUrl || undefined,
-                engagementScore: user.engagementScore,
-                problemSolverScore: user.problemSolverScore,
-                endorsementScore: user.endorsementScore,
-                challengePoints: user.challengePoints,
-                totalPoints: user.totalPoints,
-                rankTier: user.rankTier,
-                streak: user.streak || 0,
-              };
+              req.user = await buildUserForReq(user);
               return next();
             }
           }
@@ -435,8 +385,7 @@ export const verifyToken = async (
     const decodedToken = await admin.auth().verifyIdToken(token);
 
     // Enforce email verification — check DB as source of truth (OTP-based)
-    // Firebase email_verified may lag behind; DB is updated immediately upon OTP validation
-    const userForCheck = await storage.getUserByFirebaseUid(decodedToken.uid);
+    const userForCheck = await findUserByFirebaseUid(decodedToken.uid);
     const dbVerified = userForCheck?.emailVerified ?? false;
     const firebaseVerified = decodedToken.email_verified ?? false;
 
@@ -447,42 +396,10 @@ export const verifyToken = async (
       });
     }
 
-    // If verified in Firebase but not yet synced to DB, sync it now
-    if (firebaseVerified && !dbVerified && userForCheck) {
-      storage.updateEmailVerified(userForCheck.id, true).catch(err =>
-        console.error('Failed to sync emailVerified to DB:', err)
-      );
-    }
-
-    const user = await storage.getUserByFirebaseUid(decodedToken.uid);
+    const user = await findUserByFirebaseUid(decodedToken.uid);
 
     if (user) {
-      // Sync emailVerified status from Firebase to DB if out of sync
-      if (!user.emailVerified) {
-        storage.updateEmailVerified(user.id, true).catch(err =>
-          console.error('Failed to sync emailVerified to DB:', err)
-        );
-      }
-      req.user = {
-        id: user.id,
-        email: user.email || '',
-        role: user.role,
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        major: user.major || undefined,
-        university: user.university || undefined,
-        company: user.company || undefined,
-        bio: user.bio || undefined,
-        avatarUrl: user.profileImageUrl || undefined,
-        emailVerified: true,
-        engagementScore: user.engagementScore,
-        problemSolverScore: user.problemSolverScore,
-        endorsementScore: user.endorsementScore,
-        challengePoints: user.challengePoints,
-        totalPoints: user.totalPoints,
-        rankTier: user.rankTier,
-        streak: user.streak || 0,
-      };
+      req.user = await buildUserForReq(user, true);
     } else {
       req.user = {
         id: decodedToken.uid,

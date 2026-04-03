@@ -6,6 +6,8 @@ import {
   userConnections,
   followers,
   users,
+  universities,
+  majors,
   notifications,
 } from "@shared/schema";
 import { updateUserStreakForActivity } from "../streakHelper";
@@ -325,10 +327,7 @@ router.get("/connections/search", isAuthenticated, async (req: AuthRequest, res:
           or(
             sql`${users.firstName} ILIKE ${searchPattern}`,
             sql`${users.lastName} ILIKE ${searchPattern}`,
-            sql`${users.email} ILIKE ${searchPattern}`,
-            sql`${users.major} ILIKE ${searchPattern}`,
-            sql`${users.company} ILIKE ${searchPattern}`,
-            sql`${users.university} ILIKE ${searchPattern}`
+            sql`${users.email} ILIKE ${searchPattern}`
           )
         )
       )
@@ -624,7 +623,7 @@ router.get("/recommendations/friends", isAuthenticated, async (req: AuthRequest,
         const sharedSkills: string[] = [];
 
         // Same university bonus
-        if (currentUser.university && user.university === currentUser.university) {
+        if (currentUser.universityId && user.universityId === currentUser.universityId) {
           score += 30;
         }
 
@@ -678,42 +677,40 @@ router.get("/recommendations/friends", isAuthenticated, async (req: AuthRequest,
 // Get universities to explore with stats
 router.get("/discovery/universities", isAuthenticated, async (req: AuthRequest, res: Response) => {
   try {
-    // Get university stats from users
+    // Get university stats from users (via FK join)
     const universityStats = await db
       .select({
-        university: users.university,
+        universityId: users.universityId,
+        university: universities.name,
         studentCount: sql<number>`count(*)::int`,
         avgEngagement: sql<number>`coalesce(avg(${users.engagementScore}), 0)::int`,
       })
       .from(users)
-      .where(sql`${users.university} IS NOT NULL AND ${users.university} != ''`)
-      .groupBy(users.university)
+      .innerJoin(universities, eq(users.universityId, universities.id))
+      .where(sql`${users.universityId} IS NOT NULL`)
+      .groupBy(universities.name, users.universityId)
       .orderBy(sql`count(*) DESC`)
       .limit(10);
 
     // Get top majors for each university
     const results = await Promise.all(
       universityStats.map(async (stat) => {
-        const majors = await db
+        const topMajors = await db
           .select({
-            major: users.major,
+            major: majors.name,
             count: sql<number>`count(*)::int`,
           })
           .from(users)
-          .where(
-            and(
-              eq(users.university, stat.university!),
-              sql`${users.major} IS NOT NULL AND ${users.major} != ''`
-            )
-          )
-          .groupBy(users.major)
+          .innerJoin(majors, eq(users.majorId, majors.id))
+          .where(eq(users.universityId, stat.universityId!))
+          .groupBy(majors.name)
           .orderBy(sql`count(*) DESC`)
           .limit(3);
 
         return {
           university: stat.university,
           studentCount: stat.studentCount,
-          topMajors: majors.map(m => m.major).filter(Boolean) as string[],
+          topMajors: topMajors.map(m => m.major).filter(Boolean) as string[],
           avgEngagementScore: stat.avgEngagement,
         };
       })

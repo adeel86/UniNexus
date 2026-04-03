@@ -214,8 +214,8 @@ router.get("/feed/personalized", isAuthenticated, async (req: AuthRequest, res: 
       
       score += Math.min(interestScore, 30);
       
-      if (post.author?.university === currentUser.university) score += 5;
-      if (post.author?.major === currentUser.major) score += 5;
+      if (post.author?.universityId && post.author?.universityId === currentUser.universityId) score += 5;
+      if (post.author?.majorId && post.author?.majorId === currentUser.majorId) score += 5;
       
       const engagementScore = (
         (post.reactions.length * 1) +

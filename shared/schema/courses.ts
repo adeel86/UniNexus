@@ -52,7 +52,7 @@ export const courses = pgTable("courses", {
   name: varchar("name", { length: 200 }).notNull(),
   code: varchar("code", { length: 50 }).notNull(),
   description: text("description"),
-  university: varchar("university"), // Keep for compatibility but should be linked to universities table name
+  universityId: varchar("university_id"),
   instructorId: varchar("instructor_id").references(() => users.id, { onDelete: 'set null' }),
   semester: varchar("semester"),
   universityValidationStatus: varchar("university_validation_status", { length: 20 }).notNull().default('pending'),

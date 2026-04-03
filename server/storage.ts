@@ -164,7 +164,6 @@ export class DatabaseStorage implements IStorage {
         target: users.firebaseUid,
         set: {
           ...userData,
-          institution: userData.institution || userData.university || null,
           updatedAt: new Date(),
         },
       })
