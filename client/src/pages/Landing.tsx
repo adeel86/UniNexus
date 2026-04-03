@@ -1,20 +1,52 @@
+import { useState, useEffect } from "react";
 import { GradientButton } from "@/components/GradientButton";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Sparkles, Users, Trophy, Zap, Building2, Briefcase } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { useLocation } from "wouter";
-import { useEffect } from "react";
+import { AuthModal } from "@/components/AuthModal";
 
 export default function Landing() {
   const { currentUser, userData } = useAuth();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalView, setModalView] = useState<'login' | 'register'>('login');
 
   useEffect(() => {
     if (currentUser && userData) {
       navigate("/");
     }
   }, [currentUser, userData, navigate]);
+
+  // Auto-open modal if navigated to /login or /register
+  useEffect(() => {
+    if (location === '/login') {
+      setModalView('login');
+      setModalOpen(true);
+    } else if (location === '/register') {
+      setModalView('register');
+      setModalOpen(true);
+    }
+  }, [location]);
+
+  const openLogin = () => {
+    setModalView('login');
+    setModalOpen(true);
+  };
+
+  const openRegister = () => {
+    setModalView('register');
+    setModalOpen(true);
+  };
+
+  const handleModalClose = () => {
+    setModalOpen(false);
+    // If we were on /login or /register, go back to /
+    if (location === '/login' || location === '/register') {
+      navigate('/');
+    }
+  };
 
   const roleInfo = [
     {
@@ -53,14 +85,14 @@ export default function Landing() {
               <h1 className="font-heading text-5xl md:text-7xl font-extrabold mb-6 tracking-tight leading-tight bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent">
                 Welcome to UniNexus
               </h1>
-              
+
               <p className="text-lg md:text-xl text-gray-600 dark:text-gray-400 mb-10 leading-relaxed max-w-2xl">
                 UniNexus is an all-in-one ecosystem where students, educators, and industry leaders connect through AI, gamification, and meaningful networking to deliver the future of learning.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
                 <GradientButton
-                  onClick={() => navigate('/register')}
+                  onClick={openRegister}
                   className="text-lg px-8 py-7 rounded-2xl shadow-xl shadow-purple-500/20 hover:shadow-purple-500/40 transition-all"
                   data-testid="button-get-started"
                 >
@@ -68,7 +100,7 @@ export default function Landing() {
                 </GradientButton>
                 <Button
                   variant="outline"
-                  onClick={() => navigate('/login')}
+                  onClick={openLogin}
                   className="text-lg px-8 py-7 rounded-2xl border-2 hover:bg-gray-50 dark:hover:bg-gray-900 transition-all"
                   data-testid="button-login-secondary"
                 >
@@ -79,9 +111,9 @@ export default function Landing() {
 
             <div className="flex-1 w-full max-w-2xl animate-in zoom-in duration-700">
               <div className="relative p-2 bg-white dark:bg-gray-900 rounded-3xl shadow-2xl overflow-hidden group">
-                <img 
-                  src="/assets/diverse_college_study.jpg" 
-                  alt="Students studying together" 
+                <img
+                  src="/assets/diverse_college_study.jpg"
+                  alt="Students studying together"
                   className="w-full h-auto rounded-2xl object-cover transition-transform duration-700 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
@@ -89,7 +121,7 @@ export default function Landing() {
             </div>
           </div>
         </div>
-        
+
         {/* Background decorations */}
         <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-96 h-96 bg-purple-200/50 dark:bg-purple-900/20 rounded-full blur-3xl opacity-50" />
         <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/2 w-96 h-96 bg-blue-200/50 dark:bg-blue-900/20 rounded-full blur-3xl opacity-50" />
@@ -102,7 +134,7 @@ export default function Landing() {
             <h2 className="font-heading text-4xl font-bold mb-4">Tailored for Every Stakeholder</h2>
             <p className="text-gray-600 dark:text-gray-400">This platform bridges the gap between education and industry, providing unique tools for everyone in the ecosystem.</p>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {roleInfo.map((role) => {
               const Icon = role.icon;
@@ -115,14 +147,8 @@ export default function Landing() {
                   <div className={`h-16 w-16 rounded-2xl bg-gradient-to-br ${role.gradient} flex items-center justify-center mb-6 shadow-lg group-hover:scale-110 transition-transform`}>
                     <Icon className="h-8 w-8 text-white" />
                   </div>
-                  
-                  <h3 className="font-heading text-xl font-bold mb-4">
-                    {role.role}
-                  </h3>
-                  
-                  <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">
-                    {role.description}
-                  </p>
+                  <h3 className="font-heading text-xl font-bold mb-4">{role.role}</h3>
+                  <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">{role.description}</p>
                 </Card>
               );
             })}
@@ -159,19 +185,26 @@ export default function Landing() {
           </div>
         </div>
       </div>
-      
+
       {/* CTA Section */}
       <div className="py-24 bg-gradient-to-r from-purple-600 to-blue-600 text-white">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-4xl font-bold mb-8">Ready to transform your future?</h2>
           <GradientButton
-            onClick={() => navigate('/register')}
+            onClick={openRegister}
             className="bg-white text-white hover:bg-gray-100 px-10 py-8 rounded-2xl text-xl font-bold"
           >
             Get Started Now
           </GradientButton>
         </div>
       </div>
+
+      {/* Auth Modal */}
+      <AuthModal
+        open={modalOpen}
+        defaultView={modalView}
+        onClose={handleModalClose}
+      />
     </div>
   );
 }

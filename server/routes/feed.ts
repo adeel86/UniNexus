@@ -4,7 +4,6 @@ import { db } from "../db";
 import { isAuthenticated, type AuthRequest } from "../firebaseAuth";
 import { updateUserStreakForActivity } from "../streakHelper";
 import { updateTotalPointsAfterScoreChange } from "../pointsHelper";
-import { buildUserNameMap } from "../userWithNames";
 import {
   posts,
   comments,
@@ -13,11 +12,30 @@ import {
   userStats,
   followers,
   notifications,
+  universities,
+  majors,
   insertPostSchema,
   insertCommentSchema,
   insertReactionSchema,
 } from "@shared/schema";
 import { blockRestrictedRoles } from "./shared";
+
+async function buildUserNameMap(
+  userIds: string[]
+): Promise<Map<string, { university: string | null; major: string | null }>> {
+  if (userIds.length === 0) return new Map();
+  const rows = await db
+    .select({
+      id: users.id,
+      university: universities.name,
+      major: majors.name,
+    })
+    .from(users)
+    .leftJoin(universities, eq(users.universityId, universities.id))
+    .leftJoin(majors, eq(users.majorId, majors.id))
+    .where(inArray(users.id, userIds));
+  return new Map(rows.map((r) => [r.id, { university: r.university, major: r.major }]));
+}
 
 const router = Router();
 
@@ -80,7 +98,7 @@ router.get("/posts", async (req: Request, res: Response) => {
       }
     }
 
-    const authorIds = [...new Set(postsData.map((p) => p.authorId).filter(Boolean))] as string[];
+    const authorIds = Array.from(new Set(postsData.map((p) => p.authorId).filter(Boolean))) as string[];
     const nameMap = await buildUserNameMap(authorIds);
 
     const postsWithDetails = await Promise.all(
@@ -183,7 +201,7 @@ router.get("/feed/personalized", isAuthenticated, async (req: AuthRequest, res: 
     const allPosts = await query;
     const validPosts = allPosts.filter(post => post.createdAt != null);
     
-    const validAuthorIds = [...new Set(validPosts.map((p) => p.authorId).filter(Boolean))] as string[];
+    const validAuthorIds = Array.from(new Set(validPosts.map((p) => p.authorId).filter(Boolean))) as string[];
     const validNameMap = await buildUserNameMap(validAuthorIds);
 
     const postsWithDetails = await Promise.all(
@@ -315,7 +333,7 @@ router.get("/feed/following", isAuthenticated, async (req: AuthRequest, res: Res
     
     const followingPosts = await query.where(and(...conditions));
     
-    const followingAuthorIds = [...new Set(followingPosts.map((p) => p.authorId).filter(Boolean))] as string[];
+    const followingAuthorIds = Array.from(new Set(followingPosts.map((p) => p.authorId).filter(Boolean))) as string[];
     const followingNameMap = await buildUserNameMap(followingAuthorIds);
 
     const postsWithDetails = await Promise.all(

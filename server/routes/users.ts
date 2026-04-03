@@ -9,7 +9,6 @@ import { storage as dbStorage } from "../storage";
 import { uploadToCloud } from "../cloudStorage";
 import { requireAuth } from "./shared";
 import { recalculateUserRank } from "../pointsHelper";
-import { userWithNamesSelect, getUserWithNames } from "../userWithNames";
 import {
   users,
   userStats,
@@ -37,6 +36,30 @@ import {
   insertStudentCourseSchema,
   insertUserProfileSchema,
 } from "@shared/schema";
+
+const userWithNamesSelect = {
+  id: users.id,
+  firebaseUid: users.firebaseUid,
+  email: users.email,
+  firstName: users.firstName,
+  lastName: users.lastName,
+  displayName: users.displayName,
+  profileImageUrl: users.profileImageUrl,
+  role: users.role,
+  bio: users.bio,
+  universityId: users.universityId,
+  majorId: users.majorId,
+  graduationYear: users.graduationYear,
+  interests: users.interests,
+  emailVerified: users.emailVerified,
+  verificationSentAt: users.verificationSentAt,
+  isVerified: users.isVerified,
+  verifiedAt: users.verifiedAt,
+  createdAt: users.createdAt,
+  updatedAt: users.updatedAt,
+  university: universities.name,
+  major: majors.name,
+};
 
 const router = Router();
 
@@ -513,7 +536,13 @@ router.patch("/users/preferences/privacy", requireAuth, async (req: Request, res
 router.get("/users/:userId", async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
-    const user = await getUserWithNames(eq(users.id, userId));
+    const [user] = await db
+      .select(userWithNamesSelect)
+      .from(users)
+      .leftJoin(universities, eq(users.universityId, universities.id))
+      .leftJoin(majors, eq(users.majorId, majors.id))
+      .where(eq(users.id, userId))
+      .limit(1);
 
     if (!user) {
       return res.status(404).json({ error: "User not found" });

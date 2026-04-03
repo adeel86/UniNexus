@@ -11,8 +11,6 @@ import { RoleGuard } from "@/components/RoleGuard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useIsMobile } from "@/hooks/use-mobile";
 import Landing from "@/pages/Landing";
-import Login from "@/pages/Login";
-import Register from "@/pages/Register";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import StudentHome from "@/pages/StudentHome";
@@ -67,14 +65,15 @@ function Router() {
     return (
       <Switch>
         <Route path="/" component={Landing} />
-        <Route path="/login" component={Login} />
-        <Route path="/register" component={Register} />
+        {/* Login and register now open as modals on the landing page */}
+        <Route path="/login" component={Landing} />
+        <Route path="/register" component={Landing} />
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/reset-password" component={ResetPassword} />
         {/* Public verification routes */}
         <Route path="/verify/:hash" component={VerifyCertificate} />
         <Route path="/verify-email" component={VerifyEmail} />
-        <Route component={Login} />
+        <Route component={Landing} />
       </Switch>
     );
   }

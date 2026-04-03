@@ -1,4 +1,3 @@
-import { getUserWithNames } from "./userWithNames";
 import {
   eq,
   or,
@@ -69,6 +68,30 @@ import {
 import { db } from "./db";
 import { studentCourses } from "@shared/schema/courses";
 
+const userWithNamesSelect = {
+  id: users.id,
+  firebaseUid: users.firebaseUid,
+  email: users.email,
+  firstName: users.firstName,
+  lastName: users.lastName,
+  displayName: users.displayName,
+  profileImageUrl: users.profileImageUrl,
+  role: users.role,
+  bio: users.bio,
+  universityId: users.universityId,
+  majorId: users.majorId,
+  graduationYear: users.graduationYear,
+  interests: users.interests,
+  emailVerified: users.emailVerified,
+  verificationSentAt: users.verificationSentAt,
+  isVerified: users.isVerified,
+  verifiedAt: users.verifiedAt,
+  createdAt: users.createdAt,
+  updatedAt: users.updatedAt,
+  university: universities.name,
+  major: majors.name,
+};
+
 // Interface for storage operations
 export interface IStorage {
   // User operations (Firebase Auth)
@@ -123,17 +146,37 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
-    const user = await getUserWithNames(eq(users.id, id));
-    if (user) return user;
+    const [user] = await db
+      .select(userWithNamesSelect)
+      .from(users)
+      .leftJoin(universities, eq(users.universityId, universities.id))
+      .leftJoin(majors, eq(users.majorId, majors.id))
+      .where(eq(users.id, id))
+      .limit(1);
+    if (user) return user as User;
     return this.getUserByFirebaseUid(id);
   }
 
   async getUserByFirebaseUid(firebaseUid: string): Promise<User | undefined> {
-    return getUserWithNames(eq(users.firebaseUid, firebaseUid));
+    const [user] = await db
+      .select(userWithNamesSelect)
+      .from(users)
+      .leftJoin(universities, eq(users.universityId, universities.id))
+      .leftJoin(majors, eq(users.majorId, majors.id))
+      .where(eq(users.firebaseUid, firebaseUid))
+      .limit(1);
+    return user as User | undefined;
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    return getUserWithNames(eq(users.email, email));
+    const [user] = await db
+      .select(userWithNamesSelect)
+      .from(users)
+      .leftJoin(universities, eq(users.universityId, universities.id))
+      .leftJoin(majors, eq(users.majorId, majors.id))
+      .where(eq(users.email, email))
+      .limit(1);
+    return user as User | undefined;
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
