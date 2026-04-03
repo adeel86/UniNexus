@@ -12,6 +12,7 @@ import {
   notifications,
 } from "@shared/schema";
 import { updateUserStreakForActivity } from "../streakHelper";
+import { userWithNamesSelect } from "../userWithNames";
 
 const router = Router();
 
@@ -239,8 +240,10 @@ router.get("/connections", isAuthenticated, async (req: AuthRequest, res: Respon
     );
 
     const otherUsers = await db
-      .select()
+      .select(userWithNamesSelect)
       .from(users)
+      .leftJoin(universities, eq(users.universityId, universities.id))
+      .leftJoin(majors, eq(users.majorId, majors.id))
       .where(inArray(users.id, otherUserIds));
 
     // Build map of user ID to user object
@@ -591,8 +594,10 @@ router.get("/recommendations/friends", isAuthenticated, async (req: AuthRequest,
 
     // Get all users except current user and existing connections/pending sent
     const allUsers = await db
-      .select()
+      .select(userWithNamesSelect)
       .from(users)
+      .leftJoin(universities, eq(users.universityId, universities.id))
+      .leftJoin(majors, eq(users.majorId, majors.id))
       .where(sql`${users.id} != ${currentUserId}`)
       .limit(100);
 
@@ -653,8 +658,9 @@ router.get("/recommendations/friends", isAuthenticated, async (req: AuthRequest,
           }
         }
 
-        // Active users get a boost
-        if (user.engagementScore && user.engagementScore > 50) {
+        // Active users get a boost (engagementScore comes from userStats join if available)
+        const engagementScore = (user as any).engagementScore as number | undefined;
+        if (engagementScore && engagementScore > 50) {
           score += 10;
         }
 

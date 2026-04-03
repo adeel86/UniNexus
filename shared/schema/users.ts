@@ -27,7 +27,19 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export type User = typeof users.$inferSelect;
+export type User = typeof users.$inferSelect & {
+  university?: string | null;
+  major?: string | null;
+  company?: string | null;
+  position?: string | null;
+  engagementScore?: number | null;
+  problemSolverScore?: number | null;
+  endorsementScore?: number | null;
+  challengePoints?: number | null;
+  totalPoints?: number | null;
+  rankTier?: string | null;
+  streak?: number | null;
+};
 export type UpsertUser = typeof users.$inferInsert;
 
 export const userProfiles = pgTable("user_profiles", {
@@ -71,7 +83,9 @@ export const insertUserProfileSchema = createInsertSchema(userProfiles).omit({
   updatedAt: true,
 });
 
-export type UserProfile = typeof userProfiles.$inferSelect;
+export type UserProfile = typeof userProfiles.$inferSelect & {
+  programme?: string | null;
+};
 export type InsertUserProfile = z.infer<typeof insertUserProfileSchema>;
 
 export const educationRecords = pgTable("education_records", {

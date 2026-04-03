@@ -9,10 +9,12 @@ import { storage as dbStorage } from "../storage";
 import { uploadToCloud } from "../cloudStorage";
 import { requireAuth } from "./shared";
 import { recalculateUserRank } from "../pointsHelper";
+import { userWithNamesSelect, getUserWithNames } from "../userWithNames";
 import {
   users,
   userStats,
   universities,
+  majors,
   courses,
   groups,
   groupMembers,
@@ -115,22 +117,21 @@ router.post("/upload/image", requireAuth, upload.single("image"), async (req: Re
 router.get("/teachers", requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.user as any;
-    let query = db.select().from(users).where(eq(users.role, "teacher"));
 
-    // Scope restriction: University Admins only see affiliated teachers
+    let whereClause = eq(users.role, "teacher") as any;
     if (user.role === 'university_admin' || user.role === 'university') {
-      if (!user.universityId) {
-        return res.json([]);
-      }
-      query = db.select().from(users).where(
-        and(
-          eq(users.role, "teacher"),
-          eq(users.universityId, user.universityId)
-        )
-      );
+      if (!user.universityId) return res.json([]);
+      whereClause = and(eq(users.role, "teacher"), eq(users.universityId, user.universityId));
     }
 
-    const teachers = await query.orderBy(users.lastName, users.firstName);
+    const teachers = await db
+      .select(userWithNamesSelect)
+      .from(users)
+      .leftJoin(universities, eq(users.universityId, universities.id))
+      .leftJoin(majors, eq(users.majorId, majors.id))
+      .where(whereClause)
+      .orderBy(users.lastName, users.firstName);
+
     res.json(teachers);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -153,13 +154,15 @@ router.get("/students", requireAuth, async (req: Request, res: Response) => {
       : eq(users.role, "student");
 
     const students = await db
-      .select({ user: users })
+      .select({ ...userWithNamesSelect, engagementScore: userStats.engagementScore })
       .from(users)
+      .leftJoin(universities, eq(users.universityId, universities.id))
+      .leftJoin(majors, eq(users.majorId, majors.id))
       .leftJoin(userStats, eq(users.id, userStats.userId))
       .where(whereClause)
       .orderBy(desc(userStats.engagementScore));
 
-    res.json(students.map(r => r.user));
+    res.json(students);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -320,19 +323,18 @@ router.get("/users/search", requireAuth, async (req: Request, res: Response) => 
     let results;
     if (connectedUserIds.length > 0) {
       results = await db
-        .select()
+        .select(userWithNamesSelect)
         .from(users)
-        .where(
-          and(
-            baseConditions,
-            notInArray(users.id, connectedUserIds)
-          )
-        )
+        .leftJoin(universities, eq(users.universityId, universities.id))
+        .leftJoin(majors, eq(users.majorId, majors.id))
+        .where(and(baseConditions, notInArray(users.id, connectedUserIds)))
         .limit(20);
     } else {
       results = await db
-        .select()
+        .select(userWithNamesSelect)
         .from(users)
+        .leftJoin(universities, eq(users.universityId, universities.id))
+        .leftJoin(majors, eq(users.majorId, majors.id))
         .where(baseConditions)
         .limit(20);
     }
@@ -511,11 +513,7 @@ router.patch("/users/preferences/privacy", requireAuth, async (req: Request, res
 router.get("/users/:userId", async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
+    const user = await getUserWithNames(eq(users.id, userId));
 
     if (!user) {
       return res.status(404).json({ error: "User not found" });

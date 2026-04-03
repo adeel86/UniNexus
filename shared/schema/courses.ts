@@ -28,7 +28,9 @@ export const courses = pgTable("courses", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export type Course = typeof courses.$inferSelect;
+export type Course = typeof courses.$inferSelect & {
+  university?: string | null;
+};
 
 export const insertCourseSchema = createInsertSchema(courses).omit({
   id: true,

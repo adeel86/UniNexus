@@ -1,3 +1,4 @@
+import { getUserWithNames } from "./userWithNames";
 import {
   eq,
   or,
@@ -122,21 +123,17 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
+    const user = await getUserWithNames(eq(users.id, id));
     if (user) return user;
-    
-    // Otherwise treat as Firebase UID
     return this.getUserByFirebaseUid(id);
   }
 
   async getUserByFirebaseUid(firebaseUid: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.firebaseUid, firebaseUid));
-    return user;
+    return getUserWithNames(eq(users.firebaseUid, firebaseUid));
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
-    return user;
+    return getUserWithNames(eq(users.email, email));
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {

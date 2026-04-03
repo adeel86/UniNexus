@@ -4,6 +4,7 @@ import { db } from "../db";
 import { isAuthenticated, type AuthRequest } from "../firebaseAuth";
 import { updateUserStreakForActivity } from "../streakHelper";
 import { updateTotalPointsAfterScoreChange } from "../pointsHelper";
+import { buildUserNameMap } from "../userWithNames";
 import {
   posts,
   comments,
@@ -79,6 +80,9 @@ router.get("/posts", async (req: Request, res: Response) => {
       }
     }
 
+    const authorIds = [...new Set(postsData.map((p) => p.authorId).filter(Boolean))] as string[];
+    const nameMap = await buildUserNameMap(authorIds);
+
     const postsWithDetails = await Promise.all(
       postsData.map(async (post) => {
         const postComments = await db
@@ -100,8 +104,10 @@ router.get("/posts", async (req: Request, res: Response) => {
           .from(reactions)
           .where(eq(reactions.postId, post.id));
 
+        const names = post.authorId ? nameMap.get(post.authorId) : undefined;
         return {
           ...post,
+          author: post.author ? { ...post.author, ...names } : post.author,
           comments: postComments,
           reactions: postReactions,
         };
@@ -177,6 +183,9 @@ router.get("/feed/personalized", isAuthenticated, async (req: AuthRequest, res: 
     const allPosts = await query;
     const validPosts = allPosts.filter(post => post.createdAt != null);
     
+    const validAuthorIds = [...new Set(validPosts.map((p) => p.authorId).filter(Boolean))] as string[];
+    const validNameMap = await buildUserNameMap(validAuthorIds);
+
     const postsWithDetails = await Promise.all(
       validPosts.map(async (post) => {
         const [commentsData, reactionsData] = await Promise.all([
@@ -186,9 +195,11 @@ router.get("/feed/personalized", isAuthenticated, async (req: AuthRequest, res: 
             .where(eq(comments.postId, post.id)),
           db.select().from(reactions).where(eq(reactions.postId, post.id))
         ]);
-        
+
+        const names = post.authorId ? validNameMap.get(post.authorId) : undefined;
         return {
           ...post,
+          author: post.author ? { ...post.author, ...names } : post.author,
           comments: commentsData,
           reactions: reactionsData,
         };
@@ -304,6 +315,9 @@ router.get("/feed/following", isAuthenticated, async (req: AuthRequest, res: Res
     
     const followingPosts = await query.where(and(...conditions));
     
+    const followingAuthorIds = [...new Set(followingPosts.map((p) => p.authorId).filter(Boolean))] as string[];
+    const followingNameMap = await buildUserNameMap(followingAuthorIds);
+
     const postsWithDetails = await Promise.all(
       followingPosts.map(async (post) => {
         const [commentsData, reactionsData] = await Promise.all([
@@ -313,9 +327,11 @@ router.get("/feed/following", isAuthenticated, async (req: AuthRequest, res: Res
             .where(eq(comments.postId, post.id)),
           db.select().from(reactions).where(eq(reactions.postId, post.id))
         ]);
-        
+
+        const names = post.authorId ? followingNameMap.get(post.authorId) : undefined;
         return {
           ...post,
+          author: post.author ? { ...post.author, ...names } : post.author,
           comments: commentsData,
           reactions: reactionsData,
         };

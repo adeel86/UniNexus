@@ -86,9 +86,10 @@ router.get("/qa/questions/:questionId", isAuthenticated, async (req: Request, re
         lastName: users.lastName,
         displayName: users.displayName,
         profileImageUrl: users.profileImageUrl,
-        rankTier: users.rankTier,
+        rankTier: userStats.rankTier,
       })
       .from(users)
+      .leftJoin(userStats, eq(users.id, userStats.userId))
       .where(eq(users.id, question.authorId))
       .limit(1);
 
@@ -107,9 +108,10 @@ router.get("/qa/questions/:questionId", isAuthenticated, async (req: Request, re
             lastName: users.lastName,
             displayName: users.displayName,
             profileImageUrl: users.profileImageUrl,
-            rankTier: users.rankTier,
+            rankTier: userStats.rankTier,
           })
           .from(users)
+          .leftJoin(userStats, eq(users.id, userStats.userId))
           .where(eq(users.id, a.authorId))
           .limit(1);
         return { ...a, author: answerAuthor || null };
@@ -161,12 +163,13 @@ router.post("/qa/questions", isAuthenticated, async (req: Request, res: Response
       })
       .returning();
 
+    await db.insert(userStats).values({ userId: req.user.id }).onConflictDoNothing();
     await db
-      .update(users)
+      .update(userStats)
       .set({
-        problemSolverScore: sql`COALESCE(${users.problemSolverScore}, 0) + 10`,
+        problemSolverScore: sql`COALESCE(${userStats.problemSolverScore}, 0) + 10`,
       })
-      .where(eq(users.id, req.user.id));
+      .where(eq(userStats.userId, req.user.id));
 
     // Recalculate totalPoints after problem solver score change
     await updateTotalPointsAfterScoreChange(req.user.id).catch((err: any) => 
@@ -230,12 +233,13 @@ router.post("/qa/questions/:questionId/answers", isAuthenticated, async (req: Re
       })
       .where(eq(courseDiscussions.id, questionId));
 
+    await db.insert(userStats).values({ userId: req.user.id }).onConflictDoNothing();
     await db
-      .update(users)
+      .update(userStats)
       .set({
-        problemSolverScore: sql`COALESCE(${users.problemSolverScore}, 0) + 15`,
+        problemSolverScore: sql`COALESCE(${userStats.problemSolverScore}, 0) + 15`,
       })
-      .where(eq(users.id, req.user.id));
+      .where(eq(userStats.userId, req.user.id));
 
     // Recalculate totalPoints after problem solver score change
     await updateTotalPointsAfterScoreChange(req.user.id).catch((err: any) => 

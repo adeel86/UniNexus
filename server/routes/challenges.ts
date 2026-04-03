@@ -5,6 +5,7 @@ import { db } from "../db";
 import { isAuthenticated, type AuthRequest } from "../firebaseAuth";
 import {
   users,
+  userStats,
   challenges,
   challengeParticipants,
   notifications,
@@ -508,16 +509,16 @@ router.post("/users/:userId/recalculate-rank", isAuthenticated, async (req: Requ
 
     await recalculateUserRank(userId);
 
-    const [user] = await db
+    const [stats] = await db
       .select()
-      .from(users)
-      .where(eq(users.id, userId))
+      .from(userStats)
+      .where(eq(userStats.userId, userId))
       .limit(1);
 
     res.json({ 
       success: true, 
-      totalPoints: user?.totalPoints,
-      rankTier: user?.rankTier 
+      totalPoints: stats?.totalPoints,
+      rankTier: stats?.rankTier 
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

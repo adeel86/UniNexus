@@ -37,7 +37,9 @@ export const insertGroupSchema = createInsertSchema(groups).omit({
   updatedAt: true,
 });
 
-export type Group = typeof groups.$inferSelect;
+export type Group = typeof groups.$inferSelect & {
+  university?: string | null;
+};
 export type InsertGroup = z.infer<typeof insertGroupSchema>;
 
 export const groupMembers = pgTable("group_members", {

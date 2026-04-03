@@ -6,6 +6,9 @@ import { updateTotalPointsAfterScoreChange } from "../pointsHelper";
 import {
   users,
   userStats,
+  userProfiles,
+  majors,
+  universities,
   skills,
   userSkills,
   endorsements,
@@ -412,11 +415,12 @@ router.post("/api/careerbot/chat", requireAuth, async (req: Request, res: Respon
         category: recruiterFeedback.category,
         feedback: recruiterFeedback.feedback,
         context: recruiterFeedback.context,
-        recruiterCompany: users.company,
+        recruiterCompany: userProfiles.companyName,
         createdAt: recruiterFeedback.createdAt,
       })
       .from(recruiterFeedback)
       .leftJoin(users, eq(recruiterFeedback.recruiterId, users.id))
+      .leftJoin(userProfiles, eq(users.id, userProfiles.userId))
       .where(and(
         eq(recruiterFeedback.studentId, req.user!.id),
         eq(recruiterFeedback.isPublic, true)
@@ -638,14 +642,32 @@ router.get("/api/ai/career-summary/:userId", requireAuth, requireRole('teacher',
     const { userId } = req.params;
 
     const [student] = await db
-      .select()
+      .select({
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        email: users.email,
+        bio: users.bio,
+        interests: users.interests,
+        graduationYear: users.graduationYear,
+        major: majors.name,
+        university: universities.name,
+      })
       .from(users)
+      .leftJoin(majors, eq(users.majorId, majors.id))
+      .leftJoin(universities, eq(users.universityId, universities.id))
       .where(eq(users.id, userId))
       .limit(1);
 
     if (!student) {
       return res.status(404).json({ error: "Student not found" });
     }
+
+    const [studentStats] = await db
+      .select()
+      .from(userStats)
+      .where(eq(userStats.userId, userId))
+      .limit(1);
 
     const studentSkills = await db
       .select({
@@ -697,12 +719,12 @@ Student Profile:
 - Interests: ${student.interests?.join(', ') || "Not specified"}
 
 Engagement Metrics:
-- Engagement Score: ${student.engagementScore} points
-- Problem Solver Score: ${student.problemSolverScore} points
-- Endorsement Score: ${student.endorsementScore} points
-- Challenge Points: ${student.challengePoints} points
-- Rank Tier: ${student.rankTier}
-- Streak: ${student.streak} days
+- Engagement Score: ${studentStats?.engagementScore ?? 0} points
+- Problem Solver Score: ${studentStats?.problemSolverScore ?? 0} points
+- Endorsement Score: ${studentStats?.endorsementScore ?? 0} points
+- Challenge Points: ${studentStats?.challengePoints ?? 0} points
+- Rank Tier: ${studentStats?.rankTier ?? 'bronze'}
+- Streak: ${studentStats?.streak ?? 0} days
 
 Skills: ${skillsList}
 Endorsements: ${endorsementsList}
@@ -737,7 +759,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
         lastName: student.lastName,
         major: student.major,
         university: student.university,
-        rankTier: student.rankTier,
+        rankTier: studentStats?.rankTier ?? 'bronze',
       }
     });
   } catch (error: any) {
