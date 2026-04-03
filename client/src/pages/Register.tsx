@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Users, GraduationCap, Building2, Briefcase, Shield, MailCheck, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
+import { Users, GraduationCap, Building2, Briefcase, Shield, CheckCircle2, AlertTriangle, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Autocomplete, type AutocompleteOption } from '@/components/Autocomplete';
 import { validateInstitutionalEmail, type ValidationStatus } from '@shared/emailValidation';
@@ -51,8 +51,6 @@ export default function Register() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [verificationSent, setVerificationSent] = useState(false);
-  const [registeredEmail, setRegisteredEmail] = useState('');
   const [domainStatus, setDomainStatus] = useState<DomainStatus>({ status: null, message: '' });
 
   // If user is authenticated, show loading while Router updates
@@ -114,7 +112,6 @@ export default function Register() {
   }, [watchedEmail, selectedRole]);
 
   const onSubmit = async (data: RegisterFormData) => {
-    // Double-check domain validation before submitting
     if (domainStatus.status === 'blocked') {
       toast({
         title: 'Institutional email required',
@@ -140,10 +137,10 @@ export default function Register() {
         additionalData.university = data.institute || null;
       }
 
-      await signUp(data.email, data.password, data.displayName, data.role, additionalData);
+      const result = await signUp(data.email, data.password, data.displayName, data.role, additionalData);
       
-      setRegisteredEmail(data.email);
-      setVerificationSent(true);
+      // Redirect to OTP verification page
+      navigate(`/verify-email?email=${encodeURIComponent(result.email)}`);
     } catch (error: any) {
       toast({
         title: 'Registration failed',
@@ -154,46 +151,6 @@ export default function Register() {
       setIsLoading(false);
     }
   };
-
-  if (verificationSent) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-purple-500 via-pink-500 to-blue-500">
-        <Card className="w-full max-w-md" data-testid="card-verification-sent">
-          <CardHeader className="gap-2 text-center">
-            <div className="flex flex-col items-center gap-4">
-              <div className="flex items-center justify-center h-16 w-16 rounded-full bg-green-100 dark:bg-green-900/30">
-                <MailCheck className="h-8 w-8 text-green-600 dark:text-green-400" />
-              </div>
-              <CardTitle className="text-2xl font-bold text-foreground">Check your inbox</CardTitle>
-            </div>
-            <CardDescription className="text-base">
-              We've sent a verification email to <span className="font-semibold text-foreground">{registeredEmail}</span>.
-              Please click the link in the email to verify your account before logging in.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            <p className="text-sm text-muted-foreground text-center">
-              Didn't receive the email? Check your spam folder, or{' '}
-              <button
-                onClick={() => { setVerificationSent(false); }}
-                className="text-primary hover:underline"
-              >
-                go back
-              </button>{' '}
-              to try again.
-            </p>
-            <Button
-              className="w-full"
-              onClick={() => navigate('/login')}
-              data-testid="button-go-to-login"
-            >
-              Go to Login
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-purple-500 via-pink-500 to-blue-500">

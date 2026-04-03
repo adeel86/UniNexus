@@ -9,6 +9,8 @@ import { getUniversityByEmail } from "@shared/universities";
 import { validateInstitutionalEmail } from "@shared/emailValidation";
 import { updateUserStreak } from "../streakHelper";
 import { cleanupUnverifiedUsers } from "../unverifiedUserCleanup";
+import { createOtpForEmail, validateOtp, deleteOtpsForEmail } from "../otpService";
+import { sendOtpEmail } from "../emailService";
 
 const router = Router();
 
@@ -86,7 +88,6 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
 
     const { email, displayName, role, university, major, company, position, bio, firebaseUid } = req.body;
 
-    // ── Institutional email validation (skip for dev/demo users) ──────────
     const isDevUser =
       !firebaseUid ||
       firebaseUid.startsWith("dev_user_") ||
@@ -102,7 +103,6 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
       }
     }
 
-    // Use provided firebaseUid or fallback to user id if available
     const effectiveUid = firebaseUid || req.user?.id || `dev_user_${Date.now()}`;
     
     const nameParts = (displayName || '').split(' ');
@@ -111,15 +111,12 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
 
     const autoUniversity = getUniversityByEmail(email);
 
-    // Process university - either fetch existing or create new
     let universityId: string | null = null;
     let universityName: string | null = null;
     
     if (university) {
-      // Check if it's an ID (from autocomplete selection)
       const possibleId = typeof university === 'object' ? university.id : university;
       
-      // Check if university with this ID exists
       const existingUniversity = await db
         .select()
         .from(universities)
@@ -127,11 +124,9 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
         .limit(1);
       
       if (existingUniversity.length > 0) {
-        // Use existing university
         universityId = existingUniversity[0].id;
         universityName = existingUniversity[0].name;
       } else {
-        // Create new university (treat as custom entry)
         const univName = typeof university === 'object' ? university.name : university;
         const [newUniversity] = await db
           .insert(universities)
@@ -143,7 +138,6 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
           universityId = newUniversity.id;
           universityName = newUniversity.name;
         } else {
-          // University name already exists, fetch it
           const [existingByName] = await db
             .select()
             .from(universities)
@@ -157,7 +151,6 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
       }
     } else if (autoUniversity) {
       universityName = autoUniversity;
-      // Try to fetch auto-detected university
       const [autoUniv] = await db
         .select()
         .from(universities)
@@ -168,15 +161,12 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
       }
     }
 
-    // Process major - either fetch existing or create new
     let majorId: string | null = null;
     let majorName: string | null = null;
     
     if (major) {
-      // Check if it's an ID (from autocomplete selection)
       const possibleId = typeof major === 'object' ? major.id : major;
       
-      // Check if major with this ID exists
       const existingMajor = await db
         .select()
         .from(majors)
@@ -184,11 +174,9 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
         .limit(1);
       
       if (existingMajor.length > 0) {
-        // Use existing major
         majorId = existingMajor[0].id;
         majorName = existingMajor[0].name;
       } else {
-        // Create new major (treat as custom entry)
         const majName = typeof major === 'object' ? major.name : major;
         const [newMajor] = await db
           .insert(majors)
@@ -200,7 +188,6 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
           majorId = newMajor.id;
           majorName = newMajor.name;
         } else {
-          // Major name already exists, fetch it
           const [existingByName] = await db
             .select()
             .from(majors)
@@ -214,8 +201,6 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
       }
     }
 
-    // Set verificationSentAt when the user is a real Firebase user
-    // (firebaseUid provided means the frontend sent a verification email before calling this)
     const isRealFirebaseUser = !!firebaseUid && !firebaseUid.startsWith('dev_user_');
 
     const user = await storage.createUserFromFirebase(effectiveUid, {
@@ -226,25 +211,134 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
       role: role || 'student',
       universityId: universityId || null,
       majorId: majorId || null,
-      // Keep legacy fields for backward compatibility
       university: universityName || null,
       institution: universityName || null,
       major: majorName || null,
       company: company || null,
       position: position || null,
       bio: bio || null,
+      emailVerified: false,
       verificationSentAt: isRealFirebaseUser ? new Date() : null,
     });
 
-    // Update streak on registration (first activity)
     updateUserStreak(user.id).catch(err => 
       console.error("Failed to update streak on registration:", err)
     );
+
+    // Generate and send OTP for real Firebase users
+    if (isRealFirebaseUser && email) {
+      try {
+        const otp = await createOtpForEmail(email);
+        const sent = await sendOtpEmail(email, otp, displayName);
+        if (!sent) {
+          console.warn(`[OTP] Could not send email to ${email}. OTP generated but email not sent.`);
+        }
+      } catch (otpError: any) {
+        console.error(`[OTP] Failed to generate/send OTP for ${email}:`, otpError.message);
+        // Non-fatal — user can request a resend
+      }
+    }
 
     res.json(user);
   } catch (error) {
     console.error("Error creating user:", error);
     res.status(500).json({ message: "Failed to create user profile" });
+  }
+});
+
+// ── Verify OTP ────────────────────────────────────────────────────────────────
+router.post("/verify-otp", async (req: Request, res: Response) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({ message: "Email and OTP code are required." });
+    }
+
+    const result = await validateOtp(email, otp.trim());
+
+    if (!result.valid) {
+      const messages: Record<string, string> = {
+        not_found: "No verification code found for this email. Please request a new one.",
+        expired: "Code expired. Please request a new one.",
+        already_used: "This code has already been used. Please request a new one.",
+        wrong_code: "Incorrect code. Please try again.",
+        max_attempts: "Too many incorrect attempts. Please request a new code.",
+      };
+      return res.status(400).json({
+        message: messages[result.reason!] || "Verification failed.",
+        reason: result.reason,
+      });
+    }
+
+    // Mark emailVerified in DB
+    const user = await storage.getUserByEmail(email);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    await storage.updateEmailVerified(user.id, true);
+
+    // Mark emailVerified in Firebase (via Admin SDK) if available
+    try {
+      const { firebaseAdmin } = await import("../firebaseAuth") as any;
+      if (firebaseAdmin && user.firebaseUid) {
+        await firebaseAdmin.auth().updateUser(user.firebaseUid, { emailVerified: true });
+      }
+    } catch (fbError: any) {
+      console.warn("[OTP] Could not sync emailVerified to Firebase:", fbError.message);
+    }
+
+    await deleteOtpsForEmail(email);
+
+    return res.json({ message: "Email verified successfully." });
+  } catch (error: any) {
+    console.error("Error verifying OTP:", error);
+    return res.status(500).json({ message: "Verification failed. Please try again." });
+  }
+});
+
+// ── Resend OTP ────────────────────────────────────────────────────────────────
+router.post("/resend-otp", async (req: Request, res: Response) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: "Email is required." });
+    }
+
+    const user = await storage.getUserByEmail(email);
+    if (!user) {
+      // Don't reveal whether user exists
+      return res.json({ message: "If that email is registered, a new code has been sent." });
+    }
+
+    if (user.emailVerified) {
+      return res.status(400).json({
+        message: "This email is already verified. You can log in.",
+        code: "already_verified",
+      });
+    }
+
+    try {
+      const otp = await createOtpForEmail(email);
+      const sent = await sendOtpEmail(email, otp, user.displayName || undefined);
+      if (!sent) {
+        console.warn(`[OTP] Resend: SMTP not configured. OTP for ${email}: ${otp}`);
+      }
+      // Update verificationSentAt so grace period resets
+      await storage.updateVerificationSentAt(user.id, new Date());
+    } catch (otpError: any) {
+      if (otpError.message.includes("Too many OTP requests")) {
+        return res.status(429).json({ message: otpError.message });
+      }
+      throw otpError;
+    }
+
+    return res.json({ message: "A new verification code has been sent to your email." });
+  } catch (error: any) {
+    console.error("Error resending OTP:", error);
+    return res.status(500).json({ message: "Failed to resend code. Please try again." });
   }
 });
 
@@ -296,22 +390,18 @@ router.post("/change-password", isAuthenticated, async (req: AuthRequest, res: R
       return res.status(400).json({ message: "New password and confirmation do not match" });
     }
 
-    // Check if this is a development/demo user by looking for dev token or checking for demo user marker
     const isDevUser = req.headers.authorization?.includes('dev-') || req.user.email === 'student@example.com';
     
-    // For development/demo auth, use a simple password check
     if (isDevUser) {
       if (currentPassword !== DEMO_PASSWORD) {
         return res.status(401).json({ message: "Current password is incorrect" });
       }
-      // In dev mode, just return success
       return res.json({ 
         message: "Password changed successfully",
         user: req.user 
       });
     }
 
-    // For Firebase authentication, use Firebase Admin SDK to change password
     try {
       const { firebaseAdmin } = await import("../firebaseAuth") as any;
       
@@ -319,16 +409,12 @@ router.post("/change-password", isAuthenticated, async (req: AuthRequest, res: R
         return res.status(503).json({ message: "Firebase authentication is not configured" });
       }
 
-      // Get the user's Firebase UID from the authenticated request
       const firebaseUid = req.user.id;
       
       if (!firebaseUid) {
         return res.status(400).json({ message: "User information not found" });
       }
 
-      // The user is already authenticated (middleware verified their token)
-      // We need to verify they know their current password before allowing a change
-      // Use Firebase REST API with their email to verify the current password
       try {
         const firebaseApiKey = process.env.VITE_FIREBASE_API_KEY;
         if (!firebaseApiKey) {
@@ -336,10 +422,8 @@ router.post("/change-password", isAuthenticated, async (req: AuthRequest, res: R
           return res.status(503).json({ message: "Firebase configuration incomplete" });
         }
 
-        // Try using email from authenticated request first
         let userEmail = req.user.email;
         
-        // If email is not available from request, fetch from Firebase Admin SDK
         if (!userEmail) {
           const firebaseUser = await firebaseAdmin.auth().getUser(firebaseUid);
           userEmail = firebaseUser.email;
@@ -349,7 +433,6 @@ router.post("/change-password", isAuthenticated, async (req: AuthRequest, res: R
           return res.status(400).json({ message: "User email not found in Firebase" });
         }
 
-        // Verify password using Firebase REST API
         const verifyResponse = await fetch(
           `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${firebaseApiKey}`,
           {
@@ -369,11 +452,8 @@ router.post("/change-password", isAuthenticated, async (req: AuthRequest, res: R
           return res.status(401).json({ message: "Current password is incorrect" });
         }
 
-        // Get the actual Firebase UID from the REST API response
-        // This ensures we're using the correct UID that exists in Firebase Auth
         const actualFirebaseUid = responseData.localId;
 
-        // Update password using Admin SDK with the actual Firebase UID
         await firebaseAdmin.auth().updateUser(actualFirebaseUid, {
           password: newPassword,
         });
@@ -401,19 +481,9 @@ router.post("/2fa/enable", isAuthenticated, async (req: AuthRequest, res: Respon
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
     }
-
-    // In a full implementation, this would:
-    // 1. Generate a TOTP secret using a library like 'speakeasy'
-    // 2. Generate a QR code
-    // 3. Store temporary unverified 2FA secret in database
-    // 4. Return QR code to client for scanning
-    // 5. Require verification code before finalizing setup
-
-    // For now, return a basic success response
     res.json({
       message: "Two-factor authentication setup initiated",
       userId: req.user.id,
-      // In production, include: qrCode, secret, backupCodes
     });
   } catch (error: any) {
     console.error("Error enabling 2FA:", error);
@@ -421,41 +491,40 @@ router.post("/2fa/enable", isAuthenticated, async (req: AuthRequest, res: Respon
   }
 });
 
-// ── Resend verification: syncs verificationSentAt in DB ──────────────────────
-// Called by the frontend after Firebase sends a new verification email.
-// Uses the setupAuth general middleware (not verifyToken) so it works for
-// unverified users. The firebaseUid is used to look up the DB record.
+// ── Legacy resend-verification (kept for backward compat, now delegates to resend-otp) ──
 router.post("/resend-verification", async (req: AuthRequest, res: Response) => {
   try {
-    const { firebaseUid } = req.body;
+    const { firebaseUid, email } = req.body;
 
-    if (!firebaseUid) {
-      return res.status(400).json({ message: "firebaseUid is required" });
-    }
+    const emailToUse = email || (() => {
+      if (!firebaseUid) return null;
+      return null;
+    })();
 
-    const user = await storage.getUserByFirebaseUid(firebaseUid);
-    if (!user) {
-      // Not an error — user may not be in DB yet (race condition)
+    if (!emailToUse && firebaseUid) {
+      const user = await storage.getUserByFirebaseUid(firebaseUid);
+      if (!user || !user.email) {
+        return res.json({ message: "ok" });
+      }
+      if (user.emailVerified) {
+        return res.json({ message: "already_verified" });
+      }
+      try {
+        const otp = await createOtpForEmail(user.email);
+        await sendOtpEmail(user.email, otp, user.displayName || undefined);
+        await storage.updateVerificationSentAt(user.id, new Date());
+      } catch (_) {}
       return res.json({ message: "ok" });
     }
 
-    if (user.emailVerified) {
-      // Nothing to update
-      return res.json({ message: "already_verified" });
-    }
-
-    await storage.updateVerificationSentAt(user.id, new Date());
     return res.json({ message: "ok" });
   } catch (error: any) {
-    console.error("Error updating verificationSentAt:", error);
-    // Non-fatal: don't return an error to the frontend
+    console.error("Error in resend-verification:", error);
     return res.json({ message: "ok" });
   }
 });
 
 // ── Dev-only: manually trigger the unverified user cleanup job ────────────────
-// This allows developers to test the cleanup logic without waiting for 2 AM.
-// Blocked in production (DEV_AUTH_ENABLED must be true).
 router.post("/dev/trigger-cleanup", async (req: Request, res: Response) => {
   if (!DEV_AUTH_ENABLED) {
     return res.status(403).json({ message: "This endpoint is only available in development mode." });

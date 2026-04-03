@@ -434,12 +434,24 @@ export const verifyToken = async (
 
     const decodedToken = await admin.auth().verifyIdToken(token);
 
-    // Enforce email verification for production Firebase users
-    if (!decodedToken.email_verified) {
+    // Enforce email verification — check DB as source of truth (OTP-based)
+    // Firebase email_verified may lag behind; DB is updated immediately upon OTP validation
+    const userForCheck = await storage.getUserByFirebaseUid(decodedToken.uid);
+    const dbVerified = userForCheck?.emailVerified ?? false;
+    const firebaseVerified = decodedToken.email_verified ?? false;
+
+    if (!dbVerified && !firebaseVerified) {
       return res.status(403).json({
-        message: 'Please verify your email before logging in. Check your inbox.',
+        message: 'Please verify your email before logging in. Enter the 6-digit code sent to your inbox.',
         code: 'email-not-verified',
       });
+    }
+
+    // If verified in Firebase but not yet synced to DB, sync it now
+    if (firebaseVerified && !dbVerified && userForCheck) {
+      storage.updateEmailVerified(userForCheck.id, true).catch(err =>
+        console.error('Failed to sync emailVerified to DB:', err)
+      );
     }
 
     const user = await storage.getUserByFirebaseUid(decodedToken.uid);

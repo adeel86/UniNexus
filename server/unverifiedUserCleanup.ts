@@ -11,7 +11,6 @@ const WARNING_DAYS_BEFORE_DELETION = 2;
  */
 async function deleteFromFirebase(firebaseUid: string): Promise<boolean> {
   if (!firebaseAdmin) {
-    // Firebase Admin not configured (dev environment) — skip Firebase deletion
     return true;
   }
 
@@ -19,7 +18,6 @@ async function deleteFromFirebase(firebaseUid: string): Promise<boolean> {
     await firebaseAdmin.auth().deleteUser(firebaseUid);
     return true;
   } catch (error: any) {
-    // If the user is not found in Firebase, that is fine — proceed with DB deletion
     if (error.code === "auth/user-not-found") {
       return true;
     }
@@ -50,30 +48,23 @@ async function checkFirebaseVerified(firebaseUid: string): Promise<boolean | nul
 }
 
 /**
- * Sends a reminder to a user who is approaching the deletion deadline.
- * Requires an external email service (e.g., SendGrid, Mailgun) to be wired in.
- * Currently logs the intent — replace the body with a real email call when a
- * mail service is available.
+ * Sends a deletion warning to a user approaching the cleanup deadline.
+ * Replace the body with a real transactional email call when SMTP is configured.
  */
 async function sendDeletionWarning(email: string, daysRemaining: number): Promise<void> {
-  // TODO: Replace with a real transactional email service call.
-  // Example with SendGrid:
-  //   await sgMail.send({
-  //     to: email,
-  //     from: 'noreply@uninexus.app',
-  //     subject: 'Action required: verify your UniNexus email',
-  //     text: `Your account will be deleted in ${daysRemaining} day(s) unless you verify your email.`,
-  //   });
+  // Wire up the sendOtpEmail / nodemailer transport to send a real warning.
+  // For now, log the intent.
   console.log(
     `[CLEANUP] WARNING: Unverified account for ${email} will be deleted in ~${daysRemaining} day(s). ` +
-    `(Wire up an email service to send a real reminder.)`
+    `(Configure SMTP_HOST/SMTP_USER/SMTP_PASS to send a real reminder.)`
   );
 }
 
 /**
  * Main cleanup function.
- * 1. Notifies users who are approaching their deletion deadline.
- * 2. Deletes users who have exceeded the grace period without verifying.
+ * Deletes DB + Firebase accounts that are still unverified after the OTP grace period.
+ * The OTP-based flow means email_verified is set by /api/auth/verify-otp in the DB.
+ * A user who never verifies will be cleaned up after GRACE_PERIOD_DAYS from registration.
  */
 export async function cleanupUnverifiedUsers(): Promise<{
   warned: number;
@@ -83,7 +74,7 @@ export async function cleanupUnverifiedUsers(): Promise<{
 }> {
   const stats = { warned: 0, deleted: 0, skipped: 0, errors: 0 };
 
-  // ── Step 1: Warn users in the danger window ──────────────────────────────
+  // ── Step 1: Warn users approaching the deletion deadline ─────────────────
   try {
     const warningCandidates = await storage.getUnverifiedWarningUsers(
       GRACE_PERIOD_DAYS,
@@ -91,7 +82,6 @@ export async function cleanupUnverifiedUsers(): Promise<{
     );
 
     for (const user of warningCandidates) {
-      // Skip dev/demo users (null or synthetic Firebase UIDs)
       if (!user.firebaseUid || user.firebaseUid.startsWith("dev_user_")) {
         continue;
       }
@@ -121,33 +111,37 @@ export async function cleanupUnverifiedUsers(): Promise<{
   }
 
   for (const user of expiredUsers) {
-    // Skip dev/demo users
     if (!user.firebaseUid || user.firebaseUid.startsWith("dev_user_")) {
       stats.skipped++;
       continue;
     }
 
     try {
-      // ── Edge case: user may have verified between the last sync and now ──
+      // Edge case: user may have verified via OTP between last sync and now
+      // DB emailVerified is the authoritative source for OTP-verified accounts
+      if (user.emailVerified) {
+        console.log(`[CLEANUP] User ${user.email} has DB emailVerified=true — skipping deletion.`);
+        stats.skipped++;
+        continue;
+      }
+
+      // Also check Firebase in case they verified there by another means
       if (user.firebaseUid) {
         const verifiedInFirebase = await checkFirebaseVerified(user.firebaseUid);
 
         if (verifiedInFirebase === true) {
-          // Sync DB and skip deletion
           await storage.updateEmailVerified(user.id, true);
-          console.log(`[CLEANUP] Synced verified status for ${user.email} — skipping deletion.`);
+          console.log(`[CLEANUP] Synced Firebase-verified status for ${user.email} — skipping deletion.`);
           stats.skipped++;
           continue;
         }
       }
 
-      // ── Step 2a: Delete from Firebase ────────────────────────────────────
       const firebaseDeleted = user.firebaseUid
         ? await deleteFromFirebase(user.firebaseUid)
-        : true; // No Firebase UID — nothing to delete in Firebase
+        : true;
 
       if (!firebaseDeleted) {
-        // Firebase deletion failed — do not touch the DB to avoid inconsistency
         console.error(
           `[CLEANUP] Skipping DB deletion for ${user.email} because Firebase deletion failed.`
         );
@@ -155,7 +149,6 @@ export async function cleanupUnverifiedUsers(): Promise<{
         continue;
       }
 
-      // ── Step 2b: Delete from DB (cascading, inside a transaction) ─────────
       await storage.deleteUser(user.id);
 
       console.log(`[CLEANUP] Deleted unverified account: ${user.email} (created ${user.createdAt?.toISOString()})`);

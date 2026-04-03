@@ -23,6 +23,14 @@ Preferred communication style: Simple, everyday language.
     - `DEV_JWT_SECRET` for development mode token signing.
     - PostgreSQL-backed session store.
     - OpenID Connect support via Replit Auth integration (Passport strategy).
+- **Email Verification (OTP-based)**:
+    - Magic links replaced with 6-digit OTP codes sent via email.
+    - OTP generation, hashing (SHA-256), and validation in `server/otpService.ts`.
+    - Email delivery via SMTP/nodemailer in `server/emailService.ts` (configure with `SMTP_HOST`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM`, `SMTP_PORT`, `SMTP_SECURE`).
+    - OTPs stored in `email_otps` table (hashed, 10-minute expiry, max 5 attempts, rate-limited to 3 requests/hour).
+    - DB `emailVerified` field is the source of truth; Firebase synced after OTP validation.
+    - Verification flow: Register → OTP sent to email → user enters code at `/verify-email?email=...` → both DB and Firebase marked verified → login allowed.
+    - Resend OTP: `POST /api/auth/resend-otp` with rate limiting and cooldown UI.
 - **Route Organization**: Main routes in `server/routes.ts`, grouped by feature (posts, comments, etc.), admin routes (`/api/admin/*`), AI routes (`/api/ai/*`), Q&A routes (`/api/qa/*`), and CareerBot endpoint.
 - **Enrolled Courses Page**: Students can view their enrolled courses at `/courses`, each with an AI Tutor button. Routes include `/api/me/enrolled-courses` (GET - returns enrolled courses with stats).
 - **Problem-Solving Q&A System**: General Q&A feature for problem-solving with points system: +10 for asking, +15 for answering, +2/+5 for question/answer upvotes, +20 for accepted answers. Routes include `/api/qa/questions` (GET/POST), `/api/qa/questions/:id` (GET), `/api/qa/questions/:id/answers` (POST), `/api/qa/upvote` (POST), `/api/qa/questions/:id/resolve` (POST).

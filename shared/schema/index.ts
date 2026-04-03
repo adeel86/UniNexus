@@ -6,7 +6,8 @@
  */
 
 // Auth
-export { sessions } from "./auth";
+export { sessions, emailOtps } from "./auth";
+export type { EmailOtp } from "./auth";
 
 // Users
 export {
