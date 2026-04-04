@@ -107,13 +107,13 @@ router.get("/admin/users", isAuthenticated, async (req: AuthRequest, res: Respon
         email: users.email,
         firstName: users.firstName,
         lastName: users.lastName,
-        username: users.username,
+        displayName: users.displayName,
         role: users.role,
-        university: users.university,
+        universityId: users.universityId,
+        university: universities.name,
         profileImageUrl: users.profileImageUrl,
         bio: users.bio,
         createdAt: users.createdAt,
-        isActive: users.isActive,
         engagementScore: userStats.engagementScore,
         problemSolverScore: userStats.problemSolverScore,
         challengePoints: userStats.challengePoints,
@@ -123,6 +123,7 @@ router.get("/admin/users", isAuthenticated, async (req: AuthRequest, res: Respon
       })
       .from(users)
       .leftJoin(userStats, eq(users.id, userStats.userId))
+      .leftJoin(universities, eq(users.universityId, universities.id))
       .orderBy(desc(users.createdAt));
     res.json(allUsers);
   } catch (error: any) {

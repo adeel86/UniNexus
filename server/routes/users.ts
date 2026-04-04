@@ -205,9 +205,10 @@ router.get("/teachers/university/:university", requireAuth, async (req: Request,
     const { university } = req.params;
 
     const teachers = await db
-      .select()
+      .select(userWithNamesSelect)
       .from(users)
       .leftJoin(universities, eq(users.universityId, universities.id))
+      .leftJoin(majors, eq(users.majorId, majors.id))
       .where(
         and(
           eq(users.role, "teacher"),
@@ -216,7 +217,7 @@ router.get("/teachers/university/:university", requireAuth, async (req: Request,
       )
       .orderBy(users.lastName, users.firstName);
 
-    res.json(teachers.map(r => r.users));
+    res.json(teachers);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -229,10 +230,14 @@ router.get("/teachers/:teacherId/students", requireAuth, async (req: Request, re
     const validatedStudents = await db
       .select({
         studentCourse: studentCourses,
-        student: users,
+        student: {
+          ...userWithNamesSelect,
+        },
       })
       .from(studentCourses)
       .leftJoin(users, eq(studentCourses.userId, users.id))
+      .leftJoin(universities, eq(users.universityId, universities.id))
+      .leftJoin(majors, eq(users.majorId, majors.id))
       .where(
         and(
           eq(studentCourses.validatedBy, teacherId),
@@ -243,12 +248,12 @@ router.get("/teachers/:teacherId/students", requireAuth, async (req: Request, re
 
     const uniqueStudentsMap = new Map();
     for (const item of validatedStudents) {
-      if (item.student && !uniqueStudentsMap.has(item.student.id)) {
+      if (item.student?.id && !uniqueStudentsMap.has(item.student.id)) {
         uniqueStudentsMap.set(item.student.id, {
           ...item.student,
           validatedCourses: [item.studentCourse],
         });
-      } else if (item.student) {
+      } else if (item.student?.id) {
         uniqueStudentsMap.get(item.student.id).validatedCourses.push(item.studentCourse);
       }
     }
@@ -272,8 +277,10 @@ router.get("/university/teachers", requireAuth, async (req: Request, res: Respon
     }
 
     const teachers = await db
-      .select()
+      .select(userWithNamesSelect)
       .from(users)
+      .leftJoin(universities, eq(users.universityId, universities.id))
+      .leftJoin(majors, eq(users.majorId, majors.id))
       .where(
         and(
           eq(users.role, "teacher"),
