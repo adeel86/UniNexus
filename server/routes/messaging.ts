@@ -68,15 +68,12 @@ router.get("/conversations", isAuthenticated, async (req: AuthRequest, res: Resp
   try {
     const userId = req.user!.id;
 
-    const allConversations = await db
+    // Filter at the DB level using PostgreSQL array containment
+    const userConversations = await db
       .select()
       .from(conversations)
+      .where(sql`${conversations.participantIds} @> ARRAY[${userId}]::text[]`)
       .orderBy(desc(conversations.lastMessageAt));
-
-    // Filter conversations where user is a participant
-    const userConversations = allConversations.filter(c => 
-      (c.participantIds || []).includes(userId)
-    );
 
     // Get participant details and last message for each conversation
     const enrichedConversations = await Promise.all(
@@ -132,14 +129,14 @@ router.get("/unread-count", isAuthenticated, async (req: AuthRequest, res: Respo
   try {
     const userId = req.user!.id;
 
-    const allConversations = await db
+    const userConversationList = await db
       .select()
       .from(conversations)
+      .where(sql`${conversations.participantIds} @> ARRAY[${userId}]::text[]`)
       .orderBy(desc(conversations.lastMessageAt));
 
     let unreadCount = 0;
-    for (const conversation of allConversations) {
-      if (!conversation.participantIds?.includes(userId)) continue;
+    for (const conversation of userConversationList) {
 
       const allMessages = await db
         .select()

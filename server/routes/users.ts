@@ -177,13 +177,22 @@ router.get("/students", requireAuth, async (req: Request, res: Response) => {
       : eq(users.role, "student");
 
     const students = await db
-      .select({ ...userWithNamesSelect, engagementScore: userStats.engagementScore })
+      .select({
+        ...userWithNamesSelect,
+        engagementScore: userStats.engagementScore,
+        problemSolverScore: userStats.problemSolverScore,
+        endorsementScore: userStats.endorsementScore,
+        challengePoints: userStats.challengePoints,
+        totalPoints: userStats.totalPoints,
+        rankTier: userStats.rankTier,
+        streak: userStats.streak,
+      })
       .from(users)
       .leftJoin(universities, eq(users.universityId, universities.id))
       .leftJoin(majors, eq(users.majorId, majors.id))
       .leftJoin(userStats, eq(users.id, userStats.userId))
       .where(whereClause)
-      .orderBy(desc(userStats.engagementScore));
+      .orderBy(desc(userStats.totalPoints));
 
     res.json(students);
   } catch (error: any) {

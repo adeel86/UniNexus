@@ -489,6 +489,9 @@ Example responses:
 
     const assistantMessage = completion.choices[0]?.message?.content || "I'm sorry, I couldn't generate a response. Please try again.";
 
+    const oldEngagementScore = req.user!.engagementScore ?? 0;
+    const newEngagementScore = oldEngagementScore + 3;
+
     await db
       .update(userStats)
       .set({
@@ -501,8 +504,8 @@ Example responses:
       console.error("Failed to update total points:", err)
     );
 
-    // Optional: Notify user about points earned via AI interaction
-    if (req.user!.engagementScore % 10 === 0) { // Subtle notification every 10 points
+    // Notify user when they cross a 10-point engagement milestone (use updated score)
+    if (Math.floor(newEngagementScore / 10) > Math.floor(oldEngagementScore / 10)) {
        await createNotification({
          userId: req.user!.id,
          type: 'achievement',

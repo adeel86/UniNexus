@@ -409,6 +409,11 @@ router.post("/challenges/:participantId/award-rank-points", isAuthenticated, asy
     return res.status(401).send("Unauthorized");
   }
 
+  const allowedRoles = ['master_admin', 'industry_professional', 'university_admin'];
+  if (!allowedRoles.includes(req.user.role)) {
+    return res.status(403).json({ error: "Only challenge organizers and admins can award rank points" });
+  }
+
   try {
     const { participantId } = req.params;
     const { rank } = req.body;
