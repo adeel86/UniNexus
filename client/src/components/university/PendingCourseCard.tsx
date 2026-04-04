@@ -64,7 +64,7 @@ export function PendingCourseCard({
               </AvatarFallback>
             </Avatar>
             <div className="text-right">
-              <Link href={`/profile/${course.instructor.id}`}>
+              <Link href={`/profile?userId=${course.instructor.id}`}>
                 <span className="font-medium hover:underline cursor-pointer">
                   {getInstructorName(course.instructor)}
                 </span>

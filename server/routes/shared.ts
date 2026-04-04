@@ -62,7 +62,7 @@ export function requireRole(...roles: string[]) {
   };
 }
 
-router.post("/api/upload/video", requireAuth, upload.single("video"), async (req: Request, res: Response) => {
+router.post("/upload/video", requireAuth, upload.single("video"), async (req: Request, res: Response) => {
   if (!req.file) {
     console.error("Video upload failed: No file in request");
     return res.status(400).json({ error: "No video file provided" });
@@ -83,7 +83,7 @@ router.post("/api/upload/video", requireAuth, upload.single("video"), async (req
   }
 });
 
-router.post("/api/upload/images", requireAuth, upload.array("images", 5), async (req: Request, res: Response) => {
+router.post("/upload/images", requireAuth, upload.array("images", 5), async (req: Request, res: Response) => {
   if (!req.files || !Array.isArray(req.files) || req.files.length === 0) {
     return res.status(400).json({ error: "No images provided" });
   }

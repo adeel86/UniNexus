@@ -129,7 +129,7 @@ async function extractTextFromWord(buffer: Buffer, filename: string): Promise<st
 }
 
 // Personal Tutor Routes
-router.get("/api/ai/personal-tutor/materials", requireAuth, async (req: Request, res: Response) => {
+router.get("/ai/personal-tutor/materials", requireAuth, async (req: Request, res: Response) => {
   try {
     const materials = await storage.getPersonalTutorMaterials(req.user!.id);
     res.json(materials);
@@ -138,7 +138,7 @@ router.get("/api/ai/personal-tutor/materials", requireAuth, async (req: Request,
   }
 });
 
-router.post("/api/ai/personal-tutor/materials", requireAuth, upload.single('file'), async (req: Request, res: Response) => {
+router.post("/ai/personal-tutor/materials", requireAuth, upload.single('file'), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No file provided" });
@@ -192,7 +192,7 @@ router.post("/api/ai/personal-tutor/materials", requireAuth, upload.single('file
   }
 });
 
-router.delete("/api/ai/personal-tutor/materials/:materialId", requireAuth, async (req: Request, res: Response) => {
+router.delete("/ai/personal-tutor/materials/:materialId", requireAuth, async (req: Request, res: Response) => {
   try {
     const { materialId } = req.params;
     
@@ -216,7 +216,7 @@ router.delete("/api/ai/personal-tutor/materials/:materialId", requireAuth, async
   }
 });
 
-router.get("/api/ai/personal-tutor/sessions", requireAuth, async (req: Request, res: Response) => {
+router.get("/ai/personal-tutor/sessions", requireAuth, async (req: Request, res: Response) => {
   try {
     const sessions = await storage.getPersonalTutorSessions(req.user!.id);
     res.json(sessions);
@@ -225,7 +225,7 @@ router.get("/api/ai/personal-tutor/sessions", requireAuth, async (req: Request, 
   }
 });
 
-router.post("/api/ai/personal-tutor/sessions", requireAuth, async (req: Request, res: Response) => {
+router.post("/ai/personal-tutor/sessions", requireAuth, async (req: Request, res: Response) => {
   try {
     const data = insertStudentPersonalTutorSessionSchema.parse({
       ...req.body,
@@ -238,7 +238,7 @@ router.post("/api/ai/personal-tutor/sessions", requireAuth, async (req: Request,
   }
 });
 
-router.patch("/api/ai/personal-tutor/sessions/:sessionId", requireAuth, async (req: Request, res: Response) => {
+router.patch("/ai/personal-tutor/sessions/:sessionId", requireAuth, async (req: Request, res: Response) => {
   try {
     const { sessionId } = req.params;
     const { title } = req.body;
@@ -262,7 +262,7 @@ router.patch("/api/ai/personal-tutor/sessions/:sessionId", requireAuth, async (r
   }
 });
 
-router.delete("/api/ai/personal-tutor/sessions/:sessionId", requireAuth, async (req: Request, res: Response) => {
+router.delete("/ai/personal-tutor/sessions/:sessionId", requireAuth, async (req: Request, res: Response) => {
   try {
     const { sessionId } = req.params;
     
@@ -290,7 +290,7 @@ router.delete("/api/ai/personal-tutor/sessions/:sessionId", requireAuth, async (
   }
 });
 
-router.get("/api/ai/personal-tutor/sessions/:sessionId/messages", requireAuth, async (req: Request, res: Response) => {
+router.get("/ai/personal-tutor/sessions/:sessionId/messages", requireAuth, async (req: Request, res: Response) => {
   try {
     const messages = await storage.getPersonalTutorMessages(req.params.sessionId);
     res.json(messages);
@@ -299,7 +299,7 @@ router.get("/api/ai/personal-tutor/sessions/:sessionId/messages", requireAuth, a
   }
 });
 
-router.post("/api/ai/personal-tutor/chat", requireAuth, async (req: Request, res: Response) => {
+router.post("/ai/personal-tutor/chat", requireAuth, async (req: Request, res: Response) => {
   try {
     const { sessionId, message, mode } = req.body;
     if (!sessionId || !message) {
@@ -385,7 +385,7 @@ ${materialsContext}`;
   }
 });
 
-router.post("/api/careerbot/chat", requireAuth, async (req: Request, res: Response) => {
+router.post("/careerbot/chat", requireAuth, async (req: Request, res: Response) => {
   try {
     const { message } = req.body;
 
@@ -522,7 +522,7 @@ Example responses:
   }
 });
 
-router.get("/api/ai/suggest-posts", requireAuth, async (req: Request, res: Response) => {
+router.get("/ai/suggest-posts", requireAuth, async (req: Request, res: Response) => {
   try {
     if (!openai) {
       return res.status(503).json({ error: "AI post suggestions are not available. Please configure the OpenAI API key." });
@@ -576,7 +576,7 @@ Format your response as a JSON array of objects with fields: category (academic/
   }
 });
 
-router.post("/api/ai/moderate-content", requireAuth, async (req: Request, res: Response) => {
+router.post("/ai/moderate-content", requireAuth, async (req: Request, res: Response) => {
   try {
     const { content } = req.body;
 
@@ -633,7 +633,7 @@ Be lenient with academic discussions, debates, and Gen Z slang. Only flag clearl
   }
 });
 
-router.get("/api/ai/career-summary/:userId", requireAuth, requireRole('teacher', 'university_admin', 'master_admin'), async (req: Request, res: Response) => {
+router.get("/ai/career-summary/:userId", requireAuth, requireRole('teacher', 'university_admin', 'master_admin'), async (req: Request, res: Response) => {
   try {
     if (!openai) {
       return res.status(503).json({ 
@@ -771,7 +771,7 @@ Make it personalized, constructive, and actionable. Use a professional but encou
   }
 });
 
-router.post("/api/ai/moderate-image", requireAuth, async (req: Request, res: Response) => {
+router.post("/ai/moderate-image", requireAuth, async (req: Request, res: Response) => {
   try {
     if (!openai) {
       return res.status(503).json({ 
@@ -833,7 +833,7 @@ async function getAiChatbot() {
   return aiChatbotModule;
 }
 
-router.post("/api/ai/course-chat", requireAuth, async (req: Request, res: Response) => {
+router.post("/ai/course-chat", requireAuth, async (req: Request, res: Response) => {
   try {
     const { courseId, message, sessionId } = req.body;
 
@@ -879,7 +879,7 @@ router.post("/api/ai/course-chat", requireAuth, async (req: Request, res: Respon
   }
 });
 
-router.get("/api/ai/course-chat/:courseId/history", requireAuth, async (req: Request, res: Response) => {
+router.get("/ai/course-chat/:courseId/history", requireAuth, async (req: Request, res: Response) => {
   try {
     const { courseId } = req.params;
     const aiChatbot = await getAiChatbot();
@@ -896,7 +896,7 @@ router.get("/api/ai/course-chat/:courseId/history", requireAuth, async (req: Req
   }
 });
 
-router.get("/api/ai/course-chat/session/:sessionId", requireAuth, async (req: Request, res: Response) => {
+router.get("/ai/course-chat/session/:sessionId", requireAuth, async (req: Request, res: Response) => {
   try {
     const { sessionId } = req.params;
     const aiChatbot = await getAiChatbot();
@@ -907,7 +907,7 @@ router.get("/api/ai/course-chat/session/:sessionId", requireAuth, async (req: Re
   }
 });
 
-router.get("/api/ai/course-chat/:courseId/status", requireAuth, async (req: Request, res: Response) => {
+router.get("/ai/course-chat/:courseId/status", requireAuth, async (req: Request, res: Response) => {
   try {
     const { courseId } = req.params;
     const aiChatbot = await getAiChatbot();
@@ -932,7 +932,7 @@ router.get("/api/ai/course-chat/:courseId/status", requireAuth, async (req: Requ
   }
 });
 
-router.post("/api/ai/course-chat/upload", requireAuth, upload.single('file'), async (req: Request, res: Response) => {
+router.post("/ai/course-chat/upload", requireAuth, upload.single('file'), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No file provided" });
@@ -981,7 +981,7 @@ router.post("/api/ai/course-chat/upload", requireAuth, upload.single('file'), as
   }
 });
 
-router.delete("/api/ai/course-chat/session/:sessionId", requireAuth, async (req: Request, res: Response) => {
+router.delete("/ai/course-chat/session/:sessionId", requireAuth, async (req: Request, res: Response) => {
   try {
     const { sessionId } = req.params;
     await storage.deleteAiChatSession(sessionId);
@@ -992,7 +992,7 @@ router.delete("/api/ai/course-chat/session/:sessionId", requireAuth, async (req:
   }
 });
 
-router.get("/api/ai/course-chat/:courseId/sessions", requireAuth, async (req: Request, res: Response) => {
+router.get("/ai/course-chat/:courseId/sessions", requireAuth, async (req: Request, res: Response) => {
   try {
     const { courseId } = req.params;
     const aiChatbot = await getAiChatbot();
@@ -1003,101 +1003,6 @@ router.get("/api/ai/course-chat/:courseId/sessions", requireAuth, async (req: Re
     const sessions = await aiChatbot.getUserSessions(req.user!.id, courseId);
     res.json(sessions);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-router.post("/api/teacher-ai/chat", requireAuth, async (req: Request, res: Response) => {
-  try {
-    const { teacherId, courseId, message } = req.body;
-
-    if (!message) {
-      return res.status(400).json({ error: "Message is required" });
-    }
-
-    let teacherMaterials;
-    if (courseId) {
-      teacherMaterials = await db
-        .select()
-        .from(teacherContent)
-        .where(
-          and(
-            eq(teacherContent.courseId, courseId),
-            eq(teacherContent.isPublic, true)
-          )
-        );
-    } else if (teacherId) {
-      teacherMaterials = await db
-        .select()
-        .from(teacherContent)
-        .where(
-          and(
-            eq(teacherContent.teacherId, teacherId),
-            eq(teacherContent.isPublic, true)
-          )
-        );
-    } else {
-      return res.status(400).json({ error: "Either teacherId or courseId is required" });
-    }
-
-    const [teacher] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, teacherId || teacherMaterials[0]?.teacherId));
-
-    if (!teacher) {
-      return res.status(404).json({ error: "Teacher not found" });
-    }
-
-    const materialsContext = teacherMaterials
-      .map((material) => {
-        let context = `Material: ${material.title}\n`;
-        if (material.description) context += `Description: ${material.description}\n`;
-        if (material.textContent) context += `Content: ${material.textContent}\n`;
-        if (material.tags && material.tags.length > 0) context += `Tags: ${material.tags.join(', ')}\n`;
-        return context;
-      })
-      .join('\n---\n');
-
-    const systemPrompt = `You are an AI teaching assistant for ${teacher.firstName} ${teacher.lastName}'s class. 
-Your role is to help students understand the course materials by answering questions based ONLY on the provided materials.
-
-CRITICAL RULES:
-- Answer questions using ONLY the information from the teacher's materials provided below
-- If the answer isn't in the materials, clearly say "I don't have that information in the course materials"
-- Never make up or hallucinate information beyond what's provided
-- Cite specific materials when answering (e.g., "According to the lecture notes on...")
-- Use the teacher's terminology and teaching style
-- Be helpful, clear, and encourage learning
-
-TEACHER'S MATERIALS:
-${materialsContext || 'No materials have been uploaded yet. Please ask the teacher to upload course materials.'}`;
-
-    if (!process.env.OPENAI_API_KEY) {
-      return res.status(500).json({ error: "OpenAI API key not configured" });
-    }
-
-    const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
-    const completion = await openaiClient.chat.completions.create({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: message }
-      ],
-      temperature: 0.7,
-      max_tokens: 1000,
-    });
-
-    const aiResponse = completion.choices[0]?.message?.content || "I couldn't generate a response. Please try again.";
-
-    res.json({ 
-      response: aiResponse,
-      materialsUsed: teacherMaterials.length,
-      teacherName: `${teacher.firstName} ${teacher.lastName}`
-    });
-  } catch (error: any) {
-    console.error("Teacher AI chat error:", error);
     res.status(500).json({ error: error.message });
   }
 });
