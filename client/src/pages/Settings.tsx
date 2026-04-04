@@ -45,8 +45,6 @@ export default function Settings() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [isTwoFAEnabled, setIsTwoFAEnabled] = useState(false);
-  const [isEnabling2FA, setIsEnabling2FA] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
@@ -140,9 +138,7 @@ export default function Settings() {
         firstName,
         lastName,
         email,
-        university: university?.name || null,
         universityId: university?.id || null,
-        major: major?.name || null,
         majorId: major?.id || null,
       });
 
@@ -270,28 +266,6 @@ export default function Settings() {
       });
     } finally {
       setIsChangingPassword(false);
-    }
-  };
-
-  const handleEnable2FA = async () => {
-    setIsEnabling2FA(true);
-    try {
-      const response = await apiRequest("POST", "/api/auth/2fa/enable", {});
-      
-      // Handle the response - typically would show QR code modal
-      toast({
-        title: "2FA Setup",
-        description: "Two-factor authentication has been enabled. Check your authenticator app.",
-      });
-      setIsTwoFAEnabled(true);
-    } catch (error: any) {
-      toast({
-        title: "2FA setup failed",
-        description: error.message || "Failed to enable two-factor authentication.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsEnabling2FA(false);
     }
   };
 
@@ -516,7 +490,8 @@ export default function Settings() {
                 </div>
                 <Switch
                   id="profile-visibility"
-                  defaultChecked={true}
+                  checked={publicProfile}
+                  onCheckedChange={setPublicProfile}
                   data-testid="switch-profile-visibility"
                 />
               </div>
@@ -532,7 +507,8 @@ export default function Settings() {
                 </div>
                 <Switch
                   id="show-email"
-                  defaultChecked={false}
+                  checked={showEmail}
+                  onCheckedChange={setShowEmail}
                   data-testid="switch-show-email"
                 />
               </div>
@@ -548,7 +524,8 @@ export default function Settings() {
                 </div>
                 <Switch
                   id="show-activity"
-                  defaultChecked={true}
+                  checked={showActivity}
+                  onCheckedChange={setShowActivity}
                   data-testid="switch-show-activity"
                 />
               </div>
@@ -617,23 +594,6 @@ export default function Settings() {
               >
                 {isChangingPassword ? "Changing..." : "Change Password"}
               </Button>
-
-              <Separator className="my-6" />
-
-              {/* <div className="space-y-4">
-                <h3 className="font-semibold">Two-Factor Authentication</h3>
-                <p className="text-sm text-muted-foreground">
-                  Add an extra layer of security to your account
-                </p>
-                <Button 
-                  variant="outline" 
-                  onClick={handleEnable2FA}
-                  disabled={isEnabling2FA || isTwoFAEnabled}
-                  data-testid="button-enable-2fa"
-                >
-                  {isTwoFAEnabled ? "2FA Enabled" : isEnabling2FA ? "Enabling..." : "Enable Two-Factor Authentication"}
-                </Button> 
-              </div> */}
 
               <Separator className="my-6" />
 

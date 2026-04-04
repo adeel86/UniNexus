@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { eq, desc, and, or, sql, notInArray } from "drizzle-orm";
+import { eq, desc, and, or, sql, notInArray, ilike } from "drizzle-orm";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -8,6 +8,7 @@ import { db } from "../db";
 import { storage as dbStorage } from "../storage";
 import { uploadToCloud } from "../cloudStorage";
 import { requireAuth } from "./shared";
+import { userWithNamesSelect } from "./userSelect";
 import { recalculateUserRank } from "../pointsHelper";
 import {
   users,
@@ -36,30 +37,6 @@ import {
   insertStudentCourseSchema,
   insertUserProfileSchema,
 } from "@shared/schema";
-
-const userWithNamesSelect = {
-  id: users.id,
-  firebaseUid: users.firebaseUid,
-  email: users.email,
-  firstName: users.firstName,
-  lastName: users.lastName,
-  displayName: users.displayName,
-  profileImageUrl: users.profileImageUrl,
-  role: users.role,
-  bio: users.bio,
-  universityId: users.universityId,
-  majorId: users.majorId,
-  graduationYear: users.graduationYear,
-  interests: users.interests,
-  emailVerified: users.emailVerified,
-  verificationSentAt: users.verificationSentAt,
-  isVerified: users.isVerified,
-  verifiedAt: users.verifiedAt,
-  createdAt: users.createdAt,
-  updatedAt: users.updatedAt,
-  university: universities.name,
-  major: majors.name,
-};
 
 const router = Router();
 
@@ -200,9 +177,9 @@ router.get("/students", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-router.get("/teachers/university/:university", requireAuth, async (req: Request, res: Response) => {
+router.get("/teachers/university/:universityId", requireAuth, async (req: Request, res: Response) => {
   try {
-    const { university } = req.params;
+    const { universityId } = req.params;
 
     const teachers = await db
       .select(userWithNamesSelect)
@@ -212,7 +189,7 @@ router.get("/teachers/university/:university", requireAuth, async (req: Request,
       .where(
         and(
           eq(users.role, "teacher"),
-          eq(universities.name, university)
+          eq(users.universityId, universityId)
         )
       )
       .orderBy(users.lastName, users.firstName);
@@ -433,12 +410,47 @@ router.get("/users/preferences", requireAuth, async (req: Request, res: Response
   }
 });
 
+// Helper: resolve a university value (UUID or name string) to a database UUID
+async function resolveUniversityId(input: string | null | undefined): Promise<string | null> {
+  if (!input) return null;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (uuidRegex.test(input)) return input;
+  // Treat as name — look up or create
+  const [existing] = await db.select().from(universities).where(ilike(universities.name, input)).limit(1);
+  if (existing) return existing.id;
+  const [created] = await db.insert(universities).values({ name: input }).returning();
+  return created.id;
+}
+
+// Helper: resolve a major value (UUID or name string) to a database UUID
+async function resolveMajorId(input: string | null | undefined): Promise<string | null> {
+  if (!input) return null;
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (uuidRegex.test(input)) return input;
+  const [existing] = await db.select().from(majors).where(ilike(majors.name, input)).limit(1);
+  if (existing) return existing.id;
+  const [created] = await db.insert(majors).values({ name: input }).returning();
+  return created.id;
+}
+
 // Update profile information
 router.patch("/users/profile", requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
 
-    const { firstName, lastName, email, universityId, majorId } = req.body;
+    const {
+      firstName,
+      lastName,
+      email,
+      universityId: rawUniversityId,
+      majorId: rawMajorId,
+      university: universityName,
+      major: majorName,
+    } = req.body;
+
+    // Resolve university: prefer the explicit ID field, fall back to name
+    const resolvedUniversityId = await resolveUniversityId(rawUniversityId ?? universityName ?? null);
+    const resolvedMajorId = await resolveMajorId(rawMajorId ?? majorName ?? null);
 
     const [updated] = await db
       .update(users)
@@ -446,8 +458,8 @@ router.patch("/users/profile", requireAuth, async (req: Request, res: Response) 
         firstName,
         lastName,
         email,
-        universityId: universityId ?? undefined,
-        majorId: majorId ?? undefined,
+        universityId: resolvedUniversityId,
+        majorId: resolvedMajorId,
         updatedAt: new Date(),
       })
       .where(eq(users.id, userId))

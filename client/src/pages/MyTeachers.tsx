@@ -10,10 +10,10 @@ export default function MyTeachers() {
   const { userData: user } = useAuth();
 
   const { data: teachers = [], isLoading } = useQuery<User[]>({
-    queryKey: ["/api/teachers/university", user?.university],
+    queryKey: ["/api/teachers/university", user?.universityId],
     queryFn: async () => {
-      if (!user?.university) return [];
-      const res = await fetch(`/api/teachers/university/${encodeURIComponent(user.university)}`, {
+      if (!user?.universityId) return [];
+      const res = await fetch(`/api/teachers/university/${encodeURIComponent(user.universityId)}`, {
         credentials: "include",
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('dev_token')}`,
@@ -22,7 +22,7 @@ export default function MyTeachers() {
       if (!res.ok) throw new Error("Failed to fetch teachers");
       return res.json();
     },
-    enabled: !!user?.university,
+    enabled: !!user?.universityId,
   });
 
   if (!user) {
@@ -37,7 +37,7 @@ export default function MyTeachers() {
     );
   }
 
-  if (!user.university) {
+  if (!user.universityId) {
     return (
       <div className="container mx-auto py-8 px-4">
         <Card>

@@ -12,29 +12,7 @@ import {
   notifications,
 } from "@shared/schema";
 import { updateUserStreakForActivity } from "../streakHelper";
-const userWithNamesSelect = {
-  id: users.id,
-  firebaseUid: users.firebaseUid,
-  email: users.email,
-  firstName: users.firstName,
-  lastName: users.lastName,
-  displayName: users.displayName,
-  profileImageUrl: users.profileImageUrl,
-  role: users.role,
-  bio: users.bio,
-  universityId: users.universityId,
-  majorId: users.majorId,
-  graduationYear: users.graduationYear,
-  interests: users.interests,
-  emailVerified: users.emailVerified,
-  verificationSentAt: users.verificationSentAt,
-  isVerified: users.isVerified,
-  verifiedAt: users.verifiedAt,
-  createdAt: users.createdAt,
-  updatedAt: users.updatedAt,
-  university: universities.name,
-  major: majors.name,
-};
+import { userWithNamesSelect } from "./userSelect";
 
 const router = Router();
 
