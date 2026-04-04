@@ -74,7 +74,6 @@ export default function Challenges() {
       queryClient.invalidateQueries({ queryKey: ["/api/challenges"] });
       queryClient.invalidateQueries({ queryKey: ["/api/challenges/my-participations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/me"] });
       toast({
         title: "Challenge Joined! +5 Challenge Points",
         description: "You've joined the challenge and earned points! Submit your solution to earn +25 more Challenge Points.",
@@ -97,7 +96,6 @@ export default function Challenges() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/challenges/my-participations"] });
       queryClient.invalidateQueries({ queryKey: ["/api/notifications"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/me"] });
       setSubmissionUrl("");
       setSelectedChallenge(null);
       toast({

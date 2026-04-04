@@ -178,35 +178,6 @@ router.get("/users/:userId/challenge-milestones", isAuthenticated, async (req: R
   }
 });
 
-// Get all challenges with organizer info
-router.get("/challenges-list", async (req: Request, res: Response) => {
-  try {
-    const allChallenges = await db
-      .select({
-        id: challenges.id,
-        title: challenges.title,
-        description: challenges.description,
-        organizerId: challenges.organizerId,
-        category: challenges.category,
-        difficulty: challenges.difficulty,
-        prizes: challenges.prizes,
-        startDate: challenges.startDate,
-        endDate: challenges.endDate,
-        participantCount: challenges.participantCount,
-        status: challenges.status,
-        createdAt: challenges.createdAt,
-        organizer: users,
-      })
-      .from(challenges)
-      .leftJoin(users, eq(challenges.organizerId, users.id))
-      .orderBy(desc(challenges.createdAt));
-
-    res.json(allChallenges);
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
 // Join a challenge
 router.post("/challenges/:challengeId/join", isAuthenticated, async (req: Request, res: Response) => {
   if (!req.user) {

@@ -89,12 +89,9 @@ export default function ProblemSolving() {
 
   const askQuestionMutation = useMutation({
     mutationFn: async () => {
-      // Validate that course_id is provided and valid (in a real app, this would come from a selected course context)
-      // For now, ensuring we don't send an empty courseId if the schema requires it
       const response = await apiRequest("POST", "/api/qa/questions", {
         title: newQuestionTitle,
         content: newQuestionContent,
-        courseId: "default-course-id", // This should be dynamically set based on user's enrolled courses
       });
       return await response.json();
     },

@@ -101,7 +101,29 @@ router.get("/admin/users", isAuthenticated, async (req: AuthRequest, res: Respon
   }
 
   try {
-    const allUsers = await db.select().from(users).orderBy(desc(users.createdAt));
+    const allUsers = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        username: users.username,
+        role: users.role,
+        university: users.university,
+        profileImageUrl: users.profileImageUrl,
+        bio: users.bio,
+        createdAt: users.createdAt,
+        isActive: users.isActive,
+        engagementScore: userStats.engagementScore,
+        problemSolverScore: userStats.problemSolverScore,
+        challengePoints: userStats.challengePoints,
+        totalPoints: userStats.totalPoints,
+        rankTier: userStats.rankTier,
+        streak: userStats.streak,
+      })
+      .from(users)
+      .leftJoin(userStats, eq(users.id, userStats.userId))
+      .orderBy(desc(users.createdAt));
     res.json(allUsers);
   } catch (error: any) {
     res.status(500).json({ error: error.message });

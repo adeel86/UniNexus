@@ -1,20 +1,17 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery } from "@tanstack/react-query";
-import type { Post, User, Comment, Reaction, UserBadge, Badge, Challenge } from "@shared/schema";
+import type { Post, User, Comment, Reaction } from "@shared/schema";
 import { PostCard } from "@/components/PostCard";
 import { CreatePostModal } from "@/components/CreatePostModal";
 import { SuggestedPosts } from "@/components/SuggestedPosts";
 import { TrendingWidget } from "@/components/TrendingWidget";
 import { RankTierBadge } from "@/components/RankTierBadge";
-import { ChallengeMilestonesCard } from "@/components/ChallengeMilestonesCard";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, TrendingUp, Users, Target, Sparkles, MessageCircle, Trophy, Play } from "lucide-react";
 import { useState } from "react";
-import { Badge as BadgePill } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { BadgeIcon } from "@/components/BadgeIcon";
 import { Link } from "wouter";
 
 type PostWithAuthor = Post & {
@@ -56,15 +53,6 @@ export default function StudentHome() {
 
   const posts = feedType === 'personalized' ? personalizedPosts : myPosts;
   const isLoading = feedType === 'personalized' ? isLoadingPersonalized : isLoadingMyPosts;
-
-  const { data: userBadges = [] } = useQuery<(UserBadge & { badge: Badge })[]>({
-    queryKey: ["/api/user-badges", user?.id],
-    enabled: !!user,
-  });
-
-  const { data: challenges = [] } = useQuery<Challenge[]>({
-    queryKey: ["/api/challenges", "active"],
-  });
 
   const categories = [
     { value: "all", label: "All Posts", icon: TrendingUp },
@@ -202,9 +190,6 @@ export default function StudentHome() {
               </Link>
             </div>
           </Card>
-
-          {/* Challenge Journey - Hidden */}
-          {/* {user?.id && <ChallengeMilestonesCard userId={user.id} />} */}
 
           {/* Trending Posts */}
           <TrendingWidget />
