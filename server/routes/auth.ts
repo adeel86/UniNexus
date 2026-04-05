@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { eq } from "drizzle-orm";
+import { eq, ilike } from "drizzle-orm";
 import jwt from "jsonwebtoken";
 import { db } from "../db";
 import { users, universities, majors } from "@shared/schema";
@@ -140,7 +140,7 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
           const [existingByName] = await db
             .select()
             .from(universities)
-            .where(eq(universities.name, univName))
+            .where(ilike(universities.name, univName))
             .limit(1);
           if (existingByName) {
             universityId = existingByName.id;
@@ -153,10 +153,27 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
       const [autoUniv] = await db
         .select()
         .from(universities)
-        .where(eq(universities.name, autoUniversity))
+        .where(ilike(universities.name, autoUniversity))
         .limit(1);
       if (autoUniv) {
         universityId = autoUniv.id;
+      } else {
+        // Auto-detected university isn't in the DB yet — insert it
+        const [inserted] = await db
+          .insert(universities)
+          .values({ name: autoUniversity, location: null })
+          .onConflictDoNothing()
+          .returning();
+        if (inserted) {
+          universityId = inserted.id;
+        } else {
+          const [found] = await db
+            .select()
+            .from(universities)
+            .where(ilike(universities.name, autoUniversity))
+            .limit(1);
+          if (found) universityId = found.id;
+        }
       }
     }
 
@@ -190,7 +207,7 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
           const [existingByName] = await db
             .select()
             .from(majors)
-            .where(eq(majors.name, majName))
+            .where(ilike(majors.name, majName))
             .limit(1);
           if (existingByName) {
             majorId = existingByName.id;

@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { eq, desc, and, sql, isNull } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 import { db } from "../db";
 import { isAuthenticated } from "../firebaseAuth";
 import { updateTotalPointsAfterScoreChange } from "../pointsHelper";

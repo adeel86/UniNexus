@@ -4,8 +4,6 @@ import {
   and,
   sql,
   desc,
-  isNull,
-  notExists,
 } from "drizzle-orm";
 import {
   users,

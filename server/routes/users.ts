@@ -3,7 +3,6 @@ import { eq, desc, and, or, sql, notInArray, ilike } from "drizzle-orm";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import admin from "firebase-admin";
 import { db } from "../db";
 import { storage as dbStorage } from "../storage";
 import { uploadToCloud } from "../cloudStorage";
@@ -415,11 +414,14 @@ async function resolveUniversityId(input: string | null | undefined): Promise<st
   if (!input) return null;
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (uuidRegex.test(input)) return input;
-  // Treat as name — look up or create
+  // Treat as name — look up (case-insensitive) or create
   const [existing] = await db.select().from(universities).where(ilike(universities.name, input)).limit(1);
   if (existing) return existing.id;
-  const [created] = await db.insert(universities).values({ name: input }).returning();
-  return created.id;
+  const [created] = await db.insert(universities).values({ name: input }).onConflictDoNothing().returning();
+  if (created) return created.id;
+  // Race condition: another request just inserted it — look it up again
+  const [found] = await db.select().from(universities).where(ilike(universities.name, input)).limit(1);
+  return found?.id ?? null;
 }
 
 // Helper: resolve a major value (UUID or name string) to a database UUID
@@ -427,10 +429,14 @@ async function resolveMajorId(input: string | null | undefined): Promise<string 
   if (!input) return null;
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (uuidRegex.test(input)) return input;
+  // Treat as name — look up (case-insensitive) or create
   const [existing] = await db.select().from(majors).where(ilike(majors.name, input)).limit(1);
   if (existing) return existing.id;
-  const [created] = await db.insert(majors).values({ name: input }).returning();
-  return created.id;
+  const [created] = await db.insert(majors).values({ name: input }).onConflictDoNothing().returning();
+  if (created) return created.id;
+  // Race condition: another request just inserted it — look it up again
+  const [found] = await db.select().from(majors).where(ilike(majors.name, input)).limit(1);
+  return found?.id ?? null;
 }
 
 // Update profile information
@@ -452,7 +458,7 @@ router.patch("/users/profile", requireAuth, async (req: Request, res: Response) 
     const resolvedUniversityId = await resolveUniversityId(rawUniversityId ?? universityName ?? null);
     const resolvedMajorId = await resolveMajorId(rawMajorId ?? majorName ?? null);
 
-    const [updated] = await db
+    await db
       .update(users)
       .set({
         firstName,
@@ -462,8 +468,16 @@ router.patch("/users/profile", requireAuth, async (req: Request, res: Response) 
         majorId: resolvedMajorId,
         updatedAt: new Date(),
       })
+      .where(eq(users.id, userId));
+
+    // Return the full user including resolved university/major names via JOIN
+    const [updated] = await db
+      .select(userWithNamesSelect)
+      .from(users)
+      .leftJoin(universities, eq(users.universityId, universities.id))
+      .leftJoin(majors, eq(users.majorId, majors.id))
       .where(eq(users.id, userId))
-      .returning();
+      .limit(1);
 
     res.json(updated);
   } catch (error: any) {

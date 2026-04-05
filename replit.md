@@ -191,3 +191,15 @@ Preferred communication style: Simple, everyday language.
   - Notifications referencing the course
 - **UI**: Delete button with confirmation dialog in TeacherValidatedCoursesSection component
 - **Authorization**: Only the course instructor can delete their own courses
+
+## Production Audit (2026-04-04)
+- Removed unused `import admin from "firebase-admin"` from `server/routes/users.ts` (file uses dynamic `firebaseAuth` import instead)
+- Removed unused `isNull` from drizzle-orm import in `server/routes/qa.ts`
+- Combined duplicate drizzle-orm imports in `server/routes/ai.ts` (was split across two lines, now one combined import)
+- Fixed `server/routes/admin.ts` Firebase user deletion to use `firebaseAdmin` from `firebaseAuth.ts` instead of the raw `admin` SDK object, consistent with the pattern in `users.ts` and safe in dev mode
+- Removed unused `isNull` and `notExists` from `server/storage.ts` drizzle-orm import (neither was referenced in the file body)
+- Deleted `client/src/components/ChallengeMilestonesCard.tsx` — a 177-line component that was exported but never imported anywhere in the codebase
+- TypeScript check (`npx tsc --noEmit`) passes with zero errors after all changes
+- No browser console errors; all server-side logs are appropriate operational output
+- All 100+ server routes cross-checked against client API calls — every client call has a matching server endpoint; no broken routes found
+- All pages imported in `App.tsx` verified to exist as files; all custom hooks verified to be actively used

@@ -79,7 +79,25 @@ export default function Settings() {
     userPreferences?.showActivity ?? true
   );
 
-  // Sync preference states when data loads from server
+  // Sync profile form fields when userData loads or changes (e.g. after refresh)
+  useEffect(() => {
+    if (userData) {
+      setFirstName(userData.firstName || "");
+      setLastName(userData.lastName || "");
+      setEmail(userData.email || "");
+      setUniversity(
+        userData.university
+          ? { id: userData.universityId || userData.university, name: userData.university }
+          : null
+      );
+      setMajor(
+        userData.major
+          ? { id: userData.majorId || userData.major, name: userData.major }
+          : null
+      );
+    }
+  }, [userData?.id]);
+
   useEffect(() => {
     if (userPreferences) {
       setEmailNotifications(userPreferences.emailNotifications ?? true);

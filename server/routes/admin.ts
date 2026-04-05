@@ -1,9 +1,8 @@
 import express, { Request, Response } from "express";
 import { eq, desc, sql, and, or } from "drizzle-orm";
-import admin from "firebase-admin";
 import { db } from "../db";
 import { storage as dbStorage } from "../storage";
-import { isAuthenticated, type AuthRequest } from "../firebaseAuth";
+import { isAuthenticated, type AuthRequest, firebaseAdmin } from "../firebaseAuth";
 import {
   users,
   userStats,
@@ -42,9 +41,9 @@ router.delete("/admin/users/:userId", isAuthenticated, async (req: AuthRequest, 
     }
 
     // Delete from Firebase
-    if (user.firebaseUid) {
+    if (user.firebaseUid && firebaseAdmin) {
       try {
-        await admin.auth().deleteUser(user.firebaseUid);
+        await firebaseAdmin.auth().deleteUser(user.firebaseUid);
       } catch (fbError: any) {
         console.warn("Firebase user deletion failed:", fbError.message);
       }
@@ -78,9 +77,9 @@ router.delete("/university/users/:userId", isAuthenticated, async (req: AuthRequ
     }
 
     // Delete from Firebase
-    if (user.firebaseUid) {
+    if (user.firebaseUid && firebaseAdmin) {
       try {
-        await admin.auth().deleteUser(user.firebaseUid);
+        await firebaseAdmin.auth().deleteUser(user.firebaseUid);
       } catch (fbError: any) {
         console.warn("Firebase user deletion failed:", fbError.message);
       }

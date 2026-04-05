@@ -1,6 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { eq, desc, and } from "drizzle-orm";
-import { sql } from "drizzle-orm";
+import { eq, desc, and, sql } from "drizzle-orm";
 import { db } from "../db";
 import { updateTotalPointsAfterScoreChange } from "../pointsHelper";
 import {
