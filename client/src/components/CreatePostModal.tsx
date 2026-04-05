@@ -158,7 +158,8 @@ export function CreatePostModal({
           if (typeof queryKey === 'string') {
             return queryKey.startsWith('/api/posts') || 
                    queryKey.startsWith('/api/feed/personalized') || 
-                   queryKey.startsWith('/api/feed/following');
+                   queryKey.startsWith('/api/feed/following') ||
+                   queryKey.startsWith('/api/feed/trending');
           }
           return false;
         }

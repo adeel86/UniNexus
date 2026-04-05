@@ -88,6 +88,12 @@ const userWithNamesSelect = {
   updatedAt: users.updatedAt,
   university: universities.name,
   major: majors.name,
+  totalPoints: userStats.totalPoints,
+  rankTier: userStats.rankTier,
+  engagementScore: userStats.engagementScore,
+  problemSolverScore: userStats.problemSolverScore,
+  endorsementScore: userStats.endorsementScore,
+  challengePoints: userStats.challengePoints,
 };
 
 // Interface for storage operations
@@ -149,6 +155,7 @@ export class DatabaseStorage implements IStorage {
       .from(users)
       .leftJoin(universities, eq(users.universityId, universities.id))
       .leftJoin(majors, eq(users.majorId, majors.id))
+      .leftJoin(userStats, eq(users.id, userStats.userId))
       .where(eq(users.id, id))
       .limit(1);
     if (user) return user as User;
@@ -161,6 +168,7 @@ export class DatabaseStorage implements IStorage {
       .from(users)
       .leftJoin(universities, eq(users.universityId, universities.id))
       .leftJoin(majors, eq(users.majorId, majors.id))
+      .leftJoin(userStats, eq(users.id, userStats.userId))
       .where(eq(users.firebaseUid, firebaseUid))
       .limit(1);
     return user as User | undefined;
@@ -172,6 +180,7 @@ export class DatabaseStorage implements IStorage {
       .from(users)
       .leftJoin(universities, eq(users.universityId, universities.id))
       .leftJoin(majors, eq(users.majorId, majors.id))
+      .leftJoin(userStats, eq(users.id, userStats.userId))
       .where(eq(users.email, email))
       .limit(1);
     return user as User | undefined;

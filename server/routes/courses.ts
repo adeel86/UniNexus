@@ -553,7 +553,7 @@ router.post("/courses/:id/university-validation", isAuthenticated, async (req: R
   }
 });
 
-router.get("/teacher/my-students", async (req: Request, res: Response) => {
+router.get("/teacher/my-students", isAuthenticated, async (req: Request, res: Response) => {
   if (!req.user) return res.status(401).send("Unauthorized");
   if (req.user.role !== "teacher" && req.user.role !== "master_admin") {
     return res.status(403).json({ error: "Only teachers can view their students" });
@@ -567,7 +567,7 @@ router.get("/teacher/my-students", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/student/my-teachers", async (req: Request, res: Response) => {
+router.get("/student/my-teachers", isAuthenticated, async (req: Request, res: Response) => {
   if (!req.user) return res.status(401).send("Unauthorized");
 
   try {
@@ -578,7 +578,7 @@ router.get("/student/my-teachers", async (req: Request, res: Response) => {
   }
 });
 
-router.get("/teachers/:teacherId/validated-courses", async (req: Request, res: Response) => {
+router.get("/teachers/:teacherId/validated-courses", isAuthenticated, async (req: Request, res: Response) => {
   try {
     const teacherId = req.params.teacherId;
     const validatedCoursesData = await db

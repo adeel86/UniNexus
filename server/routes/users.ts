@@ -470,12 +470,22 @@ router.patch("/users/profile", requireAuth, async (req: Request, res: Response) 
       })
       .where(eq(users.id, userId));
 
-    // Return the full user including resolved university/major names via JOIN
+    // Return the full user including resolved university/major names and stats via JOIN
     const [updated] = await db
-      .select(userWithNamesSelect)
+      .select({
+        ...userWithNamesSelect,
+        totalPoints: userStats.totalPoints,
+        rankTier: userStats.rankTier,
+        engagementScore: userStats.engagementScore,
+        problemSolverScore: userStats.problemSolverScore,
+        endorsementScore: userStats.endorsementScore,
+        challengePoints: userStats.challengePoints,
+        streak: userStats.streak,
+      })
       .from(users)
       .leftJoin(universities, eq(users.universityId, universities.id))
       .leftJoin(majors, eq(users.majorId, majors.id))
+      .leftJoin(userStats, eq(users.id, userStats.userId))
       .where(eq(users.id, userId))
       .limit(1);
 
@@ -575,14 +585,24 @@ router.patch("/users/preferences/privacy", requireAuth, async (req: Request, res
   }
 });
 
-router.get("/users/:userId", async (req: Request, res: Response) => {
+router.get("/users/:userId", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const [user] = await db
-      .select(userWithNamesSelect)
+      .select({
+        ...userWithNamesSelect,
+        totalPoints: userStats.totalPoints,
+        rankTier: userStats.rankTier,
+        engagementScore: userStats.engagementScore,
+        problemSolverScore: userStats.problemSolverScore,
+        endorsementScore: userStats.endorsementScore,
+        challengePoints: userStats.challengePoints,
+        streak: userStats.streak,
+      })
       .from(users)
       .leftJoin(universities, eq(users.universityId, universities.id))
       .leftJoin(majors, eq(users.majorId, majors.id))
+      .leftJoin(userStats, eq(users.id, userStats.userId))
       .where(eq(users.id, userId))
       .limit(1);
 

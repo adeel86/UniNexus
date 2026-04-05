@@ -2,7 +2,7 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import type { User, Post } from "@shared/schema";
-import { Users, FileText, Shield, TrendingUp, AlertTriangle, CheckCircle, Trash2 } from "lucide-react";
+import { Users, FileText, Shield, TrendingUp, CheckCircle, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/UserAvatar";
@@ -94,10 +94,12 @@ export default function MasterAdminDashboard() {
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">Flagged Content</p>
-              <p className="text-3xl font-bold">0</p>
+              <p className="text-sm text-muted-foreground">Avg Engagement</p>
+              <p className="text-3xl font-bold">
+                {Math.round(users.reduce((sum, u: any) => sum + (u.engagementScore || 0), 0) / Math.max(users.length, 1))}
+              </p>
             </div>
-            <AlertTriangle className="h-8 w-8 text-yellow-600" />
+            <TrendingUp className="h-8 w-8 text-yellow-600" />
           </div>
         </Card>
 

@@ -94,29 +94,27 @@ router.get("/qa/questions/:questionId", isAuthenticated, async (req: Request, re
       .limit(1);
 
     const answers = await db
-      .select()
+      .select({
+        reply: discussionReplies,
+        author: {
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          displayName: users.displayName,
+          profileImageUrl: users.profileImageUrl,
+          rankTier: userStats.rankTier,
+        },
+      })
       .from(discussionReplies)
+      .leftJoin(users, eq(discussionReplies.authorId, users.id))
+      .leftJoin(userStats, eq(users.id, userStats.userId))
       .where(eq(discussionReplies.discussionId, questionId))
       .orderBy(desc(discussionReplies.upvoteCount));
 
-    const answersWithAuthors = await Promise.all(
-      answers.map(async (a) => {
-        const [answerAuthor] = await db
-          .select({
-            id: users.id,
-            firstName: users.firstName,
-            lastName: users.lastName,
-            displayName: users.displayName,
-            profileImageUrl: users.profileImageUrl,
-            rankTier: userStats.rankTier,
-          })
-          .from(users)
-          .leftJoin(userStats, eq(users.id, userStats.userId))
-          .where(eq(users.id, a.authorId))
-          .limit(1);
-        return { ...a, author: answerAuthor || null };
-      })
-    );
+    const answersWithAuthors = answers.map((row) => ({
+      ...row.reply,
+      author: row.author?.id ? row.author : null,
+    }));
 
     const [userUpvote] = await db
       .select()

@@ -14,6 +14,7 @@ import {
   notifications,
   universities,
   majors,
+  postShares,
   insertPostSchema,
   insertCommentSchema,
   insertReactionSchema,
@@ -617,6 +618,7 @@ router.delete("/posts/:postId", isAuthenticated, async (req: AuthRequest, res: R
 
     await db.delete(reactions).where(eq(reactions.postId, postId));
     await db.delete(comments).where(eq(comments.postId, postId));
+    await db.delete(postShares).where(eq(postShares.postId, postId));
     await db.delete(posts).where(eq(posts.id, postId));
 
     res.json({ success: true });

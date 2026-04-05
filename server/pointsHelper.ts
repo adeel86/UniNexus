@@ -4,9 +4,11 @@ import { eq, count, sum, and, inArray } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 
 /**
- * Fast SQL-level sync: recalculate totalPoints for every user whose stored
- * totalPoints disagrees with the sum of their individual score columns.
- * Called once at startup to repair any stale data.
+ * Fast SQL-level sync: ensure totalPoints is at least the sum of the four
+ * individual score columns. Only updates rows where totalPoints is NULL or
+ * lower than the column sum — never reduces totalPoints, since applyPointDelta
+ * may have already added badge/endorsement/cert/industry points on top.
+ * Called once at startup to repair any stale or missing data.
  */
 export async function syncAllUsersTotalPoints(): Promise<void> {
   await db.execute(sql`
@@ -29,12 +31,13 @@ export async function syncAllUsersTotalPoints(): Promise<void> {
         ELSE 'bronze'
       END,
       updated_at = NOW()
-    WHERE total_points IS DISTINCT FROM (
-      COALESCE(engagement_score, 0)
-      + COALESCE(problem_solver_score, 0)
-      + COALESCE(endorsement_score, 0)
-      + COALESCE(challenge_points, 0)
-    )
+    WHERE total_points IS NULL
+       OR total_points < (
+         COALESCE(engagement_score, 0)
+         + COALESCE(problem_solver_score, 0)
+         + COALESCE(endorsement_score, 0)
+         + COALESCE(challenge_points, 0)
+       )
   `);
 }
 
