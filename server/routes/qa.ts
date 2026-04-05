@@ -2,7 +2,7 @@ import { Router, Request, Response } from "express";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { db } from "../db";
 import { isAuthenticated } from "../firebaseAuth";
-import { updateTotalPointsAfterScoreChange } from "../pointsHelper";
+import { applyPointDelta } from "../pointsHelper";
 import {
   users,
   userStats,
@@ -163,17 +163,8 @@ router.post("/qa/questions", isAuthenticated, async (req: Request, res: Response
       })
       .returning();
 
-    await db.insert(userStats).values({ userId: req.user.id }).onConflictDoNothing();
-    await db
-      .update(userStats)
-      .set({
-        problemSolverScore: sql`COALESCE(${userStats.problemSolverScore}, 0) + 10`,
-      })
-      .where(eq(userStats.userId, req.user.id));
-
-    // Recalculate totalPoints after problem solver score change
-    await updateTotalPointsAfterScoreChange(req.user.id).catch((err: any) => 
-      console.error("Failed to update total points:", err)
+    await applyPointDelta(req.user.id, { problemSolverDelta: 10 }).catch((err: any) =>
+      console.error("Failed to apply point delta on QA question:", err)
     );
 
     await createNotification({
@@ -233,17 +224,8 @@ router.post("/qa/questions/:questionId/answers", isAuthenticated, async (req: Re
       })
       .where(eq(courseDiscussions.id, questionId));
 
-    await db.insert(userStats).values({ userId: req.user.id }).onConflictDoNothing();
-    await db
-      .update(userStats)
-      .set({
-        problemSolverScore: sql`COALESCE(${userStats.problemSolverScore}, 0) + 15`,
-      })
-      .where(eq(userStats.userId, req.user.id));
-
-    // Recalculate totalPoints after problem solver score change
-    await updateTotalPointsAfterScoreChange(req.user.id).catch((err: any) => 
-      console.error("Failed to update total points:", err)
+    await applyPointDelta(req.user.id, { problemSolverDelta: 15 }).catch((err: any) =>
+      console.error("Failed to apply point delta on QA answer:", err)
     );
 
     // Notify question author
@@ -376,16 +358,8 @@ router.post("/qa/questions/:questionId/resolve", isAuthenticated, async (req: Re
         .limit(1);
 
       if (answer) {
-        await db
-          .update(userStats)
-          .set({
-            problemSolverScore: sql`COALESCE(${userStats.problemSolverScore}, 0) + 20`,
-          })
-          .where(eq(userStats.userId, answer.authorId));
-
-        // Recalculate totalPoints after problem solver score change
-        await updateTotalPointsAfterScoreChange(answer.authorId).catch((err: any) => 
-          console.error("Failed to update total points:", err)
+        await applyPointDelta(answer.authorId, { problemSolverDelta: 20 }).catch((err: any) =>
+          console.error("Failed to apply point delta on accepted answer:", err)
         );
 
         await createNotification({

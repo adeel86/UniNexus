@@ -3,7 +3,7 @@ import { eq, desc, sql, and, inArray } from "drizzle-orm";
 import { db } from "../db";
 import { isAuthenticated, type AuthRequest } from "../firebaseAuth";
 import { updateUserStreakForActivity } from "../streakHelper";
-import { updateTotalPointsAfterScoreChange } from "../pointsHelper";
+import { applyPointDelta } from "../pointsHelper";
 import {
   posts,
   comments,
@@ -19,6 +19,38 @@ import {
   insertReactionSchema,
 } from "@shared/schema";
 import { blockRestrictedRoles } from "./shared";
+
+async function enrichWithOriginalPosts(postsWithDetails: any[]) {
+  const originalPostIds = postsWithDetails
+    .filter((p) => p.originalPostId)
+    .map((p) => p.originalPostId as string);
+
+  if (originalPostIds.length === 0) return postsWithDetails;
+
+  const originalPosts = await db
+    .select({
+      id: posts.id,
+      content: posts.content,
+      imageUrl: posts.imageUrl,
+      videoUrl: posts.videoUrl,
+      mediaUrls: posts.mediaUrls,
+      mediaType: posts.mediaType,
+      createdAt: posts.createdAt,
+      author: users,
+    })
+    .from(posts)
+    .leftJoin(users, eq(posts.authorId, users.id))
+    .where(inArray(posts.id, originalPostIds));
+
+  const originalPostsMap = new Map(originalPosts.map((op) => [op.id, op]));
+
+  return postsWithDetails.map((post) => ({
+    ...post,
+    originalPost: post.originalPostId
+      ? (originalPostsMap.get(post.originalPostId) ?? null)
+      : null,
+  }));
+}
 
 async function buildUserNameMap(
   userIds: string[]
@@ -67,6 +99,7 @@ router.get("/posts", async (req: Request, res: Response) => {
         tags: posts.tags,
         viewCount: posts.viewCount,
         shareCount: posts.shareCount,
+        originalPostId: posts.originalPostId,
         createdAt: posts.createdAt,
         updatedAt: posts.updatedAt,
         author: users,
@@ -132,7 +165,8 @@ router.get("/posts", async (req: Request, res: Response) => {
       })
     );
 
-    res.json(postsWithDetails);
+    const finalPosts = await enrichWithOriginalPosts(postsWithDetails);
+    res.json(finalPosts);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -182,6 +216,7 @@ router.get("/feed/personalized", isAuthenticated, async (req: AuthRequest, res: 
         tags: posts.tags,
         viewCount: posts.viewCount,
         shareCount: posts.shareCount,
+        originalPostId: posts.originalPostId,
         createdAt: posts.createdAt,
         updatedAt: posts.updatedAt,
         author: users,
@@ -279,8 +314,8 @@ router.get("/feed/personalized", isAuthenticated, async (req: AuthRequest, res: 
       if (selectedPosts.length >= limit) break;
     }
     
-    const finalPosts = selectedPosts.map(({ score, ...post }) => post);
-    
+    const strippedPosts = selectedPosts.map(({ score, ...post }) => post);
+    const finalPosts = await enrichWithOriginalPosts(strippedPosts);
     res.json(finalPosts);
   } catch (error: any) {
     console.error('Personalized feed error:', error);
@@ -317,6 +352,7 @@ router.get("/feed/following", isAuthenticated, async (req: AuthRequest, res: Res
         tags: posts.tags,
         viewCount: posts.viewCount,
         shareCount: posts.shareCount,
+        originalPostId: posts.originalPostId,
         createdAt: posts.createdAt,
         updatedAt: posts.updatedAt,
         author: users,
@@ -356,7 +392,8 @@ router.get("/feed/following", isAuthenticated, async (req: AuthRequest, res: Res
       })
     );
     
-    res.json(postsWithDetails);
+    const finalPosts = await enrichWithOriginalPosts(postsWithDetails);
+    res.json(finalPosts);
   } catch (error: any) {
     console.error('Following feed error:', error);
     res.status(500).json({ error: error.message });
@@ -384,6 +421,7 @@ router.get("/feed/trending", isAuthenticated, async (req: AuthRequest, res: Resp
         tags: posts.tags,
         viewCount: posts.viewCount,
         shareCount: posts.shareCount,
+        originalPostId: posts.originalPostId,
         createdAt: posts.createdAt,
         updatedAt: posts.updatedAt,
         author: users,
@@ -429,11 +467,12 @@ router.get("/feed/trending", isAuthenticated, async (req: AuthRequest, res: Resp
       })
     );
     
-    const trendingPosts = postsWithScores
+    const strippedTrending = postsWithScores
       .sort((a, b) => b.trendingScore - a.trendingScore)
       .slice(0, limit)
       .map(({ trendingScore, ...post }) => post);
-    
+
+    const trendingPosts = await enrichWithOriginalPosts(strippedTrending);
     res.json(trendingPosts);
   } catch (error: any) {
     console.error('Trending feed error:', error);
@@ -450,16 +489,8 @@ router.post("/posts", blockRestrictedRoles, async (req: Request, res: Response) 
 
     const [newPost] = await db.insert(posts).values(validatedData).returning();
 
-    await db
-      .update(userStats)
-      .set({
-        engagementScore: sql`${userStats.engagementScore} + 10`,
-      })
-      .where(eq(userStats.userId, req.user!.id));
-
-    // Recalculate totalPoints after engagement score change
-    await updateTotalPointsAfterScoreChange(req.user!.id).catch((err: any) => 
-      console.error("Failed to update total points:", err)
+    await applyPointDelta(req.user!.id, { engagementDelta: 10 }).catch((err: any) =>
+      console.error("Failed to apply point delta on post creation:", err)
     );
 
     // Update streak when user creates a post
@@ -468,6 +499,62 @@ router.post("/posts", blockRestrictedRoles, async (req: Request, res: Response) 
     );
 
     res.json(newPost);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+router.post("/posts/share", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  try {
+    const { originalPostId, comment } = req.body;
+
+    if (!originalPostId) {
+      return res.status(400).json({ error: "originalPostId is required" });
+    }
+
+    const [originalPost] = await db
+      .select()
+      .from(posts)
+      .where(eq(posts.id, originalPostId))
+      .limit(1);
+
+    if (!originalPost) {
+      return res.status(404).json({ error: "Original post not found" });
+    }
+
+    const [sharedPost] = await db
+      .insert(posts)
+      .values({
+        authorId: req.user!.id,
+        content: comment || "",
+        originalPostId,
+      })
+      .returning();
+
+    await db
+      .update(posts)
+      .set({ shareCount: sql`${posts.shareCount} + 1` })
+      .where(eq(posts.id, originalPostId));
+
+    await applyPointDelta(req.user!.id, { engagementDelta: 5 }).catch((err: any) =>
+      console.error("Failed to apply point delta on share:", err)
+    );
+
+    await updateUserStreakForActivity(req.user!.id, 'POST_CREATION').catch((err: any) =>
+      console.error("Failed to update streak on share:", err)
+    );
+
+    if (originalPost.authorId !== req.user!.id) {
+      await db.insert(notifications).values({
+        userId: originalPost.authorId,
+        type: "share",
+        title: "Post Shared",
+        message: `${req.user!.firstName} ${req.user!.lastName} shared your post`,
+        link: `/feed`,
+      });
+    }
+
+    res.json(sharedPost);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
   }
@@ -563,16 +650,8 @@ router.post("/comments", isAuthenticated, async (req: AuthRequest, res: Response
       .leftJoin(users, eq(comments.authorId, users.id))
       .where(eq(comments.id, newComment.id));
 
-    await db
-      .update(userStats)
-      .set({
-        engagementScore: sql`${userStats.engagementScore} + 5`,
-      })
-      .where(eq(userStats.userId, req.user!.id));
-
-    // Recalculate totalPoints after engagement score change
-    await updateTotalPointsAfterScoreChange(req.user!.id).catch((err: any) => 
-      console.error("Failed to update total points:", err)
+    await applyPointDelta(req.user!.id, { engagementDelta: 5 }).catch((err: any) =>
+      console.error("Failed to apply point delta on comment:", err)
     );
 
     // Update streak when user comments
@@ -641,29 +720,29 @@ router.post("/reactions", isAuthenticated, async (req: AuthRequest, res: Respons
       .where(
         and(
           eq(reactions.postId, validatedData.postId),
-          eq(reactions.userId, req.user!.id),
-          eq(reactions.type, validatedData.type)
+          eq(reactions.userId, req.user!.id)
         )
       )
       .limit(1);
 
     if (existingReaction) {
-      await db.delete(reactions).where(eq(reactions.id, existingReaction.id));
-      return res.json({ removed: true });
+      if (existingReaction.type === validatedData.type) {
+        await db.delete(reactions).where(eq(reactions.id, existingReaction.id));
+        return res.json({ removed: true });
+      } else {
+        const [updated] = await db
+          .update(reactions)
+          .set({ type: validatedData.type })
+          .where(eq(reactions.id, existingReaction.id))
+          .returning();
+        return res.json(updated);
+      }
     }
 
     const [newReaction] = await db.insert(reactions).values(validatedData).returning();
 
-    await db
-      .update(userStats)
-      .set({
-        engagementScore: sql`${userStats.engagementScore} + 2`,
-      })
-      .where(eq(userStats.userId, req.user!.id));
-
-    // Recalculate totalPoints after engagement score change
-    await updateTotalPointsAfterScoreChange(req.user!.id).catch((err: any) => 
-      console.error("Failed to update total points:", err)
+    await applyPointDelta(req.user!.id, { engagementDelta: 2 }).catch((err: any) =>
+      console.error("Failed to apply point delta on reaction:", err)
     );
 
     // Update streak when user reacts

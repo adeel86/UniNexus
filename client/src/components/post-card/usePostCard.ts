@@ -1,14 +1,26 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import type { Post, User, Comment, Reaction } from "@shared/schema";
 
+export type OriginalPostData = {
+  id: string;
+  content: string;
+  imageUrl: string | null;
+  videoUrl: string | null;
+  mediaUrls: string[] | null;
+  mediaType: string | null;
+  createdAt: Date | null;
+  author: User;
+};
+
 export type PostWithAuthor = Post & {
   author: User;
   comments: Comment[];
   reactions: Reaction[];
+  originalPost?: OriginalPostData | null;
 };
 
 // Helper function to check if a query key is related to posts/feed
@@ -32,6 +44,8 @@ export function usePostCard(initialPost: PostWithAuthor) {
   const [editContent, setEditContent] = useState(initialPost.content || "");
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [shareComment, setShareComment] = useState("");
 
   // Find post from cache by searching all feed queries - update on every render
   // so we always get the latest version from cache
@@ -336,6 +350,32 @@ export function usePostCard(initialPost: PostWithAuthor) {
     },
   });
 
+  const shareMutation = useMutation({
+    mutationFn: async (comment: string) => {
+      const res = await apiRequest("POST", "/api/posts/share", {
+        originalPostId: post.id,
+        comment,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      setShowShareDialog(false);
+      setShareComment("");
+      const cache = queryClient.getQueryCache();
+      const allQueries = cache.findAll();
+      for (const query of allQueries) {
+        if (isPostRelatedQuery(query.queryKey)) {
+          queryClient.invalidateQueries({ queryKey: query.queryKey });
+        }
+      }
+      toast({ title: "Post shared!" });
+      auth.refreshUserData().catch(() => {});
+    },
+    onError: () => {
+      toast({ title: "Failed to share post", variant: "destructive" });
+    },
+  });
+
   const handleReaction = (type: string) => {
     if (!auth.userData) return;
     reactionMutation.mutate(type);
@@ -368,10 +408,15 @@ export function usePostCard(initialPost: PostWithAuthor) {
     setShowDeleteDialog,
     commentToDelete,
     setCommentToDelete,
+    showShareDialog,
+    setShowShareDialog,
+    shareComment,
+    setShareComment,
     commentMutation,
     editPostMutation,
     deletePostMutation,
     deleteCommentMutation,
+    shareMutation,
     handleReaction,
     getReactionCount,
     hasUserReacted,

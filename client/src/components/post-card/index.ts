@@ -3,4 +3,5 @@ export { PostContent } from "./PostContent";
 export { ReactionBar } from "./ReactionBar";
 export { CommentsSection } from "./CommentsSection";
 export { DeleteDialogs } from "./DeleteDialogs";
-export { usePostCard, type PostWithAuthor } from "./usePostCard";
+export { ShareDialog } from "./ShareDialog";
+export { usePostCard, type PostWithAuthor, type OriginalPostData } from "./usePostCard";

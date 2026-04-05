@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { relations } from 'drizzle-orm';
-import { pgTable, timestamp, varchar, text, integer, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, timestamp, varchar, text, integer, uniqueIndex, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { users } from "./users";
@@ -17,6 +17,7 @@ export const posts = pgTable("posts", {
   tags: text("tags").array(),
   viewCount: integer("view_count").notNull().default(0),
   shareCount: integer("share_count").notNull().default(0),
+  originalPostId: varchar("original_post_id").references((): AnyPgColumn => posts.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -75,7 +76,9 @@ export const reactions = pgTable("reactions", {
   userId: varchar("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
   type: varchar("type", { length: 20 }).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  uniqueIndex("unique_reaction_user_post").on(table.userId, table.postId),
+]);
 
 export const reactionsRelations = relations(reactions, ({ one }) => ({
   post: one(posts, {

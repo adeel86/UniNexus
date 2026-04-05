@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
 import { eq, desc, sql, and } from "drizzle-orm";
 import { db } from "../db";
-import { updateTotalPointsAfterScoreChange } from "../pointsHelper";
+import { applyPointDelta } from "../pointsHelper";
 import {
   users,
   userStats,
@@ -114,17 +114,8 @@ router.post("/endorsements", requireAuth, async (req: Request, res: Response) =>
 
     const [newEndorsement] = await db.insert(endorsements).values(validatedData).returning();
 
-    await db
-      .update(userStats)
-      .set({
-        endorsementScore: sql`${userStats.endorsementScore} + 10`,
-        engagementScore: sql`${userStats.engagementScore} + 15`,
-      })
-      .where(eq(userStats.userId, validatedData.endorsedUserId));
-
-    // Recalculate totalPoints after both endorsement and engagement score changes
-    await updateTotalPointsAfterScoreChange(validatedData.endorsedUserId).catch((err: any) => 
-      console.error("Failed to update total points:", err)
+    await applyPointDelta(validatedData.endorsedUserId, { engagementDelta: 15, endorsementDelta: 10 }).catch((err: any) =>
+      console.error("Failed to apply point delta on endorsement:", err)
     );
 
     await db.insert(notifications).values({

@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { eq, desc, and, sql } from "drizzle-orm";
 import { db } from "../db";
-import { updateTotalPointsAfterScoreChange } from "../pointsHelper";
+import { applyPointDelta } from "../pointsHelper";
 import {
   users,
   userStats,
@@ -491,16 +491,8 @@ Example responses:
     const oldEngagementScore = req.user!.engagementScore ?? 0;
     const newEngagementScore = oldEngagementScore + 3;
 
-    await db
-      .update(userStats)
-      .set({
-        engagementScore: sql`${userStats.engagementScore} + 3`,
-      })
-      .where(eq(userStats.userId, req.user!.id));
-
-    // Recalculate totalPoints after engagement score change
-    await updateTotalPointsAfterScoreChange(req.user!.id).catch((err: any) => 
-      console.error("Failed to update total points:", err)
+    await applyPointDelta(req.user!.id, { engagementDelta: 3 }).catch((err: any) =>
+      console.error("Failed to apply point delta on AI interaction:", err)
     );
 
     // Notify user when they cross a 10-point engagement milestone (use updated score)

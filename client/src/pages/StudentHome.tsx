@@ -173,11 +173,38 @@ export default function StudentHome() {
             <h3 className="font-heading font-semibold text-lg mb-4">Your Progress</h3>
             <div className="space-y-4">
               <div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm font-medium">Level Progress</span>
-                  <span className="text-sm text-muted-foreground">Level {Math.floor((user?.engagementScore || 0) / 100)}</span>
-                </div>
-                <Progress value={((user?.engagementScore || 0) % 100)} className="h-2" />
+                {(() => {
+                  const TIERS = [
+                    { tier: 'bronze', label: 'Bronze', min: 0, max: 1000 },
+                    { tier: 'silver', label: 'Silver', min: 1000, max: 3000 },
+                    { tier: 'gold',   label: 'Gold',   min: 3000, max: 7000 },
+                    { tier: 'platinum', label: 'Platinum', min: 7000, max: null },
+                  ];
+                  const totalPts = user?.totalPoints ?? 0;
+                  const rankTier = user?.rankTier ?? 'bronze';
+                  const currentTier = TIERS.find(t => t.tier === rankTier) ?? TIERS[0];
+                  const nextTierIdx = TIERS.findIndex(t => t.tier === rankTier) + 1;
+                  const nextTier = TIERS[nextTierIdx] ?? null;
+                  const progress = nextTier
+                    ? Math.min(100, Math.round(((totalPts - currentTier.min) / (nextTier.min - currentTier.min)) * 100))
+                    : 100;
+                  return (
+                    <>
+                      <div className="flex justify-between mb-2">
+                        <span className="text-sm font-medium">Rank Progress</span>
+                        <span className="text-sm text-muted-foreground">
+                          {currentTier.label} · {totalPts.toLocaleString()} pts
+                        </span>
+                      </div>
+                      <Progress value={progress} className="h-2" />
+                      {nextTier && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {Math.max(0, nextTier.min - totalPts).toLocaleString()} pts to {nextTier.label}
+                        </p>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
               
               <Link href="/leaderboard">

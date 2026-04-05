@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
-import { BadgeCheck, MoreHorizontal, Edit, Trash2 } from "lucide-react";
+import { BadgeCheck, MoreHorizontal, Edit, Trash2, Repeat2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import {
   DropdownMenu,
@@ -37,7 +37,14 @@ export function PostHeader({ post, canModifyPost, isOwnPost, onEdit, onDelete }:
             </Badge>
           )}
         </div>
-        <div className="text-sm text-muted-foreground">
+        <div className="text-sm text-muted-foreground flex items-center gap-1 flex-wrap">
+          {post.originalPostId && (
+            <span className="flex items-center gap-1 text-primary/80 font-medium">
+              <Repeat2 className="h-3 w-3" />
+              Shared a post
+              {" · "}
+            </span>
+          )}
           {post.createdAt && formatDistanceToNow(new Date(post.createdAt), { addSuffix: true })}
           {post.category && (
             <>

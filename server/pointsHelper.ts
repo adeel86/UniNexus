@@ -3,6 +3,41 @@ import { users, userStats, userBadges, endorsements, challengeParticipants, cert
 import { eq, count, sum, and, inArray } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 
+/**
+ * Fast SQL-level sync: recalculate totalPoints for every user whose stored
+ * totalPoints disagrees with the sum of their individual score columns.
+ * Called once at startup to repair any stale data.
+ */
+export async function syncAllUsersTotalPoints(): Promise<void> {
+  await db.execute(sql`
+    UPDATE user_stats
+    SET
+      total_points = COALESCE(engagement_score, 0)
+                  + COALESCE(problem_solver_score, 0)
+                  + COALESCE(endorsement_score, 0)
+                  + COALESCE(challenge_points, 0),
+      rank_tier = CASE
+        WHEN (COALESCE(engagement_score, 0) + COALESCE(problem_solver_score, 0)
+              + COALESCE(endorsement_score, 0) + COALESCE(challenge_points, 0)) >= 7000
+          THEN 'platinum'
+        WHEN (COALESCE(engagement_score, 0) + COALESCE(problem_solver_score, 0)
+              + COALESCE(endorsement_score, 0) + COALESCE(challenge_points, 0)) >= 3000
+          THEN 'gold'
+        WHEN (COALESCE(engagement_score, 0) + COALESCE(problem_solver_score, 0)
+              + COALESCE(endorsement_score, 0) + COALESCE(challenge_points, 0)) >= 1000
+          THEN 'silver'
+        ELSE 'bronze'
+      END,
+      updated_at = NOW()
+    WHERE total_points IS DISTINCT FROM (
+      COALESCE(engagement_score, 0)
+      + COALESCE(problem_solver_score, 0)
+      + COALESCE(endorsement_score, 0)
+      + COALESCE(challenge_points, 0)
+    )
+  `);
+}
+
 export interface PointDelta {
   engagementDelta?: number;
   problemSolverDelta?: number;

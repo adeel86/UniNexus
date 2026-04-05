@@ -3,7 +3,7 @@ import { eq, desc, sql, and, ilike, or } from "drizzle-orm";
 import { db } from "../db";
 import { storage } from "../storage";
 import { isAuthenticated, type AuthRequest } from "../firebaseAuth";
-import { updateTotalPointsAfterScoreChange } from "../pointsHelper";
+import { applyPointDelta } from "../pointsHelper";
 import {
   users,
   userStats,
@@ -637,11 +637,8 @@ router.post("/discussions", isAuthenticated, async (req: Request, res: Response)
   try {
     const validatedData = insertCourseDiscussionSchema.parse({ ...req.body, authorId: req.user.id });
     const newDiscussion = await storage.createDiscussion(validatedData);
-    await db.update(userStats).set({ engagementScore: sql`${userStats.engagementScore} + 5` }).where(eq(userStats.userId, req.user.id));
-    
-    // Recalculate totalPoints after engagement score change
-    await updateTotalPointsAfterScoreChange(req.user.id).catch((err: any) => 
-      console.error("Failed to update total points:", err)
+    await applyPointDelta(req.user.id, { engagementDelta: 5 }).catch((err: any) =>
+      console.error("Failed to apply point delta on course discussion:", err)
     );
 
     if (newDiscussion) await checkAndAwardCourseBadges(req.user.id, String(validatedData.courseId));
@@ -742,11 +739,8 @@ router.post("/replies", isAuthenticated, async (req: Request, res: Response) => 
   try {
     const validatedData = insertDiscussionReplySchema.parse({ ...req.body, authorId: req.user.id });
     const newReply = await storage.createReply(validatedData);
-    await db.update(userStats).set({ engagementScore: sql`${userStats.engagementScore} + 3` }).where(eq(userStats.userId, req.user.id));
-
-    // Recalculate totalPoints after engagement score change
-    await updateTotalPointsAfterScoreChange(req.user.id).catch((err: any) => 
-      console.error("Failed to update total points:", err)
+    await applyPointDelta(req.user.id, { engagementDelta: 3 }).catch((err: any) =>
+      console.error("Failed to apply point delta on discussion reply:", err)
     );
 
     const [discussion] = await db.select().from(courseDiscussions).where(eq(courseDiscussions.id, validatedData.discussionId));

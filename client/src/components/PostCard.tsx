@@ -7,6 +7,7 @@ import {
   ReactionBar,
   CommentsSection,
   DeleteDialogs,
+  ShareDialog,
 } from "./post-card";
 
 type PostWithAuthor = Post & {
@@ -35,10 +36,15 @@ export function PostCard({ post: initialPost }: PostCardProps) {
     setShowDeleteDialog,
     commentToDelete,
     setCommentToDelete,
+    showShareDialog,
+    setShowShareDialog,
+    shareComment,
+    setShareComment,
     commentMutation,
     editPostMutation,
     deletePostMutation,
     deleteCommentMutation,
+    shareMutation,
     handleReaction,
     getReactionCount,
     hasUserReacted,
@@ -77,6 +83,9 @@ export function PostCard({ post: initialPost }: PostCardProps) {
         onReaction={handleReaction}
         getReactionCount={getReactionCount}
         hasUserReacted={hasUserReacted}
+        shareCount={post.shareCount ?? 0}
+        onShare={() => setShowShareDialog(true)}
+        isSharedPost={!!post.originalPostId}
       />
 
       {showComments && auth.userData && (
@@ -100,6 +109,15 @@ export function PostCard({ post: initialPost }: PostCardProps) {
         commentToDelete={commentToDelete}
         onCommentToDeleteChange={setCommentToDelete}
         onConfirmDeleteComment={() => commentToDelete && deleteCommentMutation.mutate(commentToDelete)}
+      />
+
+      <ShareDialog
+        open={showShareDialog}
+        onOpenChange={setShowShareDialog}
+        comment={shareComment}
+        onCommentChange={setShareComment}
+        onConfirm={() => shareMutation.mutate(shareComment)}
+        isSharing={shareMutation.isPending}
       />
     </Card>
   );

@@ -3,8 +3,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { VideoPlayer } from "@/components/VideoPlayer";
 import { ImageViewer } from "@/components/ImageViewer";
+import { UserAvatar } from "@/components/UserAvatar";
 import { X } from "lucide-react";
 import { useState } from "react";
+import { formatDistanceToNow } from "date-fns";
 import type { PostWithAuthor } from "./usePostCard";
 
 interface PostContentProps {
@@ -85,10 +87,61 @@ export function PostContent({
           </div>
         </div>
       ) : (
-        <p className="text-base leading-relaxed whitespace-pre-wrap">{post.content}</p>
+        <>
+          {post.content && (
+            <p className="text-base leading-relaxed whitespace-pre-wrap mb-3">{post.content}</p>
+          )}
+          {post.originalPostId && (
+            <div className="border rounded-xl p-4 bg-muted/30 space-y-3">
+              {post.originalPost ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    <UserAvatar user={post.originalPost.author} size="sm" />
+                    <div>
+                      <p className="font-semibold text-sm leading-tight">
+                        {post.originalPost.author.firstName} {post.originalPost.author.lastName}
+                      </p>
+                      {post.originalPost.createdAt && (
+                        <p className="text-xs text-muted-foreground">
+                          {formatDistanceToNow(new Date(post.originalPost.createdAt), { addSuffix: true })}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {post.originalPost.content && (
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{post.originalPost.content}</p>
+                  )}
+                  {post.originalPost.imageUrl && (
+                    <img
+                      src={post.originalPost.imageUrl}
+                      alt="Original post image"
+                      className="rounded-lg w-full object-cover max-h-64"
+                    />
+                  )}
+                  {post.originalPost.mediaUrls && post.originalPost.mediaUrls.length > 0 && (
+                    <div className={`grid gap-2 ${post.originalPost.mediaUrls.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                      {post.originalPost.mediaUrls.slice(0, 4).map((url: string, index: number) => (
+                        <img
+                          key={index}
+                          src={url}
+                          alt={`Original post image ${index + 1}`}
+                          className="rounded-lg w-full object-cover h-40"
+                        />
+                      ))}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">
+                  The original post is no longer available.
+                </p>
+              )}
+            </div>
+          )}
+        </>
       )}
       
-      {post.imageUrl && (
+      {!post.originalPostId && post.imageUrl && (
         <img
           src={post.imageUrl}
           alt="Post image"

@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Heart, MessageCircle, ThumbsUp, Lightbulb, Handshake } from "lucide-react";
+import { Heart, MessageCircle, ThumbsUp, Lightbulb, Handshake, Share2 } from "lucide-react";
 
 const reactionTypes = [
   { type: "like", icon: ThumbsUp, label: "Like" },
@@ -15,6 +15,9 @@ interface ReactionBarProps {
   onReaction: (type: string) => void;
   getReactionCount: (type: string) => number;
   hasUserReacted: (type: string) => boolean;
+  shareCount: number;
+  onShare: () => void;
+  isSharedPost?: boolean;
 }
 
 export function ReactionBar({
@@ -24,6 +27,9 @@ export function ReactionBar({
   onReaction,
   getReactionCount,
   hasUserReacted,
+  shareCount,
+  onShare,
+  isSharedPost,
 }: ReactionBarProps) {
   return (
     <div className="flex items-center gap-1 mb-4 flex-wrap">
@@ -45,12 +51,25 @@ export function ReactionBar({
           </Button>
         );
       })}
+
+      {!isSharedPost && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onShare}
+          className="gap-1"
+          data-testid="button-share-post"
+        >
+          <Share2 className="h-4 w-4" />
+          {shareCount > 0 && <span className="text-xs">{shareCount}</span>}
+        </Button>
+      )}
       
       <Button
         variant="ghost"
         size="sm"
         onClick={onToggleComments}
-        className="gap-1 ml-auto"
+        className={`gap-1 ${isSharedPost ? 'ml-auto' : ''}`}
         data-testid="button-toggle-comments"
       >
         <MessageCircle className="h-4 w-4" />

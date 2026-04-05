@@ -5,6 +5,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { initializeScheduledJobs } from "./cron";
+import { syncAllUsersTotalPoints } from "./pointsHelper";
 
 const app = express();
 
@@ -52,6 +53,11 @@ app.use((req, res, next) => {
 
 (async () => {
   const server = await registerRoutes(app);
+
+  // Sync any stale totalPoints values for all users on startup
+  syncAllUsersTotalPoints().catch((err) =>
+    console.error("[startup] Failed to sync user total points:", err)
+  );
 
   // Initialize scheduled jobs (cron tasks)
   initializeScheduledJobs();
