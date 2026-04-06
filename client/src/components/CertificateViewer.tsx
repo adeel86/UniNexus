@@ -1,5 +1,5 @@
 import { X, Download, Share2, Shield, Award, Calendar, CheckCircle, ExternalLink } from "lucide-react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { Certification } from "@shared/schema";
@@ -212,6 +212,7 @@ export function CertificateViewer({ certificate, onClose }: CertificateViewerPro
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl p-0">
+        <DialogTitle className="sr-only">{certificate.title}</DialogTitle>
         {/* Header with gradient */}
         <div
           className={`p-8 bg-gradient-to-br ${

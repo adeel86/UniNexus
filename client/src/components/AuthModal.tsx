@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLocation } from 'wouter';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -246,6 +246,7 @@ function RegisterView({
 }: {
   onSwitchToLogin: () => void;
   onVerifyNeeded: (email: string) => void;
+  onClose?: () => void;
 }) {
   const { signUp } = useAuth();
   const { toast } = useToast();
@@ -295,7 +296,12 @@ function RegisterView({
       else if (data.role === 'university_admin') { additionalData.university = data.institute || null; }
 
       const result = await signUp(data.email, data.password, data.displayName, data.role, additionalData);
-      onVerifyNeeded(result.email);
+      if (result.skipOtp) {
+        toast({ title: 'Admin account registered', description: 'You can now log in with your credentials.' });
+        onSwitchToLogin();
+      } else {
+        onVerifyNeeded(result.email);
+      }
     } catch (error: any) {
       toast({ title: 'Registration failed', description: error.message || 'Please try again.', variant: 'destructive' });
     } finally {
@@ -733,6 +739,9 @@ export function AuthModal({ open, defaultView, onClose }: AuthModalProps) {
           transition-all duration-200
         `}
       >
+        <DialogTitle className="sr-only">
+          {view === 'login' ? 'Log In' : view === 'register' ? 'Create Account' : 'Verify Email'}
+        </DialogTitle>
         <div className="p-2">
           {view === 'login' && (
             <LoginView

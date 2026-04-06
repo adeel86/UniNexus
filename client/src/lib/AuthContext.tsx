@@ -19,7 +19,7 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
-  signUp: (email: string, password: string, displayName: string, role: string, additionalData: any) => Promise<{ email: string }>;
+  signUp: (email: string, password: string, displayName: string, role: string, additionalData: any) => Promise<{ email: string; skipOtp?: boolean }>;
   signOut: () => Promise<void>;
   refreshUserData: () => Promise<void>;
   verifyOtp: (email: string, otp: string) => Promise<void>;
@@ -143,6 +143,33 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    const ADMIN_EMAIL = 'team@uninexus.uk';
+    const isAdminLogin = email.toLowerCase().trim() === ADMIN_EMAIL;
+
+    // Admin always uses the dedicated password-only login endpoint (no Firebase, no OTP)
+    if (isAdminLogin) {
+      const response = await fetch('/api/auth/admin-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.toLowerCase().trim(), password }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.message || 'Invalid credentials');
+      }
+
+      const { token, user } = await response.json();
+      localStorage.setItem('dev_token', token);
+      setUserData(user);
+      setCurrentUser({
+        uid: user.firebaseUid || user.id,
+        email: user.email,
+        displayName: (user.firstName || '') + ' ' + (user.lastName || ''),
+      } as User);
+      return;
+    }
+
     if (import.meta.env.VITE_DEV_AUTH_ENABLED === 'true') {
       try {
         const response = await fetch('/api/auth/dev-login', {
@@ -216,7 +243,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
     displayName: string, 
     role: string,
     additionalData: any
-  ): Promise<{ email: string }> => {
+  ): Promise<{ email: string; skipOtp?: boolean }> => {
+    const ADMIN_EMAIL = 'team@uninexus.uk';
+    const isAdminEmail = email.toLowerCase().trim() === ADMIN_EMAIL;
+
     if (!auth) {
       throw new Error('Firebase authentication is not configured');
     }
@@ -225,7 +255,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     await updateProfile(userCredential.user, { displayName });
 
     // Create the DB record while we still have a valid token
-    // The backend will generate and send the OTP
+    // The backend will generate and send the OTP (skipped for admin)
     const token = await userCredential.user.getIdToken();
     const response = await fetch('/api/auth/register', {
       method: 'POST',
@@ -261,11 +291,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
 
     // Sign out — user must verify via OTP before accessing the app
+    // Admin is pre-verified; skip OTP and redirect to login
     await firebaseSignOut(auth);
     setCurrentUser(null);
     setUserData(null);
 
-    return { email };
+    return { email, skipOtp: isAdminEmail };
   };
 
   const verifyOtp = async (email: string, otp: string): Promise<void> => {

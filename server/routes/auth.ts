@@ -17,6 +17,80 @@ const router = Router();
 const DEV_AUTH_ENABLED = process.env.DEV_AUTH_ENABLED === 'true';
 const DEV_JWT_SECRET = process.env.DEV_JWT_SECRET;
 const DEMO_PASSWORD = "demo123";
+const ADMIN_EMAIL = "team@uninexus.uk";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "AdminUniNexus2024!";
+
+// Helper to issue a signed dev JWT for a DB user
+async function issueDevToken(user: { id: string; firebaseUid: string | null; email: string | null; firstName: string | null; lastName: string | null; displayName: string | null; role: string; universityId: string | null; majorId: string | null; profileImageUrl: string | null }, secret: string) {
+  const token = jwt.sign(
+    {
+      userId: user.id,
+      firebaseUid: user.firebaseUid || undefined,
+      email: user.email,
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60),
+    },
+    secret
+  );
+  return {
+    token: `dev-${token}`,
+    user: {
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      displayName: user.displayName,
+      role: user.role,
+      universityId: user.universityId,
+      majorId: user.majorId,
+      profileImageUrl: user.profileImageUrl,
+    },
+  };
+}
+
+// Admin-specific login: email + password, no OTP, no Firebase token required.
+// Works in both dev and production (as long as DEV_JWT_SECRET is set).
+router.post("/admin-login", async (req: Request, res: Response) => {
+  if (!DEV_JWT_SECRET) {
+    return res.status(503).json({ message: "Authentication service not configured" });
+  }
+
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
+
+    const normalizedEmail = (email as string).toLowerCase().trim();
+
+    if (normalizedEmail !== ADMIN_EMAIL) {
+      return res.status(403).json({ message: "This login endpoint is reserved for the admin account." });
+    }
+
+    if (password !== ADMIN_PASSWORD) {
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, normalizedEmail))
+      .limit(1);
+
+    if (!user || user.role !== 'master_admin') {
+      console.warn(`[adminLogin] Admin user not found or wrong role for: ${normalizedEmail}`);
+      return res.status(401).json({ message: "Invalid credentials" });
+    }
+
+    const result = await issueDevToken(user, DEV_JWT_SECRET);
+    console.log(`[adminLogin] Admin logged in: ${normalizedEmail}`);
+    return res.json(result);
+  } catch (error) {
+    console.error("Admin login error:", error);
+    return res.status(500).json({ message: "Failed to authenticate" });
+  }
+});
 
 router.post("/dev-login", async (req: Request, res: Response) => {
   if (!DEV_AUTH_ENABLED || !DEV_JWT_SECRET) {
@@ -45,31 +119,8 @@ router.post("/dev-login", async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Invalid credentials" });
     }
 
-    const token = jwt.sign(
-      {
-        userId: user.id,
-        firebaseUid: user.firebaseUid || undefined,
-        email: user.email,
-        iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + (24 * 60 * 60),
-      },
-      DEV_JWT_SECRET
-    );
-
-    res.json({
-      token: `dev-${token}`,
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        displayName: user.displayName,
-        role: user.role,
-        universityId: user.universityId,
-        majorId: user.majorId,
-        profileImageUrl: user.profileImageUrl,
-      },
-    });
+    const result = await issueDevToken(user, DEV_JWT_SECRET);
+    return res.json(result);
   } catch (error) {
     console.error("Dev login error:", error);
     res.status(500).json({ message: "Failed to authenticate" });
