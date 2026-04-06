@@ -3,7 +3,8 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import type { User, RecruiterFeedback, insertChallengeSchema, Challenge } from "@shared/schema";
+import type { User, RecruiterFeedback, Challenge } from "@shared/schema";
+import { insertChallengeSchema } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 

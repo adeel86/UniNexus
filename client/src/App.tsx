@@ -207,10 +207,26 @@ function Router() {
           </Route>
           
           {/* Role-specific routes */}
-          <Route path="/teacher-dashboard" component={TeacherDashboard} />
-          <Route path="/university-dashboard" component={UniversityDashboard} />
-          <Route path="/industry-dashboard" component={IndustryDashboard} />
-          <Route path="/master-admin-dashboard" component={MasterAdminDashboard} />
+          <Route path="/teacher-dashboard">
+            <RoleGuard allowedRoles={['teacher']}>
+              <TeacherDashboard />
+            </RoleGuard>
+          </Route>
+          <Route path="/university-dashboard">
+            <RoleGuard allowedRoles={['university_admin', 'university']}>
+              <UniversityDashboard />
+            </RoleGuard>
+          </Route>
+          <Route path="/industry-dashboard">
+            <RoleGuard allowedRoles={['industry_professional', 'industry']}>
+              <IndustryDashboard />
+            </RoleGuard>
+          </Route>
+          <Route path="/master-admin-dashboard">
+            <RoleGuard allowedRoles={['master_admin']}>
+              <MasterAdminDashboard />
+            </RoleGuard>
+          </Route>
           
           {/* 404 fallback */}
           <Route component={NotFound} />

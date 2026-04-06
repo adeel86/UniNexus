@@ -44,7 +44,7 @@ export default function IndustryDashboard() {
     handleAwardRank,
     openFeedbackModal,
     closeFeedbackModal,
-  } = useIndustryDashboard() as any;
+  } = useIndustryDashboard();
 
   const [createPostOpen, setCreatePostOpen] = useState(false);
   const [postInitialValues, setPostInitialValues] = useState({

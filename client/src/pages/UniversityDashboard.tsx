@@ -104,7 +104,7 @@ export default function UniversityDashboard() {
     engagementData,
     departmentRetentionData,
     monthOverMonth,
-  } = useUniversityDashboard() as any;
+  } = useUniversityDashboard();
 
   const { data: students = [], isLoading: isStudentsLoading } = useQuery<any[]>({
     queryKey: ["/api/students"],

@@ -193,6 +193,7 @@ export function useTeacherDashboard() {
     createPostOpen,
     setCreatePostOpen,
     postInitialValues,
+    setPostInitialValues,
     certificateForm,
     setCertificateForm,
     students,

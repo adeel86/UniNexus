@@ -608,23 +608,28 @@ router.post("/announcements", isAuthenticated, async (req: AuthRequest, res: Res
     const [newAnnouncement] = await db.insert(announcements).values(validatedData).returning();
 
     // Get all students from this university to notify them
-    const studentsToNotify = await db
-      .select()
-      .from(users)
-      .where(
-        and(
-          eq(users.role, 'student'),
-          eq(users.universityId, req.user!.universityId!)
-        )
-      );
+    // Only send notifications if the author is scoped to a university
+    const authorUniversityId = req.user!.universityId;
+    const studentsToNotify = authorUniversityId
+      ? await db
+          .select()
+          .from(users)
+          .where(
+            and(
+              eq(users.role, 'student'),
+              eq(users.universityId, authorUniversityId)
+            )
+          )
+      : [];
 
     // Create notifications for all students in the university
     if (studentsToNotify.length > 0) {
+      const universityLabel = req.user!.university || 'UniNexus';
       const notificationValues = studentsToNotify.map(student => ({
         userId: student.id,
         type: 'announcement',
         title: 'New Announcement',
-        message: `${req.user!.university}: ${validatedData.title}`,
+        message: `${universityLabel}: ${validatedData.title}`,
         link: '/announcements',
       }));
 

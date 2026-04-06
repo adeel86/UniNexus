@@ -57,27 +57,23 @@ export default function TeacherDashboard() {
     handleEndorseClick,
     handleIssueCertificateClick,
     handleCareerInsightsClick,
-  } = useTeacherDashboard() as any;
+  } = useTeacherDashboard();
 
   const handleSelectSuggestion = (content: string, category: string, tags: string[]) => {
-    if (setPostInitialValues) {
-      setPostInitialValues({
-        content,
-        category,
-        tags: tags.join(", ")
-      });
-    }
+    setPostInitialValues({
+      content,
+      category,
+      tags: tags.join(", ")
+    });
     setCreatePostOpen(true);
   };
 
   const handleCreatePost = () => {
-    if (setPostInitialValues) {
-      setPostInitialValues({
-        content: "",
-        category: "academic",
-        tags: ""
-      });
-    }
+    setPostInitialValues({
+      content: "",
+      category: "academic",
+      tags: ""
+    });
     setCreatePostOpen(true);
   };
 
