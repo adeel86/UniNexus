@@ -788,7 +788,7 @@ export default function MasterAdminDashboard() {
                           <AlertDialogHeader>
                             <AlertDialogTitle>Delete Course</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Permanently delete "{course.title}"? This cannot be undone.
+                              Permanently delete "{course.name}"? This cannot be undone.
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>

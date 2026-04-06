@@ -35,7 +35,8 @@ import { StudentAITutor } from "@/components/StudentAITutor";
 
 type CourseDetails = {
   id: string;
-  title: string;
+  name: string;
+  title?: string;
   description: string | null;
   instructorId: string;
   instructor: {
@@ -131,7 +132,7 @@ export default function CourseDetail() {
   const careerBotMutation = useMutation({
     mutationFn: async (message: string) => {
       setIsCareerBotLoading(true);
-      const courseContext = course ? `Course: ${course.title} - ${course.description}` : "";
+      const courseContext = course ? `Course: ${course.name} - ${course.description}` : "";
       const response = await apiRequest("POST", "/api/careerbot/chat", {
         message: `${courseContext}\n\n${message}`,
       });
@@ -226,7 +227,7 @@ export default function CourseDetail() {
         <CardHeader>
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
-              <CardTitle className="text-3xl mb-2">{course.title}</CardTitle>
+              <CardTitle className="text-3xl mb-2">{course.name}</CardTitle>
               <CardDescription className="text-base">
                 {course.description || "No description available"}
               </CardDescription>
@@ -273,7 +274,7 @@ export default function CourseDetail() {
                       CareerBot - Learning Assistant
                     </DialogTitle>
                     <DialogDescription>
-                      Ask questions about {course.title}, career paths, and learning outcomes
+                      Ask questions about {course.name}, career paths, and learning outcomes
                     </DialogDescription>
                   </DialogHeader>
                   <ScrollArea className="flex-1 pr-4">
@@ -571,7 +572,7 @@ export default function CourseDetail() {
         open={showTeacherAI}
         onOpenChange={setShowTeacherAI}
         courseId={courseId!}
-        courseName={course.title}
+        courseName={course.name}
       />
     </div>
   );
