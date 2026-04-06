@@ -18,8 +18,12 @@ import {
   endorsements,
   notifications,
   studentCourses,
+  contentModerationLogs,
+  adminActionLogs,
   insertAnnouncementSchema,
 } from "@shared/schema";
+import { moderatePostContent } from "../services/contentModeration";
+import { logAdminAction } from "../services/adminLogger";
 
 const router = express.Router();
 
@@ -51,6 +55,14 @@ router.delete("/admin/users/:userId", isAuthenticated, async (req: AuthRequest, 
 
     // Delete from DB
     await dbStorage.deleteUser(userId);
+
+    logAdminAction({
+      adminId: req.user.id,
+      action: 'delete_user',
+      targetType: 'user',
+      targetId: userId,
+      details: { email: user.email, role: user.role },
+    });
 
     res.json({ success: true, message: "User deleted by admin" });
   } catch (error: any) {
@@ -138,6 +150,398 @@ router.get("/admin/posts", isAuthenticated, async (req: AuthRequest, res: Respon
   try {
     const allPosts = await db.select().from(posts).orderBy(desc(posts.createdAt));
     res.json(allPosts);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================================================================
+// CONTENT MODERATION ENDPOINTS (master_admin only)
+// ========================================================================
+
+router.get("/admin/flagged-content", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  if (!req.user || req.user.role !== 'master_admin') {
+    return res.status(403).send("Forbidden");
+  }
+  try {
+    const flagged = await db
+      .select({
+        id: posts.id,
+        content: posts.content,
+        imageUrl: posts.imageUrl,
+        videoUrl: posts.videoUrl,
+        mediaUrls: posts.mediaUrls,
+        mediaType: posts.mediaType,
+        isFlagged: posts.isFlagged,
+        flagReason: posts.flagReason,
+        flagConfidence: posts.flagConfidence,
+        moderationStatus: posts.moderationStatus,
+        moderatedAt: posts.moderatedAt,
+        createdAt: posts.createdAt,
+        authorId: posts.authorId,
+        authorEmail: users.email,
+        authorFirstName: users.firstName,
+        authorLastName: users.lastName,
+        authorProfileImageUrl: users.profileImageUrl,
+      })
+      .from(posts)
+      .leftJoin(users, eq(posts.authorId, users.id))
+      .where(eq(posts.isFlagged, true))
+      .orderBy(desc(posts.createdAt));
+
+    res.json(flagged);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/admin/moderation/:postId/approve", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  if (!req.user || req.user.role !== 'master_admin') {
+    return res.status(403).send("Forbidden");
+  }
+  try {
+    const { postId } = req.params;
+    await db.update(posts)
+      .set({ isFlagged: false, moderationStatus: 'approved', moderatedAt: new Date(), moderatedBy: req.user.id })
+      .where(eq(posts.id, postId));
+
+    await db.insert(contentModerationLogs).values({
+      postId,
+      adminId: req.user.id,
+      action: 'approved',
+      note: req.body.note ?? null,
+    });
+
+    logAdminAction({ adminId: req.user.id, action: 'approve_content', targetType: 'post', targetId: postId });
+
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/admin/moderation/:postId/reject", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  if (!req.user || req.user.role !== 'master_admin') {
+    return res.status(403).send("Forbidden");
+  }
+  try {
+    const { postId } = req.params;
+    const post = await db.select({ authorId: posts.authorId }).from(posts).where(eq(posts.id, postId)).limit(1);
+    if (!post[0]) return res.status(404).json({ error: "Post not found" });
+
+    await db.update(posts)
+      .set({ isFlagged: true, moderationStatus: 'rejected', moderatedAt: new Date(), moderatedBy: req.user.id })
+      .where(eq(posts.id, postId));
+
+    await db.insert(contentModerationLogs).values({
+      postId,
+      adminId: req.user.id,
+      action: 'rejected',
+      note: req.body.note ?? null,
+    });
+
+    const authorId = post[0].authorId;
+    const [updatedUser] = await db
+      .update(users)
+      .set({ violationCount: sql`violation_count + 1` })
+      .where(eq(users.id, authorId))
+      .returning({ violationCount: users.violationCount, isBanned: users.isBanned });
+
+    const newCount = updatedUser?.violationCount ?? 0;
+
+    let enforcementAction: string | null = null;
+
+    if (newCount >= 4 && !updatedUser?.isBanned) {
+      await db.update(users).set({ isBanned: true }).where(eq(users.id, authorId));
+      enforcementAction = 'banned';
+
+      await db.insert(notifications).values({
+        userId: authorId,
+        type: 'moderation',
+        title: 'Account Permanently Banned',
+        message: 'Your account has been permanently banned due to repeated policy violations.',
+        link: '/feed',
+      });
+    } else if (newCount >= 2 && newCount <= 3) {
+      const suspendUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      await db.update(users).set({ suspendedUntil: suspendUntil }).where(eq(users.id, authorId));
+      enforcementAction = 'suspended';
+
+      await db.insert(notifications).values({
+        userId: authorId,
+        type: 'moderation',
+        title: 'Account Suspended',
+        message: 'Your account has been suspended for 7 days due to policy violations.',
+        link: '/feed',
+      });
+    } else if (newCount === 1) {
+      enforcementAction = 'warned';
+
+      await db.insert(notifications).values({
+        userId: authorId,
+        type: 'moderation',
+        title: 'Content Policy Warning',
+        message: 'Your content was removed for violating our community guidelines. Further violations may result in suspension.',
+        link: '/feed',
+      });
+    }
+
+    logAdminAction({
+      adminId: req.user.id,
+      action: 'reject_content',
+      targetType: 'post',
+      targetId: postId,
+      details: { authorId, violationCount: newCount, enforcementAction },
+    });
+
+    res.json({ success: true, violationCount: newCount, enforcementAction });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/admin/users/:userId/warn", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  if (!req.user || req.user.role !== 'master_admin') {
+    return res.status(403).send("Forbidden");
+  }
+  try {
+    const { userId } = req.params;
+    const message = req.body.message ?? 'You have received a warning for violating community guidelines.';
+    await db.insert(notifications).values({
+      userId,
+      type: 'moderation',
+      title: 'Content Policy Warning',
+      message,
+      link: '/feed',
+    });
+    logAdminAction({ adminId: req.user.id, action: 'warn_user', targetType: 'user', targetId: userId, details: { message } });
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/admin/users/:userId/suspend", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  if (!req.user || req.user.role !== 'master_admin') {
+    return res.status(403).send("Forbidden");
+  }
+  try {
+    const { userId } = req.params;
+    const days = Number(req.body.days ?? 7);
+    const suspendUntil = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+    await db.update(users).set({ suspendedUntil: suspendUntil }).where(eq(users.id, userId));
+    await db.insert(notifications).values({
+      userId,
+      type: 'moderation',
+      title: 'Account Suspended',
+      message: `Your account has been suspended for ${days} days due to policy violations.`,
+      link: '/feed',
+    });
+    logAdminAction({ adminId: req.user.id, action: 'suspend_user', targetType: 'user', targetId: userId, details: { days } });
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/admin/users/:userId/ban", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  if (!req.user || req.user.role !== 'master_admin') {
+    return res.status(403).send("Forbidden");
+  }
+  try {
+    const { userId } = req.params;
+    await db.update(users).set({ isBanned: true }).where(eq(users.id, userId));
+    await db.insert(notifications).values({
+      userId,
+      type: 'moderation',
+      title: 'Account Permanently Banned',
+      message: 'Your account has been permanently banned due to repeated policy violations.',
+      link: '/feed',
+    });
+    logAdminAction({ adminId: req.user.id, action: 'ban_user', targetType: 'user', targetId: userId });
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/admin/users/:userId/unban", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  if (!req.user || req.user.role !== 'master_admin') {
+    return res.status(403).send("Forbidden");
+  }
+  try {
+    const { userId } = req.params;
+    await db.update(users)
+      .set({ isBanned: false, suspendedUntil: null })
+      .where(eq(users.id, userId));
+    logAdminAction({ adminId: req.user.id, action: 'unban_user', targetType: 'user', targetId: userId });
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/admin/moderation-logs", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  if (!req.user || req.user.role !== 'master_admin') {
+    return res.status(403).send("Forbidden");
+  }
+  try {
+    const logs = await db
+      .select({
+        id: contentModerationLogs.id,
+        postId: contentModerationLogs.postId,
+        adminId: contentModerationLogs.adminId,
+        action: contentModerationLogs.action,
+        note: contentModerationLogs.note,
+        createdAt: contentModerationLogs.createdAt,
+        adminName: users.displayName,
+      })
+      .from(contentModerationLogs)
+      .leftJoin(users, eq(contentModerationLogs.adminId, users.id))
+      .orderBy(desc(contentModerationLogs.createdAt))
+      .limit(100);
+    res.json(logs);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/admin/action-logs", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  if (!req.user || req.user.role !== 'master_admin') {
+    return res.status(403).send("Forbidden");
+  }
+  try {
+    const logs = await db
+      .select({
+        id: adminActionLogs.id,
+        adminId: adminActionLogs.adminId,
+        action: adminActionLogs.action,
+        targetType: adminActionLogs.targetType,
+        targetId: adminActionLogs.targetId,
+        details: adminActionLogs.details,
+        createdAt: adminActionLogs.createdAt,
+        adminEmail: users.email,
+        adminName: users.displayName,
+      })
+      .from(adminActionLogs)
+      .leftJoin(users, eq(adminActionLogs.adminId, users.id))
+      .orderBy(desc(adminActionLogs.createdAt))
+      .limit(200);
+    res.json(logs);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================================================================
+// ADMIN COURSE & CONTENT MANAGEMENT
+// ========================================================================
+
+router.get("/admin/courses", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  if (!req.user || req.user.role !== 'master_admin') {
+    return res.status(403).send("Forbidden");
+  }
+  try {
+    const { courses, courseEnrollments } = await import("@shared/schema");
+    const allCourses = await db
+      .select({
+        id: courses.id,
+        name: courses.name,
+        code: courses.code,
+        description: courses.description,
+        instructorId: courses.instructorId,
+        instructorName: users.displayName,
+        instructorEmail: users.email,
+        status: courses.universityValidationStatus,
+        isValidated: courses.isUniversityValidated,
+        createdAt: courses.createdAt,
+      })
+      .from(courses)
+      .leftJoin(users, eq(courses.instructorId, users.id))
+      .orderBy(desc(courses.createdAt));
+    res.json(allCourses);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete("/admin/courses/:courseId", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  if (!req.user || req.user.role !== 'master_admin') {
+    return res.status(403).send("Forbidden");
+  }
+  try {
+    const { courseId } = req.params;
+    const { courses } = await import("@shared/schema");
+    await db.delete(courses).where(eq(courses.id, courseId));
+    logAdminAction({ adminId: req.user.id, action: 'delete_course', targetType: 'course', targetId: courseId });
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.patch("/admin/courses/:courseId/validate", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  if (!req.user || req.user.role !== 'master_admin') {
+    return res.status(403).send("Forbidden");
+  }
+  try {
+    const { courseId } = req.params;
+    const { courses } = await import("@shared/schema");
+    await db.update(courses).set({
+      universityValidationStatus: 'approved',
+      isUniversityValidated: true,
+      validatedByUniversityAdminId: req.user.id,
+      universityValidatedAt: new Date(),
+    }).where(eq(courses.id, courseId));
+    logAdminAction({ adminId: req.user.id, action: 'validate_course', targetType: 'course', targetId: courseId });
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================================================================
+// ADMIN GROUPS MANAGEMENT
+// ========================================================================
+
+router.get("/admin/groups", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  if (!req.user || req.user.role !== 'master_admin') {
+    return res.status(403).send("Forbidden");
+  }
+  try {
+    const { groups } = await import("@shared/schema");
+    const allGroups = await db
+      .select({
+        id: groups.id,
+        name: groups.name,
+        description: groups.description,
+        groupType: groups.groupType,
+        isPrivate: groups.isPrivate,
+        creatorId: groups.creatorId,
+        creatorName: users.displayName,
+        creatorEmail: users.email,
+        memberCount: groups.memberCount,
+        createdAt: groups.createdAt,
+      })
+      .from(groups)
+      .leftJoin(users, eq(groups.creatorId, users.id))
+      .orderBy(desc(groups.createdAt));
+    res.json(allGroups);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete("/admin/groups/:groupId", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  if (!req.user || req.user.role !== 'master_admin') {
+    return res.status(403).send("Forbidden");
+  }
+  try {
+    const { groupId } = req.params;
+    const { groups } = await import("@shared/schema");
+    await db.delete(groups).where(eq(groups.id, groupId));
+    logAdminAction({ adminId: req.user.id, action: 'delete_group', targetType: 'group', targetId: groupId });
+    res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

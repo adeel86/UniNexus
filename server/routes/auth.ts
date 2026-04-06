@@ -219,18 +219,41 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
 
     const isRealFirebaseUser = !!firebaseUid && !firebaseUid.startsWith('dev_user_');
 
+    const ADMIN_EMAIL = "team@uninexus.uk";
+    const isAdminEmail = email?.toLowerCase() === ADMIN_EMAIL;
+
+    // Block normal registration from claiming master_admin role
+    const requestedRole = role || 'student';
+    if (requestedRole === 'master_admin' && !isAdminEmail) {
+      return res.status(403).json({ message: "Cannot register with admin role." });
+    }
+
+    // Enforce single admin account
+    if (isAdminEmail) {
+      const [existingAdmin] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, ADMIN_EMAIL))
+        .limit(1);
+      if (existingAdmin) {
+        return res.status(409).json({ message: "Admin account already exists." });
+      }
+    }
+
     const user = await storage.createUserFromFirebase(effectiveUid, {
       email,
       displayName,
       firstName,
       lastName,
-      role: role || 'student',
+      role: isAdminEmail ? 'master_admin' : (requestedRole === 'master_admin' ? 'student' : requestedRole),
       universityId: universityId || null,
       majorId: majorId || null,
       bio: bio || null,
-      emailVerified: false,
-      verificationSentAt: isRealFirebaseUser ? new Date() : null,
-    });
+      emailVerified: isAdminEmail ? true : false,
+      isVerified: isAdminEmail ? true : false,
+      verifiedAt: isAdminEmail ? new Date() : undefined,
+      verificationSentAt: isRealFirebaseUser && !isAdminEmail ? new Date() : null,
+    } as any);
 
     // Persist company / position to user_profiles for industry users
     if (company || position) {
@@ -254,8 +277,8 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
       console.error("Failed to update streak on registration:", err)
     );
 
-    // Generate and send OTP for real Firebase users
-    if (isRealFirebaseUser && email) {
+    // Generate and send OTP for real Firebase users (skipped for admin account)
+    if (isRealFirebaseUser && email && !isAdminEmail) {
       try {
         const otp = await createOtpForEmail(email);
         const sent = await sendOtpEmail(email, otp, displayName);

@@ -222,6 +222,22 @@ export type {
   InsertRecruiterFeedback,
 } from "./certifications";
 
+// Moderation
+export {
+  contentModerationLogs,
+  contentModerationLogsRelations,
+  insertContentModerationLogSchema,
+  adminActionLogs,
+  adminActionLogsRelations,
+  insertAdminActionLogSchema,
+} from "./moderation";
+export type {
+  ContentModerationLog,
+  InsertContentModerationLog,
+  AdminActionLog,
+  InsertAdminActionLog,
+} from "./moderation";
+
 // AI
 export {
   teacherContent,

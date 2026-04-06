@@ -23,6 +23,9 @@ export const users = pgTable("users", {
   verificationSentAt: timestamp("verification_sent_at"),
   isVerified: boolean("is_verified").notNull().default(false),
   verifiedAt: timestamp("verified_at"),
+  violationCount: integer("violation_count").notNull().default(0),
+  suspendedUntil: timestamp("suspended_until"),
+  isBanned: boolean("is_banned").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

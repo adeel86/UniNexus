@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { eq, desc, sql, and, inArray } from "drizzle-orm";
+import { eq, desc, sql, and, inArray, ne } from "drizzle-orm";
 import { db } from "../db";
 import { isAuthenticated, type AuthRequest } from "../firebaseAuth";
 import { updateUserStreakForActivity } from "../streakHelper";
@@ -20,6 +20,7 @@ import {
   insertReactionSchema,
 } from "@shared/schema";
 import { blockRestrictedRoles } from "./shared";
+import { moderatePostContent } from "../services/contentModeration";
 
 async function enrichWithOriginalPosts(postsWithDetails: any[]) {
   const originalPostIds = postsWithDetails
@@ -78,7 +79,9 @@ router.get("/posts", async (req: Request, res: Response) => {
   
   try {
     const conditions = [];
-    
+
+    conditions.push(ne(posts.moderationStatus, 'rejected'));
+
     if (targetUserId) {
       conditions.push(eq(posts.authorId, targetUserId));
     }
@@ -110,9 +113,7 @@ router.get("/posts", async (req: Request, res: Response) => {
       .orderBy(desc(posts.createdAt))
       .$dynamic();
 
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
-    }
+    query = query.where(and(...conditions));
 
     let postsData = await query;
 
@@ -490,12 +491,33 @@ router.post("/posts", blockRestrictedRoles, async (req: Request, res: Response) 
 
     const [newPost] = await db.insert(posts).values(validatedData).returning();
 
+    moderatePostContent({
+      text: newPost.content,
+      imageUrls: [
+        ...(newPost.imageUrl ? [newPost.imageUrl] : []),
+        ...(newPost.mediaUrls ?? []),
+      ],
+      videoUrl: newPost.videoUrl ?? undefined,
+    }).then(async (result) => {
+      if (result.flagged) {
+        await db.update(posts)
+          .set({
+            isFlagged: true,
+            flagReason: result.reason,
+            flagConfidence: String(result.confidence),
+            moderationStatus: 'pending_review',
+          })
+          .where(eq(posts.id, newPost.id));
+      }
+    }).catch((err: any) =>
+      console.error("[contentModeration] Post scan failed:", err)
+    );
+
     await applyPointDelta(req.user!.id, { engagementDelta: 10 }).catch((err: any) =>
       console.error("Failed to apply point delta on post creation:", err)
     );
 
-    // Update streak when user creates a post
-    await updateUserStreakForActivity(req.user!.id, 'POST_CREATION').catch((err: any) => 
+    await updateUserStreakForActivity(req.user!.id, 'POST_CREATION').catch((err: any) =>
       console.error("Failed to update streak on post creation:", err)
     );
 

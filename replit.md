@@ -44,6 +44,18 @@ Preferred communication style: Simple, everyday language.
   Tiers: Bronze (0–999), Silver (1000–2999), Gold (3000–6999), Platinum (7000+).
   - Industry feedback (from `recruiter_feedback` table): each rating (1-5) × 20 pts are added automatically when a `POST /api/recruiter-feedback` is submitted.
   - Teacher-issued certificates (from `certifications` table where issuer role = teacher): each cert = 150 pts, recalculated automatically when `POST /api/certifications` is called by a teacher for a student.
+- **Content Moderation System** (AI-powered, `server/services/contentModeration.ts`):
+    - Scans posts at creation time using **OpenAI GPT-4o-mini** (vision) for images/videos and **OpenAI Moderation API** for text.
+    - Flagged posts set `is_flagged=true`, `moderation_status='pending_review'` on the `posts` table (hidden from feed until reviewed).
+    - Approved posts: `moderation_status='approved'`, `is_flagged=false`.
+    - Rejected posts: trigger violation count increment on the author; enforcement rules:
+      - 1 violation → warning notification
+      - 2–3 violations → 7-day suspension
+      - 4+ violations → permanent ban
+    - Admin endpoints (all `master_admin` only): `GET /api/admin/flagged-content`, `POST /api/admin/moderation/:postId/approve`, `POST /api/admin/moderation/:postId/reject`, `POST /api/admin/users/:userId/warn|suspend|ban|unban`.
+    - All admin actions logged to `content_moderation_logs` table for full audit trail.
+    - **Master Admin Dashboard** has a dedicated "Content Moderation" tab with approve/reject/warn/ban actions per post, and an "Audit Logs" tab.
+    - New schema fields: `posts.(is_flagged, flag_reason, flag_confidence, moderation_status, moderated_at, moderated_by)`, `users.(violation_count, suspended_until, is_banned)`, new table `content_moderation_logs`.
 - **Middleware**: `express.json()`, `express.urlencoded()`, custom logging, session middleware, Passport.js.
 
 ### Data Storage Solutions

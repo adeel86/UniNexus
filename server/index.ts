@@ -6,6 +6,7 @@ import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { initializeScheduledJobs } from "./cron";
 import { syncAllUsersTotalPoints } from "./pointsHelper";
+import { setupAdminAccount } from "./scripts/setupAdmin";
 
 const app = express();
 
@@ -53,6 +54,11 @@ app.use((req, res, next) => {
 
 (async () => {
   const server = await registerRoutes(app);
+
+  // Ensure the platform admin account exists
+  setupAdminAccount().catch((err) =>
+    console.error("[startup] Failed to set up admin account:", err)
+  );
 
   // Sync any stale totalPoints values for all users on startup
   syncAllUsersTotalPoints().catch((err) =>

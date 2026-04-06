@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { relations } from 'drizzle-orm';
-import { pgTable, timestamp, varchar, text, integer, uniqueIndex, type AnyPgColumn } from "drizzle-orm/pg-core";
+import { pgTable, timestamp, varchar, text, integer, boolean, numeric, uniqueIndex, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { users } from "./users";
@@ -18,6 +18,12 @@ export const posts = pgTable("posts", {
   viewCount: integer("view_count").notNull().default(0),
   shareCount: integer("share_count").notNull().default(0),
   originalPostId: varchar("original_post_id").references((): AnyPgColumn => posts.id, { onDelete: 'set null' }),
+  isFlagged: boolean("is_flagged").notNull().default(false),
+  flagReason: text("flag_reason"),
+  flagConfidence: numeric("flag_confidence", { precision: 5, scale: 4 }),
+  moderationStatus: varchar("moderation_status", { length: 20 }).notNull().default('approved'),
+  moderatedAt: timestamp("moderated_at"),
+  moderatedBy: varchar("moderated_by").references(() => users.id, { onDelete: 'set null' }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
