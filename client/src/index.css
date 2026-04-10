@@ -449,6 +449,64 @@
 
   /* Touch-friendly tap targets (minimum 44x44px) */
   @media (max-width: 768px) {
+    html,
+    body,
+    #root {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+
+    * {
+      min-width: 0;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 100%;
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+
+    .mobile-global-header-active .mobile-page-header:not(.mobile-page-header-global) {
+      display: none;
+    }
+
+    .mobile-global-header-active .pt-14 {
+      padding-top: 0 !important;
+    }
+
+    .mobile-global-header-active > div:nth-of-type(2) {
+      min-height: calc(100vh - 3.5rem);
+    }
+
+    .mobile-global-header-active main,
+    .mobile-global-header-active section,
+    .mobile-global-header-active article {
+      max-width: 100%;
+    }
+
+    .mobile-global-header-active .card,
+    [data-slot="card"] {
+      border-radius: 1rem;
+    }
+
+    [role="tablist"] {
+      max-width: 100%;
+      overflow-x: auto;
+    }
+
+    table {
+      max-width: 100%;
+    }
+
+    input,
+    textarea,
+    select {
+      max-width: 100%;
+      font-size: 16px;
+    }
+
     button, a[role="button"], [role="tab"] {
       min-height: 44px;
       min-width: 44px;

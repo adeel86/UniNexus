@@ -69,7 +69,6 @@ export const navigationConfig: Record<string, MenuItem[]> = {
 
   university_admin: [
     { icon: Home,          label: "Dashboard",     path: "/university-dashboard",   color: "from-blue-500 to-blue-600" },
-    { icon: Users,         label: "My Students",   path: "/my-students",            color: "from-violet-500 to-violet-600" },
     { icon: GraduationCap, label: "Teachers",      path: "/university-teachers",    color: "from-green-500 to-green-600" },
     { icon: Network,       label: "My Network",    path: "/network",                color: "from-purple-500 to-purple-600" },
     { icon: Search,        label: "Discover",      path: "/discovery",              color: "from-teal-500 to-teal-600" },
@@ -101,7 +100,6 @@ export const navigationConfig: Record<string, MenuItem[]> = {
 
   master_admin: [
     { icon: Home,        label: "Dashboard",      path: "/master-admin-dashboard", color: "from-blue-500 to-blue-600" },
-    { icon: Network,     label: "Network",         path: "/network",               color: "from-purple-500 to-purple-600" },
     { icon: Trophy,      label: "Challenges",      path: "/challenges",            color: "from-red-500 to-red-600" },
     { icon: Star,        label: "Leaderboard",     path: "/leaderboard",           color: "from-yellow-500 to-yellow-600" },
     { icon: Map,         label: "Challenge Map",   path: "/challenges/map",        color: "from-emerald-500 to-emerald-600" },
@@ -126,6 +124,9 @@ export function getNavigationForRole(role?: string): MenuItem[] {
   }
   if (role === "university") {
     role = "university_admin";
+  }
+  if (role === "admin") {
+    role = "master_admin";
   }
 
   return navigationConfig[role] || [];

@@ -154,10 +154,17 @@ Preferred communication style: Simple, everyday language.
 - `PATCH /api/teacher-content/:id` - Update teacher content (ownership validated)
 
 ## Replit Migration Notes
-- **Dev script**: Changed from `npx tsx` to `tsx` (local node_modules binary) to avoid interactive install prompts
+- **Dev script**: Uses `npm run dev`; dependencies are installed locally so `npx tsx` resolves without interactive prompts
 - **Workflow**: Configured "Start application" workflow with `npm run dev`, port 5000, webview output type
 - **Database**: Schema pushed via `drizzle-kit push` — all tables are synced
 - **Port**: Server runs on port 5000 (from `process.env.PORT || 5000`)
+
+## Mobile App-Style Navigation
+- Mobile authenticated users now land on an icon launcher home screen instead of using top or bottom navigation bars.
+- Desktop navigation remains unchanged; `Navbar` stays hidden on mobile and `MobileNavigation` remains disabled.
+- A universal mobile page header appears on feature pages with a visible Back button that returns to the launcher (`/`), so users do not need the browser back button.
+- Role-based launcher links are defined in `client/src/lib/navigation-config.ts`; broken mobile role links were removed for university admins and master admins.
+- Global mobile CSS in `client/src/index.css` constrains width, hides horizontal overflow, normalizes spacing, and improves form/tab behavior on phone screens.
 
 ## Email Security Features
 

@@ -245,7 +245,7 @@ export default function Challenges() {
 
     if (isParticipating(challenge.id)) {
       return (
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {submitted && (
             <Button variant="outline" disabled data-testid={`button-submitted-${challenge.id}`}>
               <CheckCircle className="h-4 w-4 mr-2 text-green-600" />
@@ -281,10 +281,10 @@ export default function Challenges() {
   const ChallengeCard = ({ challenge, showActions = true }: { challenge: Challenge; showActions?: boolean }) => {
     const deadlinePassed = isDeadlinePassed(challenge.endDate);
     return (
-      <Card className="hover-elevate" data-testid={`challenge-card-${challenge.id}`}>
-        <CardHeader>
-          <div className="flex items-start gap-4">
-            <div className="flex-1">
+      <Card className="hover-elevate overflow-hidden rounded-2xl" data-testid={`challenge-card-${challenge.id}`}>
+        <CardHeader className="p-4 sm:p-6">
+          <div className="flex items-start gap-4 min-w-0">
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-2 flex-wrap">
                 {getStatusBadge(challenge.status)}
                 <Badge variant="outline" className={`${getDifficultyColor(challenge.difficulty)} text-white`}>
@@ -292,12 +292,12 @@ export default function Challenges() {
                 </Badge>
                 {challenge.category && <Badge variant="secondary">{challenge.category}</Badge>}
               </div>
-              <CardTitle className="text-xl sm:text-2xl mb-2">{challenge.title}</CardTitle>
-              <CardDescription className="text-sm sm:text-base">{challenge.description}</CardDescription>
+              <CardTitle className="text-xl sm:text-2xl mb-2 break-words">{challenge.title}</CardTitle>
+              <CardDescription className="text-sm sm:text-base break-words">{challenge.description}</CardDescription>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 p-4 pt-0 sm:p-6 sm:pt-0">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
             {challenge.organizer && (
               <div className="flex items-center gap-2">
@@ -341,7 +341,7 @@ export default function Challenges() {
   };
 
   return (
-    <div className="container mx-auto px-3 py-5 sm:px-6 sm:py-6 space-y-6 pt-14 md:pt-5">
+    <div className="container mx-auto px-3 py-5 sm:px-6 sm:py-6 space-y-6 md:pt-5">
       <MobilePageHeader title="Challenges" />
       <div className="text-center space-y-2 mb-6 sm:mb-8">
         <h1 className="font-heading text-2xl sm:text-4xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent">
@@ -639,7 +639,7 @@ export default function Challenges() {
                       </div>
                     )}
 
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                       {!submitted && challenge.status === "active" && !deadlinePassed && (
                         <Button
                           onClick={() => openSubmitDialog(challenge, participation)}

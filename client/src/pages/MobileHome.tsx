@@ -21,11 +21,12 @@ function MobileMenuItem({ icon: Icon, label, path, color, onClick, notificationC
   return (
     <button
       onClick={() => onClick(path)}
-      className="flex flex-col items-center gap-2 p-3 rounded-xl hover:opacity-80 transition-opacity active:scale-95 relative"
+      className="group flex flex-col items-center gap-2 rounded-3xl bg-card/90 p-3 shadow-sm ring-1 ring-border/70 transition-all active:scale-95 relative"
+      data-testid={`button-launch-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
     >
       <div
         className={cn(
-          "w-16 h-16 rounded-2xl flex items-center justify-center text-white shadow-md hover:shadow-lg transition-shadow relative",
+          "w-16 h-16 rounded-2xl flex items-center justify-center text-white shadow-md transition-shadow relative group-active:shadow-lg",
           `bg-gradient-to-br ${color}`
         )}
       >
@@ -72,7 +73,7 @@ function MobileMenuItem({ icon: Icon, label, path, color, onClick, notificationC
           />
         )}
       </div>
-      <span className="text-xs font-semibold text-center leading-tight max-w-[70px] text-foreground">
+      <span className="text-[11px] font-semibold text-center leading-tight max-w-[72px] text-foreground">
         {label}
       </span>
     </button>
@@ -175,24 +176,28 @@ export default function MobileHome() {
   };
 
   return (
-    <div className="md:hidden min-h-screen bg-gradient-to-b from-background to-background/95 pb-6">
+    <div className="md:hidden min-h-screen overflow-x-hidden bg-gradient-to-b from-purple-50 via-background to-blue-50 pb-8 dark:from-purple-950/30 dark:via-background dark:to-blue-950/30">
       {/* Header */}
-      <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-6 pt-8 pb-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold mb-1">UniNexus</h1>
-          <p className="text-purple-100">Welcome, {user?.firstName}! 👋</p>
+      <div className="px-4 pt-8 pb-5">
+        <div className="rounded-[2rem] bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 p-6 text-white shadow-xl shadow-purple-500/20">
+          <p className="text-sm font-medium text-white/80">Welcome back</p>
+          <h1 className="font-heading text-3xl font-bold">UniNexus</h1>
+          <p className="mt-1 text-sm text-purple-100" data-testid="text-mobile-welcome">
+            Hi {user?.firstName}, choose an icon to open any feature.
+          </p>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="px-3 py-6 space-y-4">
+      <div className="px-4 space-y-5">
       {/* Instructions Card */}
-      <Card className="p-3 bg-blue-50/50 border-blue-200 mx-1">
-        <p className="text-xs text-blue-900 text-center font-medium">
-          Tap any icon to access features
+      <Card className="rounded-3xl border-purple-200/70 bg-white/80 p-4 shadow-sm dark:bg-card/80">
+        <p className="text-sm text-muted-foreground text-center font-medium">
+          App launcher
         </p>
-      </Card>        {/* Icon Grid - 3 columns on mobile */}
-        <div className="grid grid-cols-3 gap-3 px-1">
+      </Card>
+        {/* Icon Grid - 3 columns on mobile */}
+        <div className="grid grid-cols-3 gap-3">
           {availableItems.map((item) => {
             // Determine notification count for each item
             let notificationCount: number | undefined;
@@ -232,7 +237,7 @@ export default function MobileHome() {
 
         {/* Quick Stats Card - Student Only */}
         {user?.role === "student" && user?.totalPoints !== undefined && (
-          <Card className="p-4 mt-6 border-l-4 border-purple-500 mx-1">
+          <Card className="p-4 mt-6 rounded-3xl border-purple-200/70 shadow-sm">
             <h3 className="text-sm font-semibold mb-3 text-foreground">Quick Stats</h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="text-center">

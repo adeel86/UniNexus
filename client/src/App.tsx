@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/lib/AuthContext";
 import { AccessGate } from "@/components/AccessGate";
 import { Navbar } from "@/components/Navbar";
 import { MobileNavigation } from "@/components/MobileNavigation";
+import { MobilePageHeader } from "@/components/MobilePageHeader";
 import { CareerBot } from "@/components/CareerBot";
 import { RoleGuard } from "@/components/RoleGuard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -50,6 +51,7 @@ import NotFound from "@/pages/not-found";
 function Router() {
   const { currentUser, userData, loading } = useAuth();
   const isMobile = useIsMobile();
+  const [location] = useLocation();
 
   if (loading) {
     return (
@@ -99,11 +101,46 @@ function Router() {
   };
 
   const HomePage = getHomePage();
+  const isMobileLauncher = location === "/" || location === "/mobile-home";
+  const mobilePageTitles: Array<[RegExp, string]> = [
+    [/^\/student-feed$/, "Feed"],
+    [/^\/careerbot$/, "AI Career"],
+    [/^\/network$/, "My Network"],
+    [/^\/discovery$/, "Discover"],
+    [/^\/personal-tutor$/, "AI Tutor"],
+    [/^\/messages$/, "Messages"],
+    [/^\/groups$/, "Groups"],
+    [/^\/groups\/[^/]+$/, "Group"],
+    [/^\/notifications$/, "Notifications"],
+    [/^\/leaderboard$/, "Leaderboard"],
+    [/^\/university-leaderboard$/, "Leaderboard"],
+    [/^\/challenges$/, "Challenges"],
+    [/^\/challenges\/map$/, "Challenge Map"],
+    [/^\/problem-solving$/, "Q&A"],
+    [/^\/profile$/, "Profile"],
+    [/^\/settings$/, "Settings"],
+    [/^\/courses$/, "My Courses"],
+    [/^\/courses\/[^/]+$/, "Course"],
+    [/^\/forums\/[^/]+\/[^/]+$/, "Discussion"],
+    [/^\/ethics$/, "Ethics"],
+    [/^\/transparency$/, "Transparency"],
+    [/^\/my-teachers$/, "My Teachers"],
+    [/^\/my-students$/, "My Students"],
+    [/^\/university-teachers$/, "Teachers"],
+    [/^\/teacher-dashboard$/, "Teacher Dashboard"],
+    [/^\/university-dashboard$/, "University Dashboard"],
+    [/^\/industry-dashboard$/, "Industry Dashboard"],
+    [/^\/master-admin-dashboard$/, "Admin Dashboard"],
+  ];
+  const mobileTitle = mobilePageTitles.find(([pattern]) => pattern.test(location))?.[1] ?? "UniNexus";
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className={`min-h-screen bg-background overflow-x-hidden ${isMobile && !isMobileLauncher ? "mobile-global-header-active" : ""}`}>
       <Navbar />
-      <div className="pb-16 md:pb-0">
+      {isMobile && !isMobileLauncher && (
+        <MobilePageHeader title={mobileTitle} global />
+      )}
+      <div className="pb-0">
         <ErrorBoundary>
         <Switch>
           {/* Mobile home page - show only on mobile */}

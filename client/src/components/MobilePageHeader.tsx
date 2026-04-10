@@ -1,8 +1,7 @@
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Home } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useLocation } from "wouter";
-import { useAuth } from "@/lib/AuthContext";
 import { cn } from "@/lib/utils";
 
 interface MobilePageHeaderProps {
@@ -11,24 +10,12 @@ interface MobilePageHeaderProps {
   rightAction?: React.ReactNode;
   backTo?: string;
   className?: string;
+  global?: boolean;
 }
 
-function getHomeForRole(role?: string): string {
-  switch (role) {
-    case "teacher": return "/teacher-dashboard";
-    case "university_admin":
-    case "university": return "/university-dashboard";
-    case "industry_professional":
-    case "industry": return "/industry-dashboard";
-    case "master_admin": return "/master-admin-dashboard";
-    default: return "/";
-  }
-}
-
-export function MobilePageHeader({ title, subtitle, rightAction, backTo, className }: MobilePageHeaderProps) {
+export function MobilePageHeader({ title, subtitle, rightAction, backTo, className, global = false }: MobilePageHeaderProps) {
   const isMobile = useIsMobile();
   const [, navigate] = useLocation();
-  const { userData } = useAuth();
 
   if (!isMobile) return null;
 
@@ -36,18 +23,20 @@ export function MobilePageHeader({ title, subtitle, rightAction, backTo, classNa
     if (backTo) {
       navigate(backTo);
     } else {
-      navigate(getHomeForRole(userData?.role));
+      navigate("/");
     }
   };
 
   return (
     <div
       className={cn(
-        "fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b",
-        "flex items-center gap-3 px-4 h-14 safe-area-top",
+        "mobile-page-header left-0 right-0 z-50 bg-background/95 backdrop-blur-sm border-b",
+        global ? "mobile-page-header-global sticky top-0" : "fixed top-0",
+        "flex items-center gap-3 px-4 h-14 safe-area-inset-top",
         className
       )}
       style={{ paddingTop: "env(safe-area-inset-top)" }}
+      data-testid="mobile-page-header"
     >
       <Button
         variant="ghost"
@@ -76,7 +65,7 @@ export function MobilePageHeader({ title, subtitle, rightAction, backTo, classNa
 export function MobilePageWrapper({ children, className }: { children: React.ReactNode; className?: string }) {
   const isMobile = useIsMobile();
   return (
-    <div className={cn(isMobile ? "pt-14" : "", "min-h-screen overflow-x-hidden", className)}>
+    <div className={cn(isMobile ? "pt-0" : "", "min-h-screen overflow-x-hidden", className)}>
       {children}
     </div>
   );
