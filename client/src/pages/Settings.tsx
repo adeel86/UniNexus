@@ -24,6 +24,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { MobilePageHeader } from "@/components/MobilePageHeader";
 
 export default function Settings() {
   const { userData, signOut, refreshUserData } = useAuth();
@@ -288,8 +289,9 @@ export default function Settings() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-4xl">
-      <div className="mb-6">
+    <div className="container mx-auto px-4 py-6 max-w-4xl pt-14 md:pt-6">
+      <MobilePageHeader title="Settings" />
+      <div className="mb-6 hidden md:block">
         <h1 className="font-heading text-4xl font-bold mb-2 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
           Settings
         </h1>

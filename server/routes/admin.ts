@@ -1,5 +1,5 @@
 import express, { Request, Response } from "express";
-import { eq, desc, sql, and, or } from "drizzle-orm";
+import { eq, desc, sql, and, or, gte, lt, count } from "drizzle-orm";
 import { db } from "../db";
 import { storage as dbStorage } from "../storage";
 import { isAuthenticated, type AuthRequest, firebaseAdmin } from "../firebaseAuth";
@@ -20,7 +20,10 @@ import {
   studentCourses,
   contentModerationLogs,
   adminActionLogs,
+  contentScanResults,
+  contentReports,
   insertAnnouncementSchema,
+  insertContentScanResultSchema,
 } from "@shared/schema";
 import { moderatePostContent } from "../services/contentModeration";
 import { logAdminAction } from "../services/adminLogger";
@@ -245,32 +248,69 @@ router.post("/admin/moderation/:postId/reject", isAuthenticated, async (req: Aut
       .update(users)
       .set({ violationCount: sql`violation_count + 1` })
       .where(eq(users.id, authorId))
-      .returning({ violationCount: users.violationCount, isBanned: users.isBanned });
+      .returning({ violationCount: users.violationCount, isBanned: users.isBanned, email: users.email, firstName: users.firstName, lastName: users.lastName, firebaseUid: users.firebaseUid });
 
     const newCount = updatedUser?.violationCount ?? 0;
 
     let enforcementAction: string | null = null;
 
-    if (newCount >= 4 && !updatedUser?.isBanned) {
-      await db.update(users).set({ isBanned: true }).where(eq(users.id, authorId));
-      enforcementAction = 'banned';
+    if (newCount >= 4) {
+      enforcementAction = 'deleted';
 
       await db.insert(notifications).values({
         userId: authorId,
         type: 'moderation',
-        title: 'Account Permanently Banned',
-        message: 'Your account has been permanently banned due to repeated policy violations.',
+        title: 'Account Permanently Deleted',
+        message: 'Your account has been permanently deleted due to repeated policy violations (4th violation).',
+        link: '/feed',
+      }).catch(() => {});
+
+      if (updatedUser?.firebaseUid && firebaseAdmin) {
+        try {
+          await firebaseAdmin.auth().deleteUser(updatedUser.firebaseUid);
+        } catch (fbError: any) {
+          console.warn("[moderation] Firebase user deletion failed:", fbError.message);
+        }
+      }
+
+      await dbStorage.deleteUser(authorId);
+
+      logAdminAction({
+        adminId: req.user.id,
+        action: 'auto_delete_user',
+        targetType: 'user',
+        targetId: authorId,
+        details: { reason: '4th_violation', postId },
+      });
+    } else if (newCount === 3) {
+      const suspendUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      await db.update(users).set({ suspendedUntil: suspendUntil }).where(eq(users.id, authorId));
+      enforcementAction = 'suspended_30d';
+
+      await db.insert(notifications).values({
+        userId: authorId,
+        type: 'moderation',
+        title: 'Account Suspended (30 Days)',
+        message: 'Your account has been suspended for 30 days due to repeated policy violations. This is your final warning.',
         link: '/feed',
       });
-    } else if (newCount >= 2 && newCount <= 3) {
+
+      await db.insert(notifications).values({
+        userId: req.user.id,
+        type: 'moderation',
+        title: 'User Reached 3rd Violation',
+        message: `User ${updatedUser?.firstName ?? ''} ${updatedUser?.lastName ?? ''} (${updatedUser?.email ?? authorId}) has received a 3rd violation and a 30-day suspension. One more violation will result in account deletion.`,
+        link: '/admin',
+      });
+    } else if (newCount === 2) {
       const suspendUntil = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
       await db.update(users).set({ suspendedUntil: suspendUntil }).where(eq(users.id, authorId));
-      enforcementAction = 'suspended';
+      enforcementAction = 'suspended_7d';
 
       await db.insert(notifications).values({
         userId: authorId,
         type: 'moderation',
-        title: 'Account Suspended',
+        title: 'Account Suspended (7 Days)',
         message: 'Your account has been suspended for 7 days due to policy violations.',
         link: '/feed',
       });
@@ -281,7 +321,7 @@ router.post("/admin/moderation/:postId/reject", isAuthenticated, async (req: Aut
         userId: authorId,
         type: 'moderation',
         title: 'Content Policy Warning',
-        message: 'Your content was removed for violating our community guidelines. Further violations may result in suspension.',
+        message: 'Your content was removed for violating our community guidelines. Further violations may result in suspension or account deletion.',
         link: '/feed',
       });
     }
@@ -428,6 +468,320 @@ router.get("/admin/action-logs", isAuthenticated, async (req: AuthRequest, res: 
       .orderBy(desc(adminActionLogs.createdAt))
       .limit(200);
     res.json(logs);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================================================================
+// BULK SCAN
+// ========================================================================
+
+router.post("/admin/moderation/bulk-scan", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  if (!req.user || req.user.role !== 'master_admin') {
+    return res.status(403).send("Forbidden");
+  }
+  try {
+    const limit = Number(req.body.limit ?? 50);
+
+    const unscannedPosts = await db
+      .select({ id: posts.id, content: posts.content, imageUrl: posts.imageUrl, videoUrl: posts.videoUrl, mediaUrls: posts.mediaUrls, authorId: posts.authorId })
+      .from(posts)
+      .where(eq(posts.isFlagged, false))
+      .orderBy(desc(posts.createdAt))
+      .limit(limit);
+
+    let scanned = 0;
+    let flagged = 0;
+
+    for (const post of unscannedPosts) {
+      try {
+        const result = await moderatePostContent({
+          text: post.content,
+          imageUrls: [
+            ...(post.imageUrl ? [post.imageUrl] : []),
+            ...(post.mediaUrls ?? []),
+          ],
+          videoUrl: post.videoUrl ?? undefined,
+        });
+
+        await db.insert(contentScanResults).values({
+          contentType: 'post',
+          contentId: post.id,
+          userId: post.authorId,
+          riskLevel: result.riskLevel,
+          flagged: result.flagged,
+          reason: result.reason || null,
+          confidence: result.confidence ? String(result.confidence) : null,
+        });
+
+        if (result.flagged) {
+          await db.update(posts)
+            .set({
+              isFlagged: true,
+              flagReason: result.reason,
+              flagConfidence: String(result.confidence),
+              moderationStatus: 'pending_review',
+            })
+            .where(eq(posts.id, post.id));
+          flagged++;
+        }
+
+        scanned++;
+      } catch (scanErr) {
+        console.error(`[bulkScan] Error scanning post ${post.id}:`, scanErr);
+      }
+    }
+
+    logAdminAction({
+      adminId: req.user.id,
+      action: 'bulk_scan',
+      targetType: 'posts',
+      targetId: 'bulk',
+      details: { scanned, flagged, limit },
+    });
+
+    res.json({ success: true, scanned, flagged });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================================================================
+// MODERATION ANALYTICS
+// ========================================================================
+
+router.get("/admin/moderation/analytics", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  if (!req.user || req.user.role !== 'master_admin') {
+    return res.status(403).send("Forbidden");
+  }
+  try {
+    const totalFlagged = await db
+      .select({ count: sql<number>`COUNT(*)::int` })
+      .from(posts)
+      .where(eq(posts.isFlagged, true));
+
+    const pendingReview = await db
+      .select({ count: sql<number>`COUNT(*)::int` })
+      .from(posts)
+      .where(eq(posts.moderationStatus, 'pending_review'));
+
+    const rejected = await db
+      .select({ count: sql<number>`COUNT(*)::int` })
+      .from(posts)
+      .where(eq(posts.moderationStatus, 'rejected'));
+
+    const approved = await db
+      .select({ count: sql<number>`COUNT(*)::int` })
+      .from(posts)
+      .where(and(eq(posts.isFlagged, false), eq(posts.moderationStatus, 'approved')));
+
+    const totalReports = await db
+      .select({ count: sql<number>`COUNT(*)::int` })
+      .from(contentReports);
+
+    const pendingReports = await db
+      .select({ count: sql<number>`COUNT(*)::int` })
+      .from(contentReports)
+      .where(eq(contentReports.status, 'pending'));
+
+    const violationsByUser = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        violationCount: users.violationCount,
+        isBanned: users.isBanned,
+        suspendedUntil: users.suspendedUntil,
+      })
+      .from(users)
+      .where(sql`violation_count > 0`)
+      .orderBy(desc(users.violationCount))
+      .limit(20);
+
+    const riskDistribution = await db
+      .select({
+        riskLevel: contentScanResults.riskLevel,
+        count: sql<number>`COUNT(*)::int`,
+      })
+      .from(contentScanResults)
+      .groupBy(contentScanResults.riskLevel);
+
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const flaggedTrend = await db.execute(sql`
+      SELECT 
+        DATE_TRUNC('week', created_at) as week,
+        COUNT(*)::int as count
+      FROM posts
+      WHERE is_flagged = true AND created_at >= ${thirtyDaysAgo.toISOString()}
+      GROUP BY DATE_TRUNC('week', created_at)
+      ORDER BY week ASC
+    `);
+
+    res.json({
+      summary: {
+        totalFlagged: totalFlagged[0]?.count ?? 0,
+        pendingReview: pendingReview[0]?.count ?? 0,
+        rejected: rejected[0]?.count ?? 0,
+        approved: approved[0]?.count ?? 0,
+        totalReports: totalReports[0]?.count ?? 0,
+        pendingReports: pendingReports[0]?.count ?? 0,
+      },
+      violationsByUser,
+      riskDistribution,
+      flaggedTrend: flaggedTrend.rows,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================================================================
+// WEEKLY COMPLIANCE REPORT
+// ========================================================================
+
+router.get("/admin/moderation/weekly-report", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  if (!req.user || req.user.role !== 'master_admin') {
+    return res.status(403).send("Forbidden");
+  }
+  try {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const newFlagged = await db
+      .select({ count: sql<number>`COUNT(*)::int` })
+      .from(posts)
+      .where(and(eq(posts.isFlagged, true), gte(posts.createdAt, sevenDaysAgo)));
+
+    const actionsThisWeek = await db
+      .select({ action: contentModerationLogs.action, count: sql<number>`COUNT(*)::int` })
+      .from(contentModerationLogs)
+      .where(gte(contentModerationLogs.createdAt, sevenDaysAgo))
+      .groupBy(contentModerationLogs.action);
+
+    const newViolations = await db
+      .select({ count: sql<number>`COUNT(*)::int` })
+      .from(adminActionLogs)
+      .where(and(
+        eq(adminActionLogs.action, 'reject_content'),
+        gte(adminActionLogs.createdAt, sevenDaysAgo)
+      ));
+
+    const newBans = await db
+      .select({ count: sql<number>`COUNT(*)::int` })
+      .from(adminActionLogs)
+      .where(and(
+        or(eq(adminActionLogs.action, 'ban_user'), eq(adminActionLogs.action, 'auto_delete_user')),
+        gte(adminActionLogs.createdAt, sevenDaysAgo)
+      ));
+
+    const reportsThisWeek = await db
+      .select({ count: sql<number>`COUNT(*)::int` })
+      .from(contentReports)
+      .where(gte(contentReports.createdAt, sevenDaysAgo));
+
+    const topViolators = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        violationCount: users.violationCount,
+        isBanned: users.isBanned,
+      })
+      .from(users)
+      .where(sql`violation_count > 0`)
+      .orderBy(desc(users.violationCount))
+      .limit(10);
+
+    res.json({
+      period: {
+        from: sevenDaysAgo.toISOString(),
+        to: new Date().toISOString(),
+      },
+      summary: {
+        newFlaggedContent: newFlagged[0]?.count ?? 0,
+        newViolations: newViolations[0]?.count ?? 0,
+        newBansOrDeletions: newBans[0]?.count ?? 0,
+        userReports: reportsThisWeek[0]?.count ?? 0,
+      },
+      moderationActions: actionsThisWeek,
+      topViolators,
+      generatedAt: new Date().toISOString(),
+      generatedBy: req.user.email,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================================================================
+// CONTENT REPORTS (user-submitted)
+// ========================================================================
+
+router.get("/admin/content/reports", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  if (!req.user || req.user.role !== 'master_admin') {
+    return res.status(403).send("Forbidden");
+  }
+  try {
+    const reports = await db
+      .select({
+        id: contentReports.id,
+        reporterId: contentReports.reporterId,
+        contentType: contentReports.contentType,
+        contentId: contentReports.contentId,
+        reason: contentReports.reason,
+        details: contentReports.details,
+        status: contentReports.status,
+        resolvedBy: contentReports.resolvedBy,
+        resolvedAt: contentReports.resolvedAt,
+        resolutionNote: contentReports.resolutionNote,
+        createdAt: contentReports.createdAt,
+        reporterEmail: users.email,
+        reporterFirstName: users.firstName,
+        reporterLastName: users.lastName,
+      })
+      .from(contentReports)
+      .leftJoin(users, eq(contentReports.reporterId, users.id))
+      .orderBy(desc(contentReports.createdAt))
+      .limit(100);
+
+    res.json(reports);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/admin/content/reports/:reportId/resolve", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  if (!req.user || req.user.role !== 'master_admin') {
+    return res.status(403).send("Forbidden");
+  }
+  try {
+    const { reportId } = req.params;
+    const { status, note } = req.body;
+
+    if (!['resolved', 'dismissed'].includes(status)) {
+      return res.status(400).json({ error: "Status must be 'resolved' or 'dismissed'" });
+    }
+
+    await db.update(contentReports)
+      .set({
+        status,
+        resolvedBy: req.user.id,
+        resolvedAt: new Date(),
+        resolutionNote: note ?? null,
+      })
+      .where(eq(contentReports.id, reportId));
+
+    logAdminAction({
+      adminId: req.user.id,
+      action: `resolve_report_${status}`,
+      targetType: 'content_report',
+      targetId: reportId,
+      details: { note },
+    });
+
+    res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

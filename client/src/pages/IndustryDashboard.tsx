@@ -15,6 +15,7 @@ import {
   FeedbackModal,
   RankingModal,
 } from "@/components/industry";
+import { MobilePageHeader } from "@/components/MobilePageHeader";
 
 export default function IndustryDashboard() {
   const {

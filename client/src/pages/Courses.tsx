@@ -15,6 +15,7 @@ import {
   FileText
 } from "lucide-react";
 import { format } from "date-fns";
+import { MobilePageHeader } from "@/components/MobilePageHeader";
 
 type EnrolledCourse = {
   id: string;

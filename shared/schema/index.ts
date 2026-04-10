@@ -230,12 +230,22 @@ export {
   adminActionLogs,
   adminActionLogsRelations,
   insertAdminActionLogSchema,
+  contentScanResults,
+  contentScanResultsRelations,
+  insertContentScanResultSchema,
+  contentReports,
+  contentReportsRelations,
+  insertContentReportSchema,
 } from "./moderation";
 export type {
   ContentModerationLog,
   InsertContentModerationLog,
   AdminActionLog,
   InsertAdminActionLog,
+  ContentScanResult,
+  InsertContentScanResult,
+  ContentReport,
+  InsertContentReport,
 } from "./moderation";
 
 // AI

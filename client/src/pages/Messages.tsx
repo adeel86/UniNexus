@@ -20,6 +20,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { MobilePageHeader } from "@/components/MobilePageHeader";
 
 interface EnrichedConversation extends Conversation {
   participants: User[];

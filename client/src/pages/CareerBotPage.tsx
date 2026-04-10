@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { MobilePageHeader } from "@/components/MobilePageHeader";
 
 interface Message {
   role: 'user' | 'assistant';

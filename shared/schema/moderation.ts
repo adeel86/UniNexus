@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { relations } from 'drizzle-orm';
-import { pgTable, timestamp, varchar, text, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, timestamp, varchar, text, jsonb, boolean, numeric, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { users } from "./users";
@@ -58,3 +58,69 @@ export const insertAdminActionLogSchema = createInsertSchema(adminActionLogs).om
 
 export type AdminActionLog = typeof adminActionLogs.$inferSelect;
 export type InsertAdminActionLog = z.infer<typeof insertAdminActionLogSchema>;
+
+export const contentScanResults = pgTable("content_scan_results", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  contentType: varchar("content_type", { length: 30 }).notNull(),
+  contentId: varchar("content_id").notNull(),
+  userId: varchar("user_id").references(() => users.id, { onDelete: 'set null' }),
+  riskLevel: varchar("risk_level", { length: 20 }).notNull().default('safe'),
+  flagged: boolean("flagged").notNull().default(false),
+  reason: text("reason"),
+  confidence: numeric("confidence", { precision: 5, scale: 4 }),
+  cachedUrlHash: varchar("cached_url_hash"),
+  scanDetails: jsonb("scan_details"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const contentScanResultsRelations = relations(contentScanResults, ({ one }) => ({
+  user: one(users, {
+    fields: [contentScanResults.userId],
+    references: [users.id],
+  }),
+}));
+
+export const insertContentScanResultSchema = createInsertSchema(contentScanResults).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type ContentScanResult = typeof contentScanResults.$inferSelect;
+export type InsertContentScanResult = z.infer<typeof insertContentScanResultSchema>;
+
+export const contentReports = pgTable("content_reports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  reporterId: varchar("reporter_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  contentType: varchar("content_type", { length: 30 }).notNull(),
+  contentId: varchar("content_id").notNull(),
+  reason: varchar("reason", { length: 80 }).notNull(),
+  details: text("details"),
+  status: varchar("status", { length: 20 }).notNull().default('pending'),
+  resolvedBy: varchar("resolved_by").references(() => users.id, { onDelete: 'set null' }),
+  resolvedAt: timestamp("resolved_at"),
+  resolutionNote: text("resolution_note"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const contentReportsRelations = relations(contentReports, ({ one }) => ({
+  reporter: one(users, {
+    fields: [contentReports.reporterId],
+    references: [users.id],
+  }),
+  resolver: one(users, {
+    fields: [contentReports.resolvedBy],
+    references: [users.id],
+  }),
+}));
+
+export const insertContentReportSchema = createInsertSchema(contentReports).omit({
+  id: true,
+  status: true,
+  resolvedBy: true,
+  resolvedAt: true,
+  resolutionNote: true,
+  createdAt: true,
+});
+
+export type ContentReport = typeof contentReports.$inferSelect;
+export type InsertContentReport = z.infer<typeof insertContentReportSchema>;

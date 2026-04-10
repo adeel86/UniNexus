@@ -20,6 +20,7 @@ import {
   EngagementDistribution,
   TopPerformers,
 } from "@/components/teacher-dashboard";
+import { MobilePageHeader } from "@/components/MobilePageHeader";
 
 export default function TeacherDashboard() {
   const { userData } = useAuth();

@@ -1,6 +1,7 @@
 import { PersonalTutor } from "@/components/PersonalTutor";
 import { BrainCircuit } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { MobilePageHeader } from "@/components/MobilePageHeader";
 
 export default function PersonalTutorPage() {
   const isMobile = useIsMobile();

@@ -40,6 +40,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { UserAvatar } from "@/components/UserAvatar";
+import { MobilePageHeader } from "@/components/MobilePageHeader";
 
 const TIER_COLORS: Record<string, string> = {
   platinum: "bg-gradient-to-r from-purple-400 to-indigo-400 text-white",

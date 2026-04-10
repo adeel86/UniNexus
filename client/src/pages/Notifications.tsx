@@ -10,6 +10,7 @@ import type { Notification } from '@shared/schema';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
+import { MobilePageHeader, MobilePageWrapper } from '@/components/MobilePageHeader';
 
 export default function Notifications() {
   const { userData } = useAuth();
@@ -140,10 +141,12 @@ export default function Notifications() {
   }
 
   return (
+    <MobilePageWrapper>
     <div className="container mx-auto p-4 max-w-2xl">
+      <MobilePageHeader title="Notifications" />
       <div className="flex items-start justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold mb-2">Notifications</h1>
+          <h1 className="text-2xl md:text-3xl font-bold mb-2 hidden md:block">Notifications</h1>
           <p className="text-muted-foreground">
             Stay updated with your latest activities
             {unreadCount > 0 && (
@@ -270,5 +273,6 @@ export default function Notifications() {
         )}
       </div>
     </div>
+    </MobilePageWrapper>
   );
 }

@@ -7,7 +7,8 @@ import {
   Users, FileText, Shield, TrendingUp, CheckCircle, Trash2,
   AlertTriangle, Eye, ThumbsUp, ThumbsDown, Ban, AlertCircle,
   Clock, ShieldCheck, ShieldX, RefreshCw, BookOpen, UsersRound,
-  ClipboardList, GraduationCap,
+  ClipboardList, GraduationCap, Scan, Download, Flag, BarChart3,
+  MessageSquareWarning, CircleAlert,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { MobilePageHeader } from "@/components/MobilePageHeader";
 
 interface AdminActionLog {
   id: string;
@@ -95,6 +97,45 @@ interface ModerationLog {
   adminName: string | null;
 }
 
+interface ModerationAnalytics {
+  summary: {
+    totalFlagged: number;
+    pendingReview: number;
+    rejected: number;
+    approved: number;
+    totalReports: number;
+    pendingReports: number;
+  };
+  violationsByUser: {
+    id: string;
+    email: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    violationCount: number;
+    isBanned: boolean;
+    suspendedUntil: string | null;
+  }[];
+  riskDistribution: { riskLevel: string; count: number }[];
+  flaggedTrend: { week: string; count: number }[];
+}
+
+interface ContentReport {
+  id: string;
+  reporterId: string;
+  contentType: string;
+  contentId: string;
+  reason: string;
+  details: string | null;
+  status: string;
+  resolvedBy: string | null;
+  resolvedAt: string | null;
+  resolutionNote: string | null;
+  createdAt: string;
+  reporterEmail: string | null;
+  reporterFirstName: string | null;
+  reporterLastName: string | null;
+}
+
 function ConfidenceBadge({ confidence }: { confidence: string | null }) {
   if (!confidence) return null;
   const pct = Math.round(parseFloat(confidence) * 100);
@@ -102,6 +143,20 @@ function ConfidenceBadge({ confidence }: { confidence: string | null }) {
   return (
     <Badge variant={variant} className="text-xs">
       {pct}% confidence
+    </Badge>
+  );
+}
+
+function RiskBadge({ riskLevel }: { riskLevel: string }) {
+  const styles: Record<string, string> = {
+    safe: "bg-green-50 text-green-700 border-green-200 dark:bg-green-900 dark:text-green-200",
+    moderate: "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-200",
+    explicit: "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900 dark:text-orange-200",
+    severe: "bg-red-50 text-red-700 border-red-200 dark:bg-red-900 dark:text-red-200",
+  };
+  return (
+    <Badge variant="outline" className={`text-xs capitalize ${styles[riskLevel] ?? ""}`}>
+      {riskLevel}
     </Badge>
   );
 }
@@ -126,6 +181,16 @@ function StatusBadge({ status }: { status: string }) {
       <ShieldCheck className="h-3 w-3 mr-1" /> Approved
     </Badge>
   );
+}
+
+function ReportStatusBadge({ status }: { status: string }) {
+  if (status === "pending") {
+    return <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 text-xs"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
+  }
+  if (status === "resolved") {
+    return <Badge variant="outline" className="bg-green-50 text-green-700 text-xs"><ShieldCheck className="h-3 w-3 mr-1" />Resolved</Badge>;
+  }
+  return <Badge variant="outline" className="text-xs capitalize">{status}</Badge>;
 }
 
 export default function MasterAdminDashboard() {
@@ -161,6 +226,14 @@ export default function MasterAdminDashboard() {
     queryKey: ["/api/admin/groups"],
   });
 
+  const { data: analytics } = useQuery<ModerationAnalytics>({
+    queryKey: ["/api/admin/moderation/analytics"],
+  });
+
+  const { data: contentReports = [], isLoading: reportsLoading } = useQuery<ContentReport[]>({
+    queryKey: ["/api/admin/content/reports"],
+  });
+
   const deleteUserMutation = useMutation({
     mutationFn: async (userId: string) => {
       await apiRequest("DELETE", `/api/admin/users/${userId}`);
@@ -181,6 +254,7 @@ export default function MasterAdminDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/flagged-content"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/moderation-logs"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/moderation/analytics"] });
       setPreviewPost(null);
       toast({ title: "Content approved", description: "The post is now visible in the feed." });
     },
@@ -193,10 +267,11 @@ export default function MasterAdminDashboard() {
     mutationFn: async (postId: string) => {
       await apiRequest("POST", `/api/admin/moderation/${postId}/reject`);
     },
-    onSuccess: (_, postId) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/flagged-content"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/moderation-logs"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/moderation/analytics"] });
       setPreviewPost(null);
       toast({
         title: "Content rejected",
@@ -288,6 +363,56 @@ export default function MasterAdminDashboard() {
     },
   });
 
+  const bulkScanMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", "/api/admin/moderation/bulk-scan", { limit: 50 });
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/flagged-content"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/moderation/analytics"] });
+      toast({
+        title: "Bulk scan complete",
+        description: `Scanned ${data.scanned} posts. ${data.flagged} new items flagged.`,
+      });
+    },
+    onError: (error: any) => {
+      toast({ title: "Bulk scan failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const resolveReportMutation = useMutation({
+    mutationFn: async ({ reportId, status, note }: { reportId: string; status: string; note?: string }) => {
+      await apiRequest("POST", `/api/admin/content/reports/${reportId}/resolve`, { status, note });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/content/reports"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/moderation/analytics"] });
+      toast({ title: "Report resolved", description: "The content report has been updated." });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to resolve report", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleWeeklyReportDownload = async () => {
+    try {
+      const response = await fetch("/api/admin/moderation/weekly-report", {
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+      const data = await response.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `uninexus-compliance-report-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast({ title: "Download failed", description: "Could not generate weekly report.", variant: "destructive" });
+    }
+  };
+
   const roleStats = {
     student: users.filter(u => u.role === 'student').length,
     teacher: users.filter(u => u.role === 'teacher').length,
@@ -299,6 +424,7 @@ export default function MasterAdminDashboard() {
   const pendingCount = flaggedContent.filter(p => p.moderationStatus === 'pending_review').length;
   const rejectedCount = flaggedContent.filter(p => p.moderationStatus === 'rejected').length;
   const bannedUsers = (users as any[]).filter(u => u.isBanned).length;
+  const pendingReports = contentReports.filter(r => r.status === 'pending').length;
 
   return (
     <div className="container mx-auto px-4 py-6 max-w-7xl">
@@ -307,7 +433,7 @@ export default function MasterAdminDashboard() {
         <p className="text-muted-foreground">Full platform control and moderation</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
@@ -338,12 +464,10 @@ export default function MasterAdminDashboard() {
         <Card className="p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">System Health</p>
-              <p className="text-3xl font-bold">
-                <CheckCircle className="h-8 w-8 text-green-600 inline" />
-              </p>
+              <p className="text-sm text-muted-foreground">User Reports</p>
+              <p className="text-3xl font-bold text-orange-600">{pendingReports}</p>
             </div>
-            <Shield className="h-8 w-8 text-green-600" />
+            <Flag className="h-8 w-8 text-orange-600" />
           </div>
         </Card>
       </div>
@@ -352,10 +476,19 @@ export default function MasterAdminDashboard() {
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="moderation" data-testid="tab-moderation">
             <Shield className="h-4 w-4 mr-1.5" />
-            Content Moderation
+            Moderation
             {pendingCount > 0 && (
               <Badge variant="destructive" className="ml-2 text-xs px-1.5 py-0">
                 {pendingCount}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="reports" data-testid="tab-reports">
+            <Flag className="h-4 w-4 mr-1.5" />
+            User Reports
+            {pendingReports > 0 && (
+              <Badge variant="destructive" className="ml-2 text-xs px-1.5 py-0">
+                {pendingReports}
               </Badge>
             )}
           </TabsTrigger>
@@ -376,7 +509,7 @@ export default function MasterAdminDashboard() {
             Audit Logs
           </TabsTrigger>
           <TabsTrigger value="analytics" data-testid="tab-analytics">
-            <TrendingUp className="h-4 w-4 mr-1.5" />
+            <BarChart3 className="h-4 w-4 mr-1.5" />
             Analytics
           </TabsTrigger>
         </TabsList>
@@ -396,6 +529,51 @@ export default function MasterAdminDashboard() {
               <div className="text-2xl font-bold text-red-700">{bannedUsers}</div>
               <div className="text-sm text-muted-foreground">Banned Users</div>
             </Card>
+          </div>
+
+          <div className="flex items-center gap-3 mb-4">
+            <Button
+              variant="outline"
+              onClick={() => bulkScanMutation.mutate()}
+              disabled={bulkScanMutation.isPending}
+              data-testid="button-bulk-scan"
+              className="gap-2"
+            >
+              {bulkScanMutation.isPending ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <Scan className="h-4 w-4" />
+              )}
+              {bulkScanMutation.isPending ? "Scanning..." : "Bulk Scan Posts"}
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Scans the 50 most recent unflagged posts for explicit content
+            </p>
+          </div>
+
+          <div className="bg-muted/50 rounded-lg p-4 mb-4 border">
+            <h4 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
+              <AlertCircle className="h-4 w-4 text-yellow-600" />
+              Violation Enforcement Tiers
+            </h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+              <div className="flex items-start gap-1.5">
+                <span className="font-bold text-yellow-600 shrink-0">1st:</span>
+                <span className="text-muted-foreground">Warning + content removal</span>
+              </div>
+              <div className="flex items-start gap-1.5">
+                <span className="font-bold text-orange-600 shrink-0">2nd:</span>
+                <span className="text-muted-foreground">7-day suspension</span>
+              </div>
+              <div className="flex items-start gap-1.5">
+                <span className="font-bold text-red-600 shrink-0">3rd:</span>
+                <span className="text-muted-foreground">30-day suspension + admin alert</span>
+              </div>
+              <div className="flex items-start gap-1.5">
+                <span className="font-bold text-red-800 shrink-0">4th:</span>
+                <span className="text-muted-foreground">Permanent account deletion</span>
+              </div>
+            </div>
           </div>
 
           {flaggedLoading ? (
@@ -511,7 +689,7 @@ export default function MasterAdminDashboard() {
                                 <AlertDialogTitle>Reject and remove this content?</AlertDialogTitle>
                                 <AlertDialogDescription>
                                   The post will be removed from the platform. The user's violation count will increase
-                                  and they may receive a warning, suspension, or ban depending on their history.
+                                  and they may receive a warning, suspension, or permanent account deletion depending on their history.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
@@ -571,6 +749,87 @@ export default function MasterAdminDashboard() {
                         </div>
                       )}
                     </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ===================== USER REPORTS TAB ===================== */}
+        <TabsContent value="reports" className="space-y-4">
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <h3 className="font-heading font-semibold text-lg">User-Submitted Reports</h3>
+              <p className="text-sm text-muted-foreground">Content flagged by users for review</p>
+            </div>
+            <Badge variant="secondary">{contentReports.length} total</Badge>
+          </div>
+
+          {reportsLoading ? (
+            <Card className="p-8 flex items-center justify-center">
+              <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+            </Card>
+          ) : contentReports.length === 0 ? (
+            <Card className="p-10 flex flex-col items-center justify-center text-center">
+              <Flag className="h-12 w-12 text-muted-foreground mb-3" />
+              <h3 className="font-semibold text-lg mb-1">No Reports</h3>
+              <p className="text-muted-foreground text-sm">No content has been reported by users yet.</p>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {contentReports.map((report) => (
+                <Card key={report.id} className="p-4" data-testid={`report-${report.id}`}>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-2">
+                        <ReportStatusBadge status={report.status} />
+                        <Badge variant="outline" className="text-xs capitalize">{report.contentType}</Badge>
+                        <Badge variant="outline" className="text-xs text-red-600 border-red-200">
+                          <AlertCircle className="h-3 w-3 mr-1" />
+                          {report.reason}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground ml-auto">
+                          {new Date(report.createdAt).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-1">
+                        Reported by: {report.reporterFirstName} {report.reporterLastName} ({report.reporterEmail})
+                      </p>
+                      <p className="text-xs text-muted-foreground font-mono mb-1">
+                        Content ID: {report.contentId.slice(0, 16)}…
+                      </p>
+                      {report.details && (
+                        <p className="text-sm text-foreground mt-2 italic">"{report.details}"</p>
+                      )}
+                      {report.resolutionNote && (
+                        <p className="text-xs text-muted-foreground mt-1">Resolution: {report.resolutionNote}</p>
+                      )}
+                    </div>
+                    {report.status === 'pending' && (
+                      <div className="flex gap-2 shrink-0">
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                          onClick={() => resolveReportMutation.mutate({ reportId: report.id, status: 'resolved', note: 'Content reviewed and actioned' })}
+                          disabled={resolveReportMutation.isPending}
+                          data-testid={`resolve-report-${report.id}`}
+                        >
+                          <ShieldCheck className="h-4 w-4 mr-1" />
+                          Resolve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => resolveReportMutation.mutate({ reportId: report.id, status: 'dismissed', note: 'No violation found' })}
+                          disabled={resolveReportMutation.isPending}
+                          data-testid={`dismiss-report-${report.id}`}
+                        >
+                          Dismiss
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </Card>
               ))}
@@ -950,9 +1209,91 @@ export default function MasterAdminDashboard() {
         </TabsContent>
 
         {/* ===================== ANALYTICS TAB ===================== */}
-        <TabsContent value="analytics">
+        <TabsContent value="analytics" className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-heading font-semibold text-lg">Moderation Analytics</h3>
+            <Button
+              variant="outline"
+              onClick={handleWeeklyReportDownload}
+              className="gap-2"
+              data-testid="button-download-weekly-report"
+            >
+              <Download className="h-4 w-4" />
+              Download Weekly Report
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <Card className="p-5">
+              <div className="text-sm text-muted-foreground mb-1">Total Flagged Content</div>
+              <div className="text-3xl font-bold text-yellow-600">{analytics?.summary.totalFlagged ?? flaggedContent.length}</div>
+            </Card>
+            <Card className="p-5">
+              <div className="text-sm text-muted-foreground mb-1">Pending Review</div>
+              <div className="text-3xl font-bold text-orange-600">{analytics?.summary.pendingReview ?? pendingCount}</div>
+            </Card>
+            <Card className="p-5">
+              <div className="text-sm text-muted-foreground mb-1">Rejected Content</div>
+              <div className="text-3xl font-bold text-red-600">{analytics?.summary.rejected ?? rejectedCount}</div>
+            </Card>
+            <Card className="p-5">
+              <div className="text-sm text-muted-foreground mb-1">User Reports</div>
+              <div className="text-3xl font-bold">{analytics?.summary.totalReports ?? 0}</div>
+            </Card>
+            <Card className="p-5">
+              <div className="text-sm text-muted-foreground mb-1">Moderation Actions</div>
+              <div className="text-3xl font-bold">{moderationLogs.length}</div>
+            </Card>
+            <Card className="p-5">
+              <div className="text-sm text-muted-foreground mb-1">Banned Users</div>
+              <div className="text-3xl font-bold text-red-600">{bannedUsers}</div>
+            </Card>
+          </div>
+
+          {analytics?.riskDistribution && analytics.riskDistribution.length > 0 && (
+            <Card className="p-6">
+              <h4 className="font-semibold mb-4">Risk Level Distribution (Scan Results)</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {['safe', 'moderate', 'explicit', 'severe'].map((level) => {
+                  const item = analytics.riskDistribution.find(r => r.riskLevel === level);
+                  return (
+                    <div key={level} className="text-center p-4 border rounded-lg">
+                      <RiskBadge riskLevel={level} />
+                      <div className="text-2xl font-bold mt-2">{item?.count ?? 0}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </Card>
+          )}
+
+          {analytics?.violationsByUser && analytics.violationsByUser.length > 0 && (
+            <Card className="p-6">
+              <h4 className="font-semibold mb-4">Violations per User (Top Offenders)</h4>
+              <div className="space-y-2">
+                {analytics.violationsByUser.map((u) => (
+                  <div key={u.id} className="flex items-center justify-between p-3 border rounded-lg" data-testid={`violation-user-${u.id}`}>
+                    <div>
+                      <span className="font-medium">{u.firstName} {u.lastName}</span>
+                      <span className="text-xs text-muted-foreground ml-2">({u.email})</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {u.isBanned && <Badge variant="destructive" className="text-xs">Banned</Badge>}
+                      {!u.isBanned && u.suspendedUntil && new Date(u.suspendedUntil) > new Date() && (
+                        <Badge variant="secondary" className="text-xs bg-orange-100 text-orange-700">Suspended</Badge>
+                      )}
+                      <Badge variant="outline" className="text-xs border-red-200 text-red-600">
+                        {u.violationCount} violation{u.violationCount !== 1 ? 's' : ''}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
           <Card className="p-6">
-            <h3 className="font-heading font-semibold text-lg mb-4">Platform Analytics</h3>
+            <h4 className="font-semibold mb-4">Platform-Wide Stats</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
                 <div className="text-sm text-muted-foreground mb-1">Avg Engagement Score</div>
@@ -961,24 +1302,12 @@ export default function MasterAdminDashboard() {
                 </div>
               </div>
               <div>
-                <div className="text-sm text-muted-foreground mb-1">Active Users (30d)</div>
+                <div className="text-sm text-muted-foreground mb-1">Active Users</div>
                 <div className="text-2xl font-bold">{users.filter(u => (u.engagementScore || 0) > 0).length}</div>
               </div>
               <div>
-                <div className="text-sm text-muted-foreground mb-1">Content Created</div>
+                <div className="text-sm text-muted-foreground mb-1">Total Content</div>
                 <div className="text-2xl font-bold">{posts.length}</div>
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground mb-1">Flagged Content</div>
-                <div className="text-2xl font-bold text-yellow-600">{flaggedContent.length}</div>
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground mb-1">Moderation Actions</div>
-                <div className="text-2xl font-bold">{moderationLogs.length}</div>
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground mb-1">Banned Users</div>
-                <div className="text-2xl font-bold text-red-600">{bannedUsers}</div>
               </div>
             </div>
           </Card>

@@ -18,6 +18,8 @@ import {
   insertPostSchema,
   insertCommentSchema,
   insertReactionSchema,
+  contentReports,
+  insertContentReportSchema,
 } from "@shared/schema";
 import { blockRestrictedRoles } from "./shared";
 import { moderatePostContent } from "../services/contentModeration";
@@ -810,6 +812,62 @@ router.delete("/reactions/:postId/:type", isAuthenticated, async (req: AuthReque
       );
 
     res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================================================================
+// USER CONTENT REPORTS
+// ========================================================================
+
+router.post("/content/reports", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  try {
+    const { contentType, contentId, reason, details } = req.body;
+
+    if (!contentType || !contentId || !reason) {
+      return res.status(400).json({ error: "contentType, contentId, and reason are required" });
+    }
+
+    const existing = await db
+      .select({ id: contentReports.id })
+      .from(contentReports)
+      .where(
+        and(
+          eq(contentReports.reporterId, req.user!.id),
+          eq(contentReports.contentId, contentId),
+          eq(contentReports.status, 'pending')
+        )
+      )
+      .limit(1);
+
+    if (existing.length > 0) {
+      return res.status(409).json({ error: "You have already reported this content" });
+    }
+
+    const [report] = await db.insert(contentReports).values({
+      reporterId: req.user!.id,
+      contentType,
+      contentId,
+      reason,
+      details: details ?? null,
+    }).returning();
+
+    if (contentType === 'post') {
+      const [post] = await db
+        .select({ moderationStatus: posts.moderationStatus })
+        .from(posts)
+        .where(eq(posts.id, contentId))
+        .limit(1);
+
+      if (post && post.moderationStatus === 'approved') {
+        await db.update(posts)
+          .set({ isFlagged: true, flagReason: `User report: ${reason}`, moderationStatus: 'pending_review' })
+          .where(eq(posts.id, contentId));
+      }
+    }
+
+    res.json({ success: true, reportId: report.id });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

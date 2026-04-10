@@ -29,6 +29,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MobilePageHeader } from "@/components/MobilePageHeader";
 
 type RoleFilter = "all" | "student" | "teacher" | "industry_professional" | "university_admin";
 

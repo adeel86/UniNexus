@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Link, useLocation } from "wouter";
 
 import { useAuth } from "@/hooks/useAuth";
+import { MobilePageHeader } from "@/components/MobilePageHeader";
 
 interface ConnectionWithUser extends UserConnection {
   user: User;
@@ -151,7 +152,8 @@ export default function Network() {
   );
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl h-[calc(100vh-64px)] overflow-hidden flex flex-col">
+    <div className="container mx-auto px-4 py-8 max-w-5xl md:h-[calc(100vh-64px)] overflow-hidden flex flex-col pt-14 md:pt-8">
+      <MobilePageHeader title="My Network" />
       <div className="mb-6 flex items-center gap-3 shrink-0 px-2">
         <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-xl">
           <Users className="h-8 w-8 text-purple-600" />

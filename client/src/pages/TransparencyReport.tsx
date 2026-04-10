@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
 import { FileText, Users, Trophy, Award, TrendingUp, Globe } from "lucide-react";
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { MobilePageHeader } from "@/components/MobilePageHeader";
 
 interface TransparencyMetrics {
   participation: {

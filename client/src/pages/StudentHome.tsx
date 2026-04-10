@@ -13,6 +13,7 @@ import { Plus, TrendingUp, Users, Target, Sparkles, MessageCircle, Trophy, Play 
 import { useState } from "react";
 import { Progress } from "@/components/ui/progress";
 import { Link } from "wouter";
+import { MobilePageHeader } from "@/components/MobilePageHeader";
 
 type PostWithAuthor = Post & {
   author: User;

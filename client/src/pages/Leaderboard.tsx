@@ -28,6 +28,7 @@ import {
   Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MobilePageHeader } from "@/components/MobilePageHeader";
 
 type Category = "total" | "engagement" | "problem-solving" | "challenges";
 type RoleFilter = "all" | "student" | "teacher" | "industry_professional" | "master_admin";
@@ -313,7 +314,8 @@ export default function Leaderboard() {
     : `Rankings · ${timeFilter.charAt(0).toUpperCase() + timeFilter.slice(1)} view`;
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-4xl">
+    <div className="container mx-auto px-4 py-6 max-w-4xl pt-14 md:pt-6">
+      <MobilePageHeader title="Leaderboard" />
       {/* Header */}
       <div className="text-center mb-8">
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-yellow-400 to-amber-500 shadow-lg shadow-yellow-200 dark:shadow-yellow-900/30 mb-4">

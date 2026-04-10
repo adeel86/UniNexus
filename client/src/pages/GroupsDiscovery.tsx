@@ -10,6 +10,7 @@ import {
   DeleteGroupDialog,
   GroupCard,
 } from "@/components/groups";
+import { MobilePageHeader } from "@/components/MobilePageHeader";
 
 const groupTypes = [
   { value: "all", label: "All Groups", icon: Sparkles },

@@ -29,6 +29,7 @@ import {
   Lightbulb
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { MobilePageHeader } from "@/components/MobilePageHeader";
 
 interface QuestionAuthor {
   id: string;

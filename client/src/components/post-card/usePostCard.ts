@@ -46,6 +46,7 @@ export function usePostCard(initialPost: PostWithAuthor) {
   const [commentToDelete, setCommentToDelete] = useState<string | null>(null);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [shareComment, setShareComment] = useState("");
+  const [showReportDialog, setShowReportDialog] = useState(false);
 
   // Find post from cache by searching all feed queries - update on every render
   // so we always get the latest version from cache
@@ -393,6 +394,30 @@ export function usePostCard(initialPost: PostWithAuthor) {
   const isAdmin = auth.userData?.role === 'master_admin' || auth.userData?.role === 'university_admin';
   const canModifyPost = isOwnPost || isAdmin;
 
+  const reportMutation = useMutation({
+    mutationFn: async ({ reason, details }: { reason: string; details?: string }) => {
+      return await apiRequest("POST", "/api/content/reports", {
+        contentType: 'post',
+        contentId: post.id,
+        reason,
+        details: details ?? null,
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Reported", description: "This post has been reported for review." });
+      setShowReportDialog(false);
+    },
+    onError: (error: any) => {
+      const msg = error?.message ?? "Could not submit report";
+      if (msg.includes("already reported")) {
+        toast({ title: "Already reported", description: "You have already reported this post.", variant: "destructive" });
+      } else {
+        toast({ title: "Report failed", description: msg, variant: "destructive" });
+      }
+      setShowReportDialog(false);
+    },
+  });
+
   return {
     post,
     auth,
@@ -412,11 +437,14 @@ export function usePostCard(initialPost: PostWithAuthor) {
     setShowShareDialog,
     shareComment,
     setShareComment,
+    showReportDialog,
+    setShowReportDialog,
     commentMutation,
     editPostMutation,
     deletePostMutation,
     deleteCommentMutation,
     shareMutation,
+    reportMutation,
     handleReaction,
     getReactionCount,
     hasUserReacted,

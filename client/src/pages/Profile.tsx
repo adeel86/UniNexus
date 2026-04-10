@@ -22,6 +22,7 @@ import {
   IndustryProfile,
 } from "@/components/profile";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MobilePageHeader } from "@/components/MobilePageHeader";
 
 export default function Profile() {
   const { userData: currentUser } = useAuth();

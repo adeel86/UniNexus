@@ -24,6 +24,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
+import { MobilePageHeader } from "@/components/MobilePageHeader";
 
 type GroupPost = {
   id: string;

@@ -22,6 +22,7 @@ import {
   Award, Medal, Star, Edit2, ExternalLink,
 } from "lucide-react";
 import { format } from "date-fns";
+import { MobilePageHeader } from "@/components/MobilePageHeader";
 
 interface Challenge {
   id: string;
@@ -340,7 +341,8 @@ export default function Challenges() {
   };
 
   return (
-    <div className="container mx-auto px-3 py-5 sm:px-6 sm:py-6 space-y-6">
+    <div className="container mx-auto px-3 py-5 sm:px-6 sm:py-6 space-y-6 pt-14 md:pt-5">
+      <MobilePageHeader title="Challenges" />
       <div className="text-center space-y-2 mb-6 sm:mb-8">
         <h1 className="font-heading text-2xl sm:text-4xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 bg-clip-text text-transparent">
           Challenges & Hackathons

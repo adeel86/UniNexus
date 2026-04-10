@@ -1,12 +1,13 @@
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "@/components/UserAvatar";
 import { Badge } from "@/components/ui/badge";
-import { BadgeCheck, MoreHorizontal, Edit, Trash2, Repeat2 } from "lucide-react";
+import { BadgeCheck, MoreHorizontal, Edit, Trash2, Repeat2, Flag } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { PostWithAuthor } from "./usePostCard";
@@ -15,11 +16,15 @@ interface PostHeaderProps {
   post: PostWithAuthor;
   canModifyPost: boolean;
   isOwnPost: boolean;
+  isAuthenticated: boolean;
   onEdit: () => void;
   onDelete: () => void;
+  onReport: () => void;
 }
 
-export function PostHeader({ post, canModifyPost, isOwnPost, onEdit, onDelete }: PostHeaderProps) {
+export function PostHeader({ post, canModifyPost, isOwnPost, isAuthenticated, onEdit, onDelete, onReport }: PostHeaderProps) {
+  const showMenu = canModifyPost || (!isOwnPost && isAuthenticated);
+
   return (
     <div className="flex gap-3 mb-4">
       <UserAvatar user={post.author} size="md" />
@@ -54,7 +59,7 @@ export function PostHeader({ post, canModifyPost, isOwnPost, onEdit, onDelete }:
           )}
         </div>
       </div>
-      {canModifyPost && (
+      {showMenu && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" data-testid="button-post-menu">
@@ -62,20 +67,35 @@ export function PostHeader({ post, canModifyPost, isOwnPost, onEdit, onDelete }:
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {isOwnPost && (
+            {canModifyPost && isOwnPost && (
               <DropdownMenuItem onClick={onEdit} data-testid="button-edit-post">
                 <Edit className="h-4 w-4 mr-2" />
                 Edit Post
               </DropdownMenuItem>
             )}
-            <DropdownMenuItem
-              onClick={onDelete}
-              className="text-destructive"
-              data-testid="button-delete-post"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete Post
-            </DropdownMenuItem>
+            {canModifyPost && (
+              <DropdownMenuItem
+                onClick={onDelete}
+                className="text-destructive"
+                data-testid="button-delete-post"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete Post
+              </DropdownMenuItem>
+            )}
+            {!isOwnPost && isAuthenticated && (
+              <>
+                {canModifyPost && <DropdownMenuSeparator />}
+                <DropdownMenuItem
+                  onClick={onReport}
+                  className="text-orange-600"
+                  data-testid="button-report-post"
+                >
+                  <Flag className="h-4 w-4 mr-2" />
+                  Report Post
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       )}
