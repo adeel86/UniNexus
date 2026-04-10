@@ -1,3 +1,5 @@
+export { default as accessRouter } from "./access";
+export { validateAccessToken } from "./access";
 export { default as authRouter } from "./auth";
 export { default as feedRouter } from "./feed";
 export { default as usersRouter } from "./users";

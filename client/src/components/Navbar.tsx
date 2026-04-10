@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "./UserAvatar";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Bell, LogOut, Menu, Trophy, MessageCircle, Users, UsersRound, Compass, Lightbulb, GraduationCap, BrainCircuit } from "lucide-react";
+import { Bell, LogOut, Menu, Trophy, MessageCircle, Users, UsersRound, Compass, Lightbulb, GraduationCap, BrainCircuit, ShieldOff } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import type { Notification } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useAccessGate } from "@/components/AccessGate";
 
 interface NavbarProps {
   onMenuClick?: () => void;
@@ -23,6 +24,7 @@ interface NavbarProps {
 
 export function Navbar({ onMenuClick }: NavbarProps) {
   const { userData: user, signOut } = useAuth();
+  const { revokeAccess } = useAccessGate();
   const [location, navigate] = useLocation();
   const isMobile = useIsMobile();
 
@@ -181,15 +183,15 @@ export function Navbar({ onMenuClick }: NavbarProps) {
               </>
             )}
             
-            {isUniversity && (
+            {(isUniversity || isTeacher || isIndustry || isAdmin) && (
               <Button
                 asChild
                 variant="ghost"
                 size="sm"
-                className={`text-white hover:bg-white/20 gap-2 ${location === '/university-leaderboard' ? 'bg-white/20' : ''}`}
-                data-testid="nav-link-university-leaderboard"
+                className={`text-white hover:bg-white/20 gap-2 ${location === '/leaderboard' ? 'bg-white/20' : ''}`}
+                data-testid="nav-link-leaderboard"
               >
-                <Link href="/university-leaderboard">
+                <Link href="/leaderboard">
                   <div className="flex items-center gap-2">
                     <Trophy className="h-4 w-4" />
                     <span>Leaderboard</span>
@@ -399,6 +401,14 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                 >
                   <LogOut className="mr-2 h-4 w-4" />
                   Log Out
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={revokeAccess}
+                  className="text-muted-foreground focus:text-muted-foreground"
+                  data-testid="button-revoke-access"
+                >
+                  <ShieldOff className="mr-2 h-4 w-4" />
+                  Lock Access
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

@@ -7,6 +7,15 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+const ACCESS_TOKEN_KEY = "uninexus_access_token";
+
+function attachAccessToken(headers: Record<string, string>) {
+  const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
+  if (accessToken) {
+    headers["x-access-token"] = accessToken;
+  }
+}
+
 export async function apiRequest(
   method: string,
   url: string,
@@ -21,6 +30,8 @@ export async function apiRequest(
       headers["Content-Type"] = "application/json";
     }
   }
+
+  attachAccessToken(headers);
   
   // Include dev token if available (for demo accounts)
   const devToken = localStorage.getItem('dev_token');
@@ -59,6 +70,8 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     const headers: Record<string, string> = {};
+
+    attachAccessToken(headers);
     
     // Include dev token if available (for demo accounts)
     const devToken = localStorage.getItem('dev_token');

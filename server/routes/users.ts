@@ -176,6 +176,88 @@ router.get("/students", requireAuth, async (req: Request, res: Response) => {
   }
 });
 
+router.get("/leaderboard", requireAuth, async (req: Request, res: Response) => {
+  try {
+    const currentUser = req.user as any;
+    const isUniversityRole =
+      currentUser.role === "university_admin" || currentUser.role === "university";
+
+    const category = (req.query.category as string) || "total";
+    const roleFilter = req.query.role as string | undefined;
+    const limit = Math.min(Number(req.query.limit) || 50, 100);
+    const offset = Number(req.query.offset) || 0;
+
+    // Determine sort column based on category
+    let sortCol =
+      category === "engagement"
+        ? userStats.engagementScore
+        : category === "problem-solving"
+        ? userStats.problemSolverScore
+        : category === "challenges"
+        ? userStats.challengePoints
+        : userStats.totalPoints;
+
+    // Build where clause
+    const conditions = [eq(users.isBanned, false)];
+
+    if (isUniversityRole) {
+      if (!currentUser.universityId) {
+        return res.json({ entries: [], total: 0, isUniversityScoped: true });
+      }
+      conditions.push(eq(users.universityId, currentUser.universityId));
+    } else if (roleFilter && roleFilter !== "all") {
+      conditions.push(eq(users.role, roleFilter));
+    }
+
+    const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions);
+
+    const entries = await db
+      .select({
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        displayName: users.displayName,
+        profileImageUrl: users.profileImageUrl,
+        role: users.role,
+        university: universities.name,
+        universityId: users.universityId,
+        totalPoints: userStats.totalPoints,
+        engagementScore: userStats.engagementScore,
+        problemSolverScore: userStats.problemSolverScore,
+        challengePoints: userStats.challengePoints,
+        endorsementScore: userStats.endorsementScore,
+        streak: userStats.streak,
+        rankTier: userStats.rankTier,
+      })
+      .from(users)
+      .leftJoin(universities, eq(users.universityId, universities.id))
+      .leftJoin(userStats, eq(users.id, userStats.userId))
+      .where(whereClause)
+      .orderBy(desc(sortCol), desc(userStats.totalPoints))
+      .limit(limit)
+      .offset(offset);
+
+    const ranked = entries.map((entry, idx) => ({
+      ...entry,
+      rank: offset + idx + 1,
+      totalPoints: entry.totalPoints ?? 0,
+      engagementScore: entry.engagementScore ?? 0,
+      problemSolverScore: entry.problemSolverScore ?? 0,
+      challengePoints: entry.challengePoints ?? 0,
+      endorsementScore: entry.endorsementScore ?? 0,
+      streak: entry.streak ?? 0,
+      rankTier: entry.rankTier ?? "bronze",
+    }));
+
+    res.json({
+      entries: ranked,
+      isUniversityScoped: isUniversityRole,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.get("/teachers/university/:universityId", requireAuth, async (req: Request, res: Response) => {
   try {
     const { universityId } = req.params;

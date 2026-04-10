@@ -7,12 +7,16 @@ import type { User, RecruiterFeedback, Challenge } from "@shared/schema";
 import { insertChallengeSchema } from "@shared/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/AuthContext";
 
 export const challengeFormSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
   description: z.string().min(10, "Description must be at least 10 characters"),
+  requirements: z.string().optional(),
+  evaluationCriteria: z.string().optional(),
   requiredSkills: z.string().min(1, "At least one skill is required"),
   prizePool: z.coerce.number().min(0, "Prize pool must be a positive number"),
+  maxParticipants: z.coerce.number().min(0).optional(),
   deadline: z.string().min(1, "Deadline is required").refine((val) => {
     const date = new Date(val);
     return date > new Date();
@@ -44,9 +48,13 @@ export interface FeedbackWithStudent extends RecruiterFeedback {
 
 export interface Participant {
   id: string;
-  rank?: number;
-  submittedAt: string;
-  submissionUrl?: string;
+  rank?: number | null;
+  score?: number | null;
+  feedback?: string | null;
+  submittedAt: string | null;
+  submissionUrl?: string | null;
+  submissionDescription?: string | null;
+  joinedAt?: string;
   user?: {
     id: string;
     firstName: string | null;
@@ -57,6 +65,7 @@ export interface Participant {
 
 export function useIndustryDashboard() {
   const { toast } = useToast();
+  const { userData } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [isChallengeModalOpen, setIsChallengeModalOpen] = useState(false);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
@@ -64,6 +73,7 @@ export function useIndustryDashboard() {
   const [isRankingModalOpen, setIsRankingModalOpen] = useState(false);
   const [selectedChallenge, setSelectedChallenge] = useState<Challenge | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
+  const [allParticipants, setAllParticipants] = useState<Participant[]>([]);
 
   const challengeForm = useForm<ChallengeFormData>({
     resolver: zodResolver(challengeFormSchema),
@@ -71,8 +81,11 @@ export function useIndustryDashboard() {
     defaultValues: {
       title: "",
       description: "",
+      requirements: "",
+      evaluationCriteria: "",
       requiredSkills: "",
       prizePool: 0,
+      maxParticipants: undefined,
       deadline: "",
       difficultyLevel: "intermediate",
     },
@@ -98,9 +111,12 @@ export function useIndustryDashboard() {
     queryKey: ["/api/recruiter-feedback/my-feedback"],
   });
 
-  const { data: myChallenges = [] } = useQuery<Challenge[]>({
+  const { data: allChallenges = [] } = useQuery<Challenge[]>({
     queryKey: ["/api/challenges"],
   });
+
+  // Only show challenges the current user created
+  const myChallenges = (allChallenges as any[]).filter((c: any) => c.organizerId === userData?.id);
 
   const createChallengeMutation = useMutation({
     mutationFn: async (data: z.infer<typeof insertChallengeSchema>) => {
@@ -109,8 +125,8 @@ export function useIndustryDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/challenges"] });
       toast({
-        title: "Success!",
-        description: "Challenge created successfully",
+        title: "Challenge Created!",
+        description: "Your challenge is now live and visible to students.",
       });
       setIsChallengeModalOpen(false);
       challengeForm.reset();
@@ -119,6 +135,47 @@ export function useIndustryDashboard() {
       toast({
         title: "Error",
         description: error.message || "Failed to create challenge",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteChallengeMutation = useMutation({
+    mutationFn: async (challengeId: string) => {
+      return await apiRequest("DELETE", `/api/challenges/${challengeId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/challenges"] });
+      toast({
+        title: "Challenge Deleted",
+        description: "The challenge has been removed.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete challenge",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const publishResultsMutation = useMutation({
+    mutationFn: async (challengeId: string) => {
+      return await apiRequest("POST", `/api/challenges/${challengeId}/publish-results`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/challenges"] });
+      toast({
+        title: "Results Published!",
+        description: "All participants have been notified of their results.",
+      });
+      setIsRankingModalOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to publish results",
         variant: "destructive",
       });
     },
@@ -148,13 +205,13 @@ export function useIndustryDashboard() {
   });
 
   const awardRankMutation = useMutation({
-    mutationFn: async ({ participantId, rank }: { participantId: string; rank: number }) => {
-      return apiRequest("POST", `/api/challenges/${participantId}/award-rank-points`, { rank });
+    mutationFn: async ({ participantId, rank, score, feedback }: { participantId: string; rank?: number; score?: number; feedback?: string }) => {
+      return apiRequest("POST", `/api/challenges/${participantId}/award-rank-points`, { rank, score, feedback });
     },
     onSuccess: () => {
       toast({
-        title: "Ranking Awarded",
-        description: "The participant has been awarded their ranking and points!",
+        title: "Evaluation Saved",
+        description: "The participant's evaluation has been recorded.",
       });
       if (selectedChallenge) {
         fetchParticipants(selectedChallenge.id);
@@ -164,7 +221,7 @@ export function useIndustryDashboard() {
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to award ranking",
+        description: error.message || "Failed to save evaluation",
         variant: "destructive",
       });
     },
@@ -174,6 +231,7 @@ export function useIndustryDashboard() {
     try {
       const response = await apiRequest("GET", `/api/challenges/${challengeId}/participants`);
       const data = await response.json();
+      setAllParticipants(data);
       setParticipants(data.filter((p: Participant) => p.submittedAt !== null));
     } catch (error) {
       console.error("Failed to fetch participants:", error);
@@ -183,9 +241,12 @@ export function useIndustryDashboard() {
   const handleCreateChallenge = (data: ChallengeFormData) => {
     createChallengeMutation.mutate({
       title: data.title,
-      description: `${data.description}\n\nRequired Skills: ${data.requiredSkills}`,
+      description: data.description,
+      requirements: data.requirements || null,
+      evaluationCriteria: data.evaluationCriteria || null,
       difficulty: data.difficultyLevel,
-      prizes: `Prize Pool: $${data.prizePool}`,
+      prizes: `Prize Pool: $${data.prizePool}\n\nRequired Skills: ${data.requiredSkills}`,
+      maxParticipants: data.maxParticipants || null,
       endDate: new Date(data.deadline),
       startDate: new Date(),
       status: "active",
@@ -209,6 +270,10 @@ export function useIndustryDashboard() {
 
   const handleAwardRank = (participantId: string, rank: number) => {
     awardRankMutation.mutate({ participantId, rank });
+  };
+
+  const handleEvaluate = (participantId: string, score?: number, feedback?: string) => {
+    awardRankMutation.mutate({ participantId, score, feedback });
   };
 
   const openFeedbackModal = (student: User) => {
@@ -245,6 +310,7 @@ export function useIndustryDashboard() {
     selectedStudent,
     selectedChallenge,
     participants,
+    allParticipants,
     challengeForm,
     feedbackForm,
     students,
@@ -253,12 +319,15 @@ export function useIndustryDashboard() {
     myChallenges,
     filteredStudents,
     createChallengeMutation,
+    deleteChallengeMutation,
+    publishResultsMutation,
     submitFeedbackMutation,
     awardRankMutation,
     handleCreateChallenge,
     handleSubmitFeedback,
     openRankingModal,
     handleAwardRank,
+    handleEvaluate,
     openFeedbackModal,
     closeFeedbackModal,
   };

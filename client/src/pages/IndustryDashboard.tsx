@@ -28,6 +28,7 @@ export default function IndustryDashboard() {
     selectedStudent,
     selectedChallenge,
     participants,
+    allParticipants,
     challengeForm,
     feedbackForm,
     students,
@@ -36,12 +37,15 @@ export default function IndustryDashboard() {
     myChallenges,
     filteredStudents,
     createChallengeMutation,
+    deleteChallengeMutation,
+    publishResultsMutation,
     submitFeedbackMutation,
     awardRankMutation,
     handleCreateChallenge,
     handleSubmitFeedback,
     openRankingModal,
     handleAwardRank,
+    handleEvaluate,
     openFeedbackModal,
     closeFeedbackModal,
   } = useIndustryDashboard();
@@ -146,7 +150,7 @@ export default function IndustryDashboard() {
             </div>
 
             <div className="space-y-4">
-              {myChallenges.filter((c: any) => c.organizerId).length === 0 ? (
+              {myChallenges.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   <Trophy className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>You haven't created any challenges yet.</p>
@@ -158,6 +162,8 @@ export default function IndustryDashboard() {
                     key={challenge.id}
                     challenge={challenge}
                     onManageRankings={openRankingModal}
+                    onDelete={(id) => deleteChallengeMutation.mutate(id)}
+                    isDeleting={deleteChallengeMutation.isPending}
                   />
                 ))
               )}
@@ -211,8 +217,8 @@ export default function IndustryDashboard() {
             <Card className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Active Challenges</p>
-                  <p className="text-3xl font-bold">3</p>
+                  <p className="text-sm text-muted-foreground">My Challenges</p>
+                  <p className="text-3xl font-bold">{myChallenges.length}</p>
                 </div>
                 <Trophy className="h-8 w-8 text-yellow-600" />
               </div>
@@ -272,8 +278,12 @@ export default function IndustryDashboard() {
         onOpenChange={setIsRankingModalOpen}
         challenge={selectedChallenge}
         participants={participants}
+        allParticipants={allParticipants}
         onAwardRank={handleAwardRank}
+        onEvaluate={handleEvaluate}
+        onPublishResults={(challengeId) => publishResultsMutation.mutate(challengeId)}
         isPending={awardRankMutation.isPending}
+        isPublishing={publishResultsMutation.isPending}
       />
 
       <CreateChallengeModal

@@ -81,9 +81,47 @@ export function CreateChallengeModal({
                   <FormLabel>Description *</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Provide detailed challenge requirements, evaluation criteria, and expectations..."
-                      className="min-h-[120px]"
+                      placeholder="Provide a clear overview of the challenge goal and context..."
+                      className="min-h-[100px]"
                       data-testid="input-challenge-description"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="requirements"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Requirements</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="What must participants deliver? e.g., A working web app with source code, a 3-minute demo video..."
+                      className="min-h-[80px]"
+                      data-testid="input-challenge-requirements"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="evaluationCriteria"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Evaluation Criteria</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="How will submissions be judged? e.g., Code quality (30%), Functionality (40%), UI/UX (30%)..."
+                      className="min-h-[80px]"
+                      data-testid="input-challenge-criteria"
                       {...field}
                     />
                   </FormControl>
@@ -158,27 +196,51 @@ export function CreateChallengeModal({
               />
             </div>
 
-            <FormField
-              control={form.control}
-              name="deadline"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Deadline *</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="maxParticipants"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Max Participants (optional)</FormLabel>
+                    <FormControl>
                       <Input
-                        type="datetime-local"
-                        className="pl-10"
-                        data-testid="input-deadline"
+                        type="number"
+                        min="1"
+                        placeholder="No limit"
+                        data-testid="input-max-participants"
                         {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) => field.onChange(e.target.value === "" ? undefined : Number(e.target.value))}
                       />
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="deadline"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Deadline *</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                        <Input
+                          type="datetime-local"
+                          className="pl-10"
+                          data-testid="input-deadline"
+                          {...field}
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
 
             <DialogFooter>
               <Button
