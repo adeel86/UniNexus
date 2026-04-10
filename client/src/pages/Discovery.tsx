@@ -140,8 +140,8 @@ export default function Discovery() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl h-[calc(100vh-64px)] overflow-hidden flex flex-col">
-      <div className="mb-6 flex items-center gap-3 shrink-0 px-2">
+    <div className="container mx-auto px-4 py-5 md:py-8 max-w-5xl min-h-[calc(100dvh-3.5rem)] md:h-[calc(100vh-64px)] overflow-hidden flex flex-col">
+      <div className="mb-6 hidden md:flex items-center gap-3 shrink-0 px-2">
         <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
           <Search className="h-8 w-8 text-blue-600" />
         </div>
@@ -151,7 +151,7 @@ export default function Discovery() {
         </div>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto pr-2 custom-scrollbar">
+      <div className="flex-1 min-h-0 overflow-y-auto md:pr-2 custom-scrollbar">
         {/* People You May Know Section */}
         {searchTerm.length < 3 && (
           <Card className="mb-6">
@@ -292,8 +292,8 @@ export default function Discovery() {
         {/* Search Section */}
         <Card className="p-4 mb-6">
           <div className="space-y-4">
-            <div className="flex flex-wrap gap-3">
-              <div className="relative flex-1 min-w-64">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1 min-w-0">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search by name, university, major, or company..."
@@ -308,7 +308,7 @@ export default function Discovery() {
                   value={roleFilter}
                   onValueChange={(value) => setRoleFilter(value as RoleFilter)}
                 >
-                  <SelectTrigger className="w-48" data-testid="select-role-filter">
+                  <SelectTrigger className="w-full sm:w-48" data-testid="select-role-filter">
                     <Filter className="h-4 w-4 mr-2" />
                     <SelectValue placeholder="Filter by role" />
                   </SelectTrigger>

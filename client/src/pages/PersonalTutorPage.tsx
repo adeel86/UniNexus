@@ -10,7 +10,7 @@ export default function PersonalTutorPage() {
     <div
       className={`flex flex-col bg-background ${
         isMobile
-          ? "h-[calc(100dvh-56px)]"
+          ? "h-[calc(100dvh-3.5rem)] px-4 py-4"
           : "container mx-auto px-4 py-6 max-w-6xl h-[calc(100vh-64px)]"
       } overflow-hidden`}
     >

@@ -60,9 +60,9 @@ export default function GlobalChallengeMap() {
     : filteredChallenges.filter(c => c.status === statusFilter);
 
   return (
-    <div className="container mx-auto px-4 py-6 max-w-7xl">
-      <div className="mb-6">
-        <h1 className="font-heading text-4xl font-bold mb-2 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+    <div className="container mx-auto px-4 py-5 md:py-6 max-w-7xl">
+      <div className="mb-5 md:mb-6">
+        <h1 className="font-heading text-2xl md:text-4xl font-bold mb-2 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
           Global Challenge Map
         </h1>
         <p className="text-muted-foreground">
@@ -133,7 +133,7 @@ export default function GlobalChallengeMap() {
 
         <div className="lg:col-span-2">
           <Card className="p-6">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
               <h3 className="font-heading font-semibold text-lg">
                 {selectedUniversity ? `${selectedUniversity} Challenges` : "All Challenges"}
               </h3>
@@ -156,7 +156,7 @@ export default function GlobalChallengeMap() {
               ) : (
                 displayChallenges.map((challenge) => (
                   <Card key={challenge.id} className="p-4 hover-elevate" data-testid={`challenge-card-${challenge.id}`}>
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2">
                           <h4 className="font-semibold truncate">{challenge.title}</h4>
@@ -197,7 +197,7 @@ export default function GlobalChallengeMap() {
                       </div>
                       <Button 
                         size="sm" 
-                        className="flex-shrink-0"
+                        className="w-full sm:w-auto flex-shrink-0"
                         data-testid={`button-view-challenge-${challenge.id}`}
                       >
                         View

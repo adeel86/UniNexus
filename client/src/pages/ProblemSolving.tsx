@@ -199,8 +199,8 @@ export default function ProblemSolving() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-5xl h-[calc(100vh-64px)] overflow-hidden flex flex-col">
-      <div className="mb-6 flex items-center gap-3 shrink-0 px-2">
+    <div className="container mx-auto px-4 py-5 md:py-8 max-w-5xl min-h-[calc(100dvh-3.5rem)] md:h-[calc(100vh-64px)] overflow-hidden flex flex-col">
+      <div className="mb-6 hidden md:flex items-center gap-3 shrink-0 px-2">
         <div className="p-3 bg-orange-100 dark:bg-orange-900/30 rounded-xl">
           <Lightbulb className="h-8 w-8 text-orange-600" />
         </div>
@@ -214,9 +214,14 @@ export default function ProblemSolving() {
         </Button>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto pr-2 custom-scrollbar">
+      <Button className="w-full mb-4 md:hidden shrink-0" onClick={() => setShowAskModal(true)} data-testid="button-ask-question-mobile">
+        <Plus className="h-4 w-4 mr-2" />
+        Ask Question
+      </Button>
+
+      <div className="flex-1 min-h-0 overflow-y-auto md:pr-2 custom-scrollbar">
         <Card className="p-4 mb-6 bg-gradient-to-r from-purple-600/10 to-pink-600/10 border-purple-500/20">
-          <div className="flex items-center gap-4">
+          <div className="flex items-start gap-3 md:gap-4">
             <Award className="h-10 w-10 text-primary" />
             <div>
               <h3 className="font-semibold">Earn Problem-Solver Points</h3>

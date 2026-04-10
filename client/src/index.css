@@ -476,8 +476,108 @@
       padding-top: 0 !important;
     }
 
-    .mobile-global-header-active > div:nth-of-type(2) {
+    .mobile-route-content {
       min-height: calc(100vh - 3.5rem);
+    }
+
+    .mobile-app-shell {
+      min-height: 100dvh;
+      background:
+        radial-gradient(circle at top left, rgba(168, 85, 247, 0.12), transparent 28rem),
+        radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.1), transparent 26rem),
+        hsl(var(--background));
+    }
+
+    .mobile-route-content {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: clip;
+    }
+
+    .mobile-global-header-active .container {
+      width: 100%;
+      max-width: 100%;
+      padding-left: 1rem;
+      padding-right: 1rem;
+      padding-top: 1.25rem;
+      padding-bottom: 1.5rem;
+    }
+
+    .mobile-global-header-active h1 {
+      font-size: clamp(1.45rem, 7vw, 2rem);
+      line-height: 1.12;
+    }
+
+    .mobile-global-header-active h2 {
+      font-size: clamp(1.2rem, 5vw, 1.55rem);
+      line-height: 1.18;
+    }
+
+    .mobile-global-header-active .card,
+    .mobile-global-header-active [data-slot="card"],
+    .mobile-global-header-active [class*="rounded-md"] {
+      border-radius: 1rem;
+    }
+
+    .mobile-global-header-active [class*="p-6"] {
+      padding: 1rem;
+    }
+
+    .mobile-global-header-active [class*="p-8"],
+    .mobile-global-header-active [class*="p-12"] {
+      padding: 1.25rem;
+    }
+
+    .mobile-global-header-active .flex {
+      min-width: 0;
+    }
+
+    .mobile-global-header-active .justify-between {
+      gap: 0.75rem;
+    }
+
+    .mobile-global-header-active img,
+    .mobile-global-header-active video,
+    .mobile-global-header-active canvas,
+    .mobile-global-header-active svg,
+    .mobile-global-header-active .recharts-wrapper,
+    .mobile-global-header-active .recharts-surface,
+    .mobile-global-header-active .recharts-responsive-container {
+      max-width: 100%;
+    }
+
+    .mobile-global-header-active [role="tablist"] {
+      display: flex !important;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      height: auto;
+      padding: 0.25rem;
+      overflow-x: visible;
+    }
+
+    .mobile-global-header-active [role="tab"] {
+      flex: 1 1 calc(50% - 0.5rem);
+      white-space: normal;
+      gap: 0.25rem;
+      padding-left: 0.5rem;
+      padding-right: 0.5rem;
+      text-align: center;
+    }
+
+    .mobile-global-header-active table {
+      min-width: 560px;
+    }
+
+    .mobile-global-header-active input,
+    .mobile-global-header-active textarea,
+    .mobile-global-header-active select,
+    .mobile-global-header-active button {
+      max-width: 100%;
+    }
+
+    .mobile-global-header-active .overflow-x-auto {
+      border-radius: 1rem;
+      -webkit-overflow-scrolling: touch;
     }
 
     .mobile-global-header-active main,

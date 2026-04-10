@@ -163,8 +163,8 @@ Preferred communication style: Simple, everyday language.
 - Mobile authenticated users now land on an icon launcher home screen instead of using top or bottom navigation bars.
 - Desktop navigation remains unchanged; `Navbar` stays hidden on mobile and `MobileNavigation` remains disabled.
 - A universal mobile page header appears on feature pages with a visible Back button that returns to the launcher (`/`), so users do not need the browser back button.
-- Role-based launcher links are defined in `client/src/lib/navigation-config.ts`; broken mobile role links were removed for university admins and master admins.
-- Global mobile CSS in `client/src/index.css` constrains width, hides horizontal overflow, normalizes spacing, and improves form/tab behavior on phone screens.
+- Role-based launcher links are defined in `client/src/lib/navigation-config.ts`; all roles include app-style shortcuts for their core features, including Challenge Map and relationship pages where applicable.
+- Global mobile CSS in `client/src/index.css` constrains width, hides horizontal overflow, normalizes spacing, improves form/tab behavior, and provides the app-like mobile background shell.
 
 ## Email Security Features
 

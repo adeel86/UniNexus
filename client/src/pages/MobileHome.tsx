@@ -21,16 +21,16 @@ function MobileMenuItem({ icon: Icon, label, path, color, onClick, notificationC
   return (
     <button
       onClick={() => onClick(path)}
-      className="group flex flex-col items-center gap-2 rounded-3xl bg-card/90 p-3 shadow-sm ring-1 ring-border/70 transition-all active:scale-95 relative"
+      className="group relative flex min-h-[116px] flex-col items-center justify-center gap-2 rounded-3xl bg-card/90 p-3 shadow-sm ring-1 ring-border/70 transition-all active:scale-95"
       data-testid={`button-launch-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
     >
       <div
         className={cn(
-          "w-16 h-16 rounded-2xl flex items-center justify-center text-white shadow-md transition-shadow relative group-active:shadow-lg",
+          "w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center text-white shadow-md transition-shadow relative group-active:shadow-lg",
           `bg-gradient-to-br ${color}`
         )}
       >
-        <Icon className="w-8 h-8" />
+        <Icon className="w-7 h-7 sm:w-8 sm:h-8" />
         
         {/* Notification Badge */}
         {notificationCount !== undefined && notificationCount > 0 && (
@@ -73,7 +73,7 @@ function MobileMenuItem({ icon: Icon, label, path, color, onClick, notificationC
           />
         )}
       </div>
-      <span className="text-[11px] font-semibold text-center leading-tight max-w-[72px] text-foreground">
+      <span className="text-[11px] font-semibold text-center leading-tight max-w-[74px] text-foreground">
         {label}
       </span>
     </button>

@@ -6,7 +6,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/lib/AuthContext";
 import { AccessGate } from "@/components/AccessGate";
 import { Navbar } from "@/components/Navbar";
-import { MobileNavigation } from "@/components/MobileNavigation";
 import { MobilePageHeader } from "@/components/MobilePageHeader";
 import { CareerBot } from "@/components/CareerBot";
 import { RoleGuard } from "@/components/RoleGuard";
@@ -135,12 +134,12 @@ function Router() {
   const mobileTitle = mobilePageTitles.find(([pattern]) => pattern.test(location))?.[1] ?? "UniNexus";
 
   return (
-    <div className={`min-h-screen bg-background overflow-x-hidden ${isMobile && !isMobileLauncher ? "mobile-global-header-active" : ""}`}>
+    <div className={`min-h-screen bg-background overflow-x-hidden ${isMobile ? "mobile-app-shell" : ""} ${isMobile && !isMobileLauncher ? "mobile-global-header-active" : ""}`}>
       <Navbar />
       {isMobile && !isMobileLauncher && (
         <MobilePageHeader title={mobileTitle} global />
       )}
-      <div className="pb-0">
+      <main className="mobile-route-content pb-0">
         <ErrorBoundary>
         <Switch>
           {/* Mobile home page - show only on mobile */}
@@ -177,20 +176,20 @@ function Router() {
               <Messages />
             </RoleGuard>
           </Route>
-          <Route path="/groups">
-            <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional', 'university_admin']}>
-              <GroupsDiscovery />
-            </RoleGuard>
-          </Route>
           <Route path="/groups/:id">
             <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional', 'university_admin']}>
               <GroupPage />
             </RoleGuard>
           </Route>
+          <Route path="/groups">
+            <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional', 'university_admin']}>
+              <GroupsDiscovery />
+            </RoleGuard>
+          </Route>
           <Route path="/notifications" component={Notifications} />
           <Route path="/leaderboard" component={Leaderboard} />
-          <Route path="/challenges" component={Challenges} />
           <Route path="/challenges/map" component={GlobalChallengeMap} />
+          <Route path="/challenges" component={Challenges} />
           <Route path="/problem-solving">
             <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional']}>
               <ProblemSolving />
@@ -206,12 +205,12 @@ function Router() {
               <Settings />
             </RoleGuard>
           </Route>
+          <Route path="/courses/:courseId" component={CourseDetail} />
           <Route path="/courses">
             <RoleGuard allowedRoles={['student']}>
               <Courses />
             </RoleGuard>
           </Route>
-          <Route path="/courses/:courseId" component={CourseDetail} />
           <Route path="/forums/:courseId/:discussionId" component={DiscussionDetail} />
           
           {/* Public verification routes */}
@@ -270,10 +269,7 @@ function Router() {
           <Route component={NotFound} />
         </Switch>
         </ErrorBoundary>
-      </div>
-      
-      {/* Mobile Navigation - Bottom Tab Bar */}
-      <MobileNavigation />
+      </main>
       
       {/* AI Assistant - Available for all authenticated users */}
       <CareerBot />
