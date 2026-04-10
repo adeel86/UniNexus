@@ -17,6 +17,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import type { Notification } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAccessGate } from "@/components/AccessGate";
+import { useToast } from "@/hooks/use-toast";
 
 interface NavbarProps {
   onMenuClick?: () => void;
@@ -25,6 +26,7 @@ interface NavbarProps {
 export function Navbar({ onMenuClick }: NavbarProps) {
   const { userData: user, signOut } = useAuth();
   const { revokeAccess } = useAccessGate();
+  const { toast } = useToast();
   const [location, navigate] = useLocation();
   const isMobile = useIsMobile();
 
@@ -298,8 +300,12 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                         try {
                           await apiRequest("PATCH", "/api/notifications/mark-all-read", {});
                           queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
-                        } catch (error) {
-                          console.error("Failed to mark all as read:", error);
+                        } catch {
+                          toast({
+                            title: "Could not update notifications",
+                            description: "Please try again.",
+                            variant: "destructive",
+                          });
                         }
                       }}
                     >

@@ -136,23 +136,20 @@ export function StudentAITutor({ open, onOpenChange, courseId, courseName }: Stu
   const loadExistingSession = async () => {
     setIsLoadingHistory(true);
     try {
-      const res = await fetch(`/api/ai/course-chat/${courseId}/sessions`, { credentials: "include" });
-      if (!res.ok) return;
+      const res = await apiRequest("GET", `/api/ai/course-chat/${courseId}/sessions`);
       const sessions = await res.json();
       if (sessions.length > 0) {
         const latestSession = sessions[0];
         setSessionId(latestSession.id);
-        const msgRes = await fetch(`/api/ai/course-chat/session/${latestSession.id}`, { credentials: "include" });
-        if (msgRes.ok) {
-          const msgs = await msgRes.json();
-          setMessages(
-            msgs.map((m: any) => ({
-              role: m.role,
-              content: m.content,
-              createdAt: m.createdAt,
-            }))
-          );
-        }
+        const msgRes = await apiRequest("GET", `/api/ai/course-chat/session/${latestSession.id}`);
+        const msgs = await msgRes.json();
+        setMessages(
+          msgs.map((m: any) => ({
+            role: m.role,
+            content: m.content,
+            createdAt: m.createdAt,
+          }))
+        );
       }
     } catch {
       // No existing session — that's fine, a new one will be created on first message

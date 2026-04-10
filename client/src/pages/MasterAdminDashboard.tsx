@@ -396,10 +396,7 @@ export default function MasterAdminDashboard() {
 
   const handleWeeklyReportDownload = async () => {
     try {
-      const response = await fetch("/api/admin/moderation/weekly-report", {
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-      });
+      const response = await apiRequest("GET", "/api/admin/moderation/weekly-report");
       const data = await response.json();
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);

@@ -15,17 +15,6 @@ export default function MyStudents() {
 
   const { data: students = [], isLoading } = useQuery<StudentWithCourses[]>({
     queryKey: ["/api/teachers", user?.id, "students"],
-    queryFn: async () => {
-      if (!user?.id) return [];
-      const res = await fetch(`/api/teachers/${user.id}/students`, {
-        credentials: "include",
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('dev_token')}`,
-        },
-      });
-      if (!res.ok) throw new Error("Failed to fetch students");
-      return res.json();
-    },
     enabled: !!user?.id && user?.role === 'teacher',
   });
 

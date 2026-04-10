@@ -89,10 +89,7 @@ export default function DiscussionDetail() {
       queryClient.invalidateQueries({ queryKey: [`/api/courses/${courseId}/discussions`] });
       setNewReplyContent("");
       
-      // Refresh user data to update streak
-      refreshUserData().catch((error: any) => {
-        console.error('Failed to refresh user data after reply:', error);
-      });
+      refreshUserData().catch(() => {});
       
       toast({
         title: "Reply posted",

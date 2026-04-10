@@ -148,7 +148,7 @@ export default function MobileHome() {
   const handleLogout = async () => {
     try {
       // Call logout API (fire and forget)
-      await fetch("/api/auth/logout", { method: "POST" }).catch(() => {
+      await apiRequest("POST", "/api/auth/logout").catch(() => {
         // API might fail but that's okay
       });
     } catch (error) {

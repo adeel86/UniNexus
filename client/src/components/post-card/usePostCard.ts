@@ -153,10 +153,7 @@ export function usePostCard(initialPost: PostWithAuthor) {
       toast({ title: "Error", description: "Failed to update reaction", variant: "destructive" });
     },
     onSuccess: () => {
-      // Refresh user data to update streak
-      auth.refreshUserData().catch((error) => {
-        console.error('Failed to refresh user data after reaction:', error);
-      });
+      auth.refreshUserData().catch(() => {});
     },
   });
 
@@ -234,10 +231,7 @@ export function usePostCard(initialPost: PostWithAuthor) {
       
       updateAllFeedQueries(updateWithRealComment);
       
-      // Refresh user data to update streak
-      auth.refreshUserData().catch((error) => {
-        console.error('Failed to refresh user data after comment:', error);
-      });
+      auth.refreshUserData().catch(() => {});
       
       toast({ title: "Comment posted!" });
     },

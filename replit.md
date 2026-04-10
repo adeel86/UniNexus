@@ -161,7 +161,7 @@ Preferred communication style: Simple, everyday language.
 
 ## Mobile App-Style Navigation
 - Mobile authenticated users now land on an icon launcher home screen instead of using top or bottom navigation bars.
-- Desktop navigation remains unchanged; `Navbar` stays hidden on mobile and `MobileNavigation` remains disabled.
+- Desktop navigation remains unchanged; `Navbar` stays hidden on mobile and the previously disabled `MobileNavigation` component has been removed.
 - A universal mobile page header appears on feature pages with a visible Back button that returns to the launcher (`/`), so users do not need the browser back button.
 - Role-based launcher links are defined in `client/src/lib/navigation-config.ts`; all roles include app-style shortcuts for their core features, including Challenge Map and relationship pages where applicable.
 - Global mobile CSS in `client/src/index.css` constrains width, hides horizontal overflow, normalizes spacing, improves form/tab behavior, and provides the app-like mobile background shell.
@@ -187,6 +187,7 @@ Preferred communication style: Simple, everyday language.
 - **Backend** (`server/routes/auth.ts`): Validates domain on `/api/auth/register`; returns 400 with `code:'email-domain-blocked'` if blocked. Skipped for dev/demo users.
 
 ## Recent Changes
+- **2026-04-10**: Continued production audit cleanup — deleted orphaned `MobileNavigation.tsx`; removed frontend console output outside skipped auth/reset areas; converted raw frontend API requests in recruiter feedback, teacher/student relationship pages, AI tutor session loading, mobile logout, and weekly admin report download to use the shared authenticated request/query layer so access-gate and auth headers are attached consistently. Rechecked local imports, unused component candidates, direct frontend API fetches, and browser/runtime logs after restart.
 - **2026-04-04**: Full production audit — removed dead `/challenges-list` backend route (unreachable from frontend); fixed `/api/admin/users` endpoint to join `userStats` (engagement scores now real, not always-zero in Master Admin analytics); removed unused `ChallengeMilestonesCard` import and dead `challenges`/`userBadges` queries from StudentHome; cleaned up orphan `BadgePill`/`BadgeIcon` imports; removed hardcoded `courseId: "default-course-id"` from ProblemSolving Q&A POST (backend already ignores it); removed two no-op `invalidateQueries(["/api/me"])` calls in Challenges page (no component queries that key).
 - **2026-04-03**: Implemented institutional email validation — personal providers blocked, real-time domain feedback on Register page, backend enforcement, expanded university domain list (~100 entries).
 - **2026-03-31**: Production-quality code review: fixed all TypeScript errors (`req.user!` non-null assertions in feed.ts, certifications.ts, recruiter.ts, skills.ts, users.ts; function-declaration-in-block in admin.ts; type-predicate filter in Messages.tsx), moved OpenAI client initialization before route definitions in ai.ts, removed duplicate OpenAI declaration, removed debug `console.debug` calls from PDF/Word text extraction helpers. Zero TypeScript errors confirmed.

@@ -21,10 +21,6 @@ export class ErrorBoundary extends Component<Props, State> {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, info: { componentStack: string }) {
-    console.error("ErrorBoundary caught:", error, info);
-  }
-
   render() {
     if (this.state.hasError) {
       const isNotFound =

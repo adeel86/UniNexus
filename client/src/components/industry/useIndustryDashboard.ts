@@ -233,8 +233,12 @@ export function useIndustryDashboard() {
       const data = await response.json();
       setAllParticipants(data);
       setParticipants(data.filter((p: Participant) => p.submittedAt !== null));
-    } catch (error) {
-      console.error("Failed to fetch participants:", error);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to fetch participants",
+        variant: "destructive",
+      });
     }
   };
 

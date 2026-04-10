@@ -31,16 +31,6 @@ interface RecruiterFeedbackSectionProps {
 export function RecruiterFeedbackSection({ userId, isOwnProfile = true }: RecruiterFeedbackSectionProps) {
   const { data: insights, isLoading } = useQuery<FeedbackInsights>({
     queryKey: ["/api/recruiter-feedback/insights", userId],
-    queryFn: async () => {
-      const response = await fetch(`/api/recruiter-feedback/insights/${userId}`);
-      if (!response.ok) {
-        if (response.status === 404) {
-          return { totalFeedback: 0, avgRating: 0, categoryInsights: [], strengths: [], improvementAreas: [] };
-        }
-        throw new Error('Failed to fetch feedback insights');
-      }
-      return response.json();
-    },
     enabled: !!userId,
   });
 
