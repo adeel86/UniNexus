@@ -148,15 +148,15 @@ router.get("/challenges/university-results", isAuthenticated, async (req: Reques
       .where(eq(users.id, req.user.id))
       .limit(1);
 
-    if (!adminUser?.university) {
+    if (!adminUser?.universityId) {
       return res.status(400).json({ error: "University not found for this admin" });
     }
 
     // Get all students from this university
     const universityStudents = await db
-      .select({ id: users.id })
+      .select({ id: users.id, firstName: users.firstName, lastName: users.lastName })
       .from(users)
-      .where(eq(users.university, adminUser.university));
+      .where(eq(users.universityId, adminUser.universityId));
 
     if (universityStudents.length === 0) {
       return res.json({ challenges: [], participantsByChallenge: {} });
@@ -198,6 +198,7 @@ router.get("/challenges/university-results", isAuthenticated, async (req: Reques
       }
       participantsByChallenge[p.challengeId].push({
         id: p.id,
+        challengeId: p.challengeId,
         userId: p.userId,
         submissionUrl: p.submissionUrl,
         submissionDescription: p.submissionDescription,

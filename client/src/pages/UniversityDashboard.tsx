@@ -643,90 +643,153 @@ export default function UniversityDashboard() {
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-function ChallengeMetricsSection({ retentionData, isLoading }: { retentionData: any; isLoading: boolean }) {
-  if (isLoading) {
-    return (
-      <div className="mb-6">
-        <h2 className="font-heading text-2xl font-bold mb-4">Challenge Participation Metrics</h2>
-        <div className="text-center py-8 text-muted-foreground">Loading challenge metrics...</div>
-      </div>
-    );
-  }
+function ChallengeMetricsSection({ retentionData, isLoading: retentionLoading }: { retentionData: any; isLoading: boolean }) {
+  const [selectedChallengeId, setSelectedChallengeId] = useState<string>("all");
 
-  if (!retentionData) {
-    return (
-      <div className="mb-6">
-        <h2 className="font-heading text-2xl font-bold mb-4">Challenge Participation Metrics</h2>
-        <div className="text-center py-8 text-muted-foreground">No challenge data available</div>
-      </div>
-    );
-  }
+  const { data: universityResults, isLoading: resultsLoading } = useQuery<{
+    challenges: any[];
+    participantsByChallenge: Record<string, any[]>;
+  }>({
+    queryKey: ["/api/challenges/university-results"],
+  });
 
-  const { overview, badgeProgress, participationByCategory } = retentionData;
-  const badgeData = [
-    { name: "No badges", value: badgeProgress?.none || 0, color: "#6b7280" },
-    { name: "1–2 badges", value: badgeProgress?.low || 0, color: "#3b82f6" },
-    { name: "3–5 badges", value: badgeProgress?.medium || 0, color: "#8b5cf6" },
-    { name: "6+ badges", value: badgeProgress?.high || 0, color: "#ec4899" },
-  ];
-  const categoryData = Object.entries(participationByCategory || {}).map(([cat, count]) => ({
-    category: cat.charAt(0).toUpperCase() + cat.slice(1),
-    count: count as number,
-  }));
+  const challenges = universityResults?.challenges ?? [];
+  const participantsByChallenge = universityResults?.participantsByChallenge ?? {};
+
+  const displayedParticipants: any[] = selectedChallengeId === "all"
+    ? Object.values(participantsByChallenge).flat()
+    : (participantsByChallenge[selectedChallengeId] ?? []);
+
+  const totalParticipating = Object.values(participantsByChallenge).flat().length;
+  const submittedCount = Object.values(participantsByChallenge).flat().filter((p: any) => p.submittedAt).length;
+  const winnersCount = Object.values(participantsByChallenge).flat().filter((p: any) => p.rank && p.rank <= 3).length;
+
+  const getRankBadgeColor = (rank: number | null) => {
+    if (!rank) return "";
+    if (rank === 1) return "bg-yellow-500 text-white";
+    if (rank === 2) return "bg-gray-400 text-white";
+    if (rank === 3) return "bg-orange-600 text-white";
+    return "bg-muted text-foreground";
+  };
 
   return (
     <div className="mb-6">
-      <h2 className="font-heading text-2xl font-bold mb-4">Challenge Participation Metrics</h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <Card className="p-6">
-          <div className="text-sm text-muted-foreground mb-1">Total Students</div>
-          <div className="text-3xl font-bold" data-testid="metric-challenge-total-students">{overview?.totalStudents ?? 0}</div>
-        </Card>
-        <Card className="p-6">
-          <div className="text-sm text-muted-foreground mb-1">Participating Students</div>
-          <div className="text-3xl font-bold text-purple-600" data-testid="metric-participating-students">{overview?.participatingStudents ?? 0}</div>
-          <div className="text-xs text-muted-foreground">{overview?.participationRate ?? 0}% participation rate</div>
-        </Card>
-        <Card className="p-6">
-          <div className="text-sm text-muted-foreground mb-1">Active Challenges</div>
-          <div className="text-3xl font-bold text-blue-600" data-testid="metric-active-challenges">{overview?.activeChallenges ?? 0}</div>
-        </Card>
-      </div>
+      <h2 className="font-heading text-xl sm:text-2xl font-bold mb-4">Challenge Results — Your Students</h2>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="p-6">
-          <h3 className="font-heading font-semibold mb-4">Badge Progress Distribution</h3>
-          <ResponsiveContainer width="100%" height={250}>
-            <PieChart>
-              <Pie data={badgeData} cx="50%" cy="50%" outerRadius={80} dataKey="value" label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}>
-                {badgeData.map((entry, index) => (
-                  <Cell key={index} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
-        </Card>
+      {resultsLoading ? (
+        <div className="text-center py-8 text-muted-foreground">
+          <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+          Loading challenge results…
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <Card className="p-6">
+              <div className="text-sm text-muted-foreground mb-1">Challenges Entered</div>
+              <div className="text-3xl font-bold" data-testid="metric-challenge-total-students">{challenges.length}</div>
+            </Card>
+            <Card className="p-6">
+              <div className="text-sm text-muted-foreground mb-1">Student Participations</div>
+              <div className="text-3xl font-bold text-purple-600" data-testid="metric-participating-students">{totalParticipating}</div>
+              <div className="text-xs text-muted-foreground">{submittedCount} submissions</div>
+            </Card>
+            <Card className="p-6">
+              <div className="text-sm text-muted-foreground mb-1">Top-3 Placements</div>
+              <div className="text-3xl font-bold text-yellow-600" data-testid="metric-active-challenges">{winnersCount}</div>
+              <div className="text-xs text-muted-foreground">1st, 2nd, or 3rd place finishes</div>
+            </Card>
+          </div>
 
-        <Card className="p-6">
-          <h3 className="font-heading font-semibold mb-4">Participation by Category</h3>
-          {categoryData.length === 0 ? (
-            <div className="flex items-center justify-center h-[250px] text-muted-foreground text-sm">
-              No category data yet
-            </div>
+          {challenges.length === 0 ? (
+            <Card className="p-10">
+              <div className="text-center text-muted-foreground">
+                <Trophy className="h-12 w-12 mx-auto mb-3 opacity-40" />
+                <p className="text-lg font-medium">No challenge data yet</p>
+                <p className="text-sm">Results will appear here once your students participate in challenges.</p>
+              </div>
+            </Card>
           ) : (
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={categoryData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="category" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="count" name="Students" fill="#8b5cf6" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <Card className="p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-3">
+                <h3 className="font-heading font-semibold text-lg">Student Results</h3>
+                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Filter by challenge:</span>
+                  <select
+                    value={selectedChallengeId}
+                    onChange={(e) => setSelectedChallengeId(e.target.value)}
+                    className="text-sm border rounded-md px-3 py-2 bg-background w-full sm:w-auto"
+                    data-testid="select-challenge-filter"
+                  >
+                    <option value="all">All Challenges</option>
+                    {challenges.map((c: any) => (
+                      <option key={c.id} value={c.id}>{c.title}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {displayedParticipants.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground text-sm">
+                  No student results for this challenge yet.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left">
+                        <th className="pb-2 font-medium text-muted-foreground">Student</th>
+                        <th className="pb-2 font-medium text-muted-foreground">Challenge</th>
+                        <th className="pb-2 font-medium text-muted-foreground">Status</th>
+                        <th className="pb-2 font-medium text-muted-foreground">Rank</th>
+                        <th className="pb-2 font-medium text-muted-foreground">Score</th>
+                        <th className="pb-2 font-medium text-muted-foreground">Submitted</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayedParticipants.map((p: any, idx: number) => {
+                        const challenge = selectedChallengeId === "all"
+                          ? challenges.find((c: any) => c.id === p.challengeId)
+                          : challenges.find((c: any) => c.id === selectedChallengeId);
+                        const studentName = [p.user?.firstName, p.user?.lastName].filter(Boolean).join(" ") || "Unknown";
+                        return (
+                          <tr key={p.id ?? idx} className="border-b last:border-0" data-testid={`university-result-row-${p.id}`}>
+                            <td className="py-3 pr-4">
+                              <div className="font-medium">{studentName}</div>
+                            </td>
+                            <td className="py-3 pr-4 text-muted-foreground max-w-[160px] truncate">
+                              {challenge?.title ?? "—"}
+                            </td>
+                            <td className="py-3 pr-4">
+                              {p.submittedAt ? (
+                                <Badge className="bg-green-600 text-xs">Submitted</Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-xs">Joined</Badge>
+                              )}
+                            </td>
+                            <td className="py-3 pr-4">
+                              {p.rank ? (
+                                <Badge className={`${getRankBadgeColor(p.rank)} text-xs`}>
+                                  {p.rank === 1 ? "1st" : p.rank === 2 ? "2nd" : p.rank === 3 ? "3rd" : `#${p.rank}`}
+                                </Badge>
+                              ) : "—"}
+                            </td>
+                            <td className="py-3 pr-4">
+                              {p.score !== null && p.score !== undefined ? `${p.score}/100` : "—"}
+                            </td>
+                            <td className="py-3 text-muted-foreground">
+                              {p.submittedAt ? new Date(p.submittedAt).toLocaleDateString() : "—"}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </Card>
           )}
-        </Card>
-      </div>
+        </>
+      )}
     </div>
   );
 }
