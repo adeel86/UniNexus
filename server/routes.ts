@@ -8,7 +8,6 @@ import { initializeCloudStorage } from "./cloudStorage";
 
 import {
   accessRouter,
-  validateAccessToken,
   authRouter,
   feedRouter,
   usersRouter,
@@ -27,21 +26,6 @@ import {
   qaRouter,
 } from "./routes/index";
 import { sharedRouter } from "./routes/shared";
-import type { Request, Response, NextFunction } from "express";
-
-function accessGateMiddleware(req: Request, res: Response, next: NextFunction) {
-  if (!process.env.FRONTEND_ACCESS_PASSWORD) {
-    return next();
-  }
-  if (req.path === "/access/verify") {
-    return next();
-  }
-  if (!validateAccessToken(req)) {
-    res.status(403).json({ error: "Access denied. Valid access token required." });
-    return;
-  }
-  next();
-}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
@@ -75,7 +59,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.use('/uploads', express.static(uploadsDir));
 
   app.use("/api", accessRouter);
-  app.use("/api", accessGateMiddleware);
   app.use("/api", sharedRouter);
   app.use("/api/auth", authRouter);
   app.use("/api", feedRouter);

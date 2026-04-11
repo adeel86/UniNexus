@@ -1074,10 +1074,7 @@ router.get("/user-profiles/:userId", async (req: Request, res: Response) => {
       .from(userProfiles)
       .where(eq(userProfiles.userId, userId))
       .limit(1);
-    if (!profile) {
-      return res.status(404).json({ error: "Profile not found" });
-    }
-    res.json(profile);
+    res.json(profile ?? null);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

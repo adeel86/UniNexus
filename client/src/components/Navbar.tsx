@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "./UserAvatar";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Bell, LogOut, Menu, Trophy, MessageCircle, Users, UsersRound, Compass, Lightbulb, GraduationCap, BrainCircuit, ShieldOff } from "lucide-react";
+import { Bell, LogOut, Menu, Trophy, MessageCircle, Users, UsersRound, Compass, Lightbulb, GraduationCap, BrainCircuit, ShieldOff, Zap } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -182,9 +182,40 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                     </div>
                   </Link>
                 </Button>
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className={`text-white hover:bg-white/20 gap-2 ${location === '/challenges' ? 'bg-white/20' : ''}`}
+                  data-testid="nav-link-challenges"
+                >
+                  <Link href="/challenges">
+                    <div className="flex items-center gap-2">
+                      <Zap className="h-4 w-4" />
+                      <span>Challenges</span>
+                    </div>
+                  </Link>
+                </Button>
               </>
             )}
             
+            {isAdmin && (
+              <Button
+                asChild
+                variant="ghost"
+                size="sm"
+                className={`text-white hover:bg-white/20 gap-2 ${location === '/challenges' ? 'bg-white/20' : ''}`}
+                data-testid="nav-link-challenges-admin"
+              >
+                <Link href="/challenges">
+                  <div className="flex items-center gap-2">
+                    <Zap className="h-4 w-4" />
+                    <span>Challenges</span>
+                  </div>
+                </Link>
+              </Button>
+            )}
+
             {(isUniversity || isTeacher || isIndustry || isAdmin) && (
               <Button
                 asChild
