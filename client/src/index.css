@@ -455,6 +455,10 @@
       width: 100%;
       max-width: 100%;
       overflow-x: hidden;
+      overflow-y: auto;
+      min-height: 100%;
+      height: auto;
+      touch-action: pan-y;
     }
 
     * {
@@ -478,10 +482,14 @@
 
     .mobile-route-content {
       min-height: calc(100vh - 3.5rem);
+      overflow-y: visible;
+      touch-action: pan-y;
     }
 
     .mobile-app-shell {
       min-height: 100dvh;
+      overflow-y: visible;
+      touch-action: pan-y;
       background:
         radial-gradient(circle at top left, rgba(168, 85, 247, 0.12), transparent 28rem),
         radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.1), transparent 26rem),
@@ -492,6 +500,16 @@
       width: 100%;
       max-width: 100%;
       overflow-x: clip;
+    }
+
+    .mobile-global-header-active .container.overflow-hidden {
+      overflow-y: visible;
+    }
+
+    .mobile-global-header-active .overflow-y-auto {
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: contain;
+      touch-action: pan-y;
     }
 
     .mobile-global-header-active .container {

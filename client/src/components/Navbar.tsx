@@ -3,7 +3,8 @@ import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { UserAvatar } from "./UserAvatar";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { Bell, LogOut, Menu, Trophy, MessageCircle, Users, UsersRound, Compass, Lightbulb, GraduationCap, BrainCircuit, ShieldOff, Zap } from "lucide-react";
+import { Bell, LogOut, Menu, Trophy, MessageCircle, Users, UsersRound, Compass, Lightbulb, GraduationCap, BrainCircuit, ShieldOff } from "lucide-react";
+import { getNavigationForRole } from "@/lib/navigation-config";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -83,6 +84,9 @@ export function Navbar({ onMenuClick }: NavbarProps) {
   const isUniversity = user?.role === 'university_admin' || user?.role === 'university';
   const isIndustry = user?.role === 'industry_professional' || user?.role === 'industry';
   const isAdmin = user?.role === 'master_admin';
+  const challengeNavItems = getNavigationForRole(user?.role).filter((item) =>
+    item.path === "/challenges" || item.path === "/challenges/map"
+  );
 
   return (
     <nav className="sticky top-0 z-50 border-b bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 text-white backdrop-blur-sm">
@@ -182,38 +186,50 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                     </div>
                   </Link>
                 </Button>
-                <Button
-                  asChild
-                  variant="ghost"
-                  size="sm"
-                  className={`text-white hover:bg-white/20 gap-2 ${location === '/challenges' ? 'bg-white/20' : ''}`}
-                  data-testid="nav-link-challenges"
-                >
-                  <Link href="/challenges">
-                    <div className="flex items-center gap-2">
-                      <Zap className="h-4 w-4" />
-                      <span>Challenges</span>
-                    </div>
-                  </Link>
-                </Button>
+                {challengeNavItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <Button
+                      key={item.path}
+                      asChild
+                      variant="ghost"
+                      size="sm"
+                      className={`text-white hover:bg-white/20 gap-2 ${location === item.path ? 'bg-white/20' : ''}`}
+                      data-testid={`nav-link-${item.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                    >
+                      <Link href={item.path}>
+                        <div className="flex items-center gap-2">
+                          <Icon className="h-4 w-4" />
+                          <span>{item.label}</span>
+                        </div>
+                      </Link>
+                    </Button>
+                  );
+                })}
               </>
             )}
             
             {isAdmin && (
-              <Button
-                asChild
-                variant="ghost"
-                size="sm"
-                className={`text-white hover:bg-white/20 gap-2 ${location === '/challenges' ? 'bg-white/20' : ''}`}
-                data-testid="nav-link-challenges-admin"
-              >
-                <Link href="/challenges">
-                  <div className="flex items-center gap-2">
-                    <Zap className="h-4 w-4" />
-                    <span>Challenges</span>
-                  </div>
-                </Link>
-              </Button>
+              challengeNavItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <Button
+                    key={item.path}
+                    asChild
+                    variant="ghost"
+                    size="sm"
+                    className={`text-white hover:bg-white/20 gap-2 ${location === item.path ? 'bg-white/20' : ''}`}
+                    data-testid={`nav-link-${item.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-admin`}
+                  >
+                    <Link href={item.path}>
+                      <div className="flex items-center gap-2">
+                        <Icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </div>
+                    </Link>
+                  </Button>
+                );
+              })
             )}
 
             {(isUniversity || isTeacher || isIndustry || isAdmin) && (

@@ -132,6 +132,7 @@ function Router() {
     [/^\/master-admin-dashboard$/, "Admin Dashboard"],
   ];
   const mobileTitle = mobilePageTitles.find(([pattern]) => pattern.test(location))?.[1] ?? "UniNexus";
+  const challengeRoles = ['student', 'teacher', 'industry_professional', 'industry', 'university_admin', 'university', 'master_admin', 'admin'];
 
   return (
     <div className={`min-h-screen bg-background overflow-x-hidden ${isMobile ? "mobile-app-shell" : ""} ${isMobile && !isMobileLauncher ? "mobile-global-header-active" : ""}`}>
@@ -188,8 +189,16 @@ function Router() {
           </Route>
           <Route path="/notifications" component={Notifications} />
           <Route path="/leaderboard" component={Leaderboard} />
-          <Route path="/challenges/map" component={GlobalChallengeMap} />
-          <Route path="/challenges" component={Challenges} />
+          <Route path="/challenges/map">
+            <RoleGuard allowedRoles={challengeRoles}>
+              <GlobalChallengeMap />
+            </RoleGuard>
+          </Route>
+          <Route path="/challenges">
+            <RoleGuard allowedRoles={challengeRoles}>
+              <Challenges />
+            </RoleGuard>
+          </Route>
           <Route path="/problem-solving">
             <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional']}>
               <ProblemSolving />
