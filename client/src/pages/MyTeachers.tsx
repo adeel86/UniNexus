@@ -10,7 +10,7 @@ export default function MyTeachers() {
   const { userData: user } = useAuth();
 
   const { data: teachers = [], isLoading } = useQuery<User[]>({
-    queryKey: ["/api/teachers/university", user?.universityId],
+    queryKey: [`/api/teachers/university/${user?.universityId}`],
     enabled: !!user?.universityId,
   });
 

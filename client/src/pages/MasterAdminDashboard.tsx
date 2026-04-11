@@ -16,6 +16,7 @@ import { UserAvatar } from "@/components/UserAvatar";
 import { useLocation } from "wouter";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { hasRole, roleLabel } from "@shared/roles";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -411,11 +412,11 @@ export default function MasterAdminDashboard() {
   };
 
   const roleStats = {
-    student: users.filter(u => u.role === 'student').length,
-    teacher: users.filter(u => u.role === 'teacher').length,
-    university_admin: users.filter(u => u.role === 'university_admin').length,
-    industry_professional: users.filter(u => u.role === 'industry_professional').length,
-    master_admin: users.filter(u => u.role === 'master_admin').length,
+    student: users.filter(u => hasRole(u.role, ['student'])).length,
+    teacher: users.filter(u => hasRole(u.role, ['teacher'])).length,
+    university: users.filter(u => hasRole(u.role, ['university'])).length,
+    industry: users.filter(u => hasRole(u.role, ['industry'])).length,
+    admin: users.filter(u => hasRole(u.role, ['admin'])).length,
   };
 
   const pendingCount = flaggedContent.filter(p => p.moderationStatus === 'pending_review').length;
@@ -851,15 +852,15 @@ export default function MasterAdminDashboard() {
                 <div className="text-sm text-muted-foreground">Teachers</div>
               </Card>
               <Card className="p-4 text-center">
-                <div className="text-2xl font-bold">{roleStats.university_admin}</div>
-                <div className="text-sm text-muted-foreground">Uni Admins</div>
+                <div className="text-2xl font-bold">{roleStats.university}</div>
+                <div className="text-sm text-muted-foreground">University</div>
               </Card>
               <Card className="p-4 text-center">
-                <div className="text-2xl font-bold">{roleStats.industry_professional}</div>
+                <div className="text-2xl font-bold">{roleStats.industry}</div>
                 <div className="text-sm text-muted-foreground">Industry</div>
               </Card>
               <Card className="p-4 text-center">
-                <div className="text-2xl font-bold">{roleStats.master_admin}</div>
+                <div className="text-2xl font-bold">{roleStats.admin}</div>
                 <div className="text-sm text-muted-foreground">Admins</div>
               </Card>
             </div>
@@ -891,7 +892,7 @@ export default function MasterAdminDashboard() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Badge variant="secondary" className="capitalize">
-                      {user.role.replace('_', ' ')}
+                      {roleLabel(user.role)}
                     </Badge>
                     <Button
                       size="sm"

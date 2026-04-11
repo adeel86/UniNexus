@@ -12,6 +12,7 @@ import { z } from 'zod';
 import { useToast } from '@/hooks/use-toast';
 import { Autocomplete, type AutocompleteOption } from '@/components/Autocomplete';
 import { validateInstitutionalEmail, type ValidationStatus } from '@shared/emailValidation';
+import { ROLE_CODES } from '@shared/roles';
 import {
   Users, GraduationCap, Building2, Briefcase, Shield,
   CheckCircle2, AlertTriangle, XCircle, RefreshCw, CheckCircle, Mail,
@@ -24,17 +25,17 @@ const DEV_AUTH_ENABLED = import.meta.env.VITE_DEV_AUTH_ENABLED === 'true';
 const DEMO_ACCOUNTS = [
   { email: 'demo.student@uninexus.app', role: 'Student', color: 'bg-blue-100 text-blue-800' },
   { email: 'demo.teacher@uninexus.app', role: 'Teacher', color: 'bg-green-100 text-green-800' },
-  { email: 'demo.university@uninexus.app', role: 'University Admin', color: 'bg-purple-100 text-purple-800' },
-  { email: 'demo.industry@uninexus.app', role: 'Industry Professional', color: 'bg-orange-100 text-orange-800' },
-  { email: 'demo.admin@uninexus.app', role: 'Master Admin', color: 'bg-red-100 text-red-800' },
+  { email: 'demo.university@uninexus.app', role: 'University', color: 'bg-purple-100 text-purple-800' },
+  { email: 'demo.industry@uninexus.app', role: 'Industry', color: 'bg-orange-100 text-orange-800' },
+  { email: 'demo.admin@uninexus.app', role: 'Admin', color: 'bg-red-100 text-red-800' },
 ];
 
 const roleOptions = [
   { value: 'student', label: 'Student', icon: GraduationCap, description: 'Access learning content and social features' },
   { value: 'teacher', label: 'Teacher', icon: Users, description: 'Mentor students and view analytics' },
-  { value: 'industry_professional', label: 'Industry Professional', icon: Briefcase, description: 'Connect with talent and share insights' },
-  { value: 'university_admin', label: 'University Admin', icon: Building2, description: 'Manage institutional oversight' },
-  ...(DEV_AUTH_ENABLED ? [{ value: 'master_admin', label: 'Master Admin', icon: Shield, description: 'Platform-wide administration' }] : []),
+  { value: 'industry', label: 'Industry', icon: Briefcase, description: 'Connect with talent and share insights' },
+  { value: 'university', label: 'University', icon: Building2, description: 'Manage institutional oversight' },
+  ...(DEV_AUTH_ENABLED ? [{ value: 'admin', label: 'Admin', icon: Shield, description: 'Platform-wide administration' }] : []),
 ];
 
 // ─── Schemas ────────────────────────────────────────────────────────────────
@@ -49,7 +50,7 @@ const registerSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
   confirmPassword: z.string(),
   displayName: z.string().min(2, 'Name must be at least 2 characters'),
-  role: z.enum(['student', 'teacher', 'industry_professional', 'university_admin', 'master_admin']),
+  role: z.enum(ROLE_CODES),
   institute: z.any().optional(),
   major: z.any().optional(),
   company: z.string().optional(),
@@ -277,7 +278,7 @@ function RegisterView({
     }
     const result = validateInstitutionalEmail(watchedEmail, selectedRole);
     setDomainStatus({ status: result.status, message: result.message, detectedUniversity: result.detectedUniversity });
-    if (result.detectedUniversity && result.status === 'approved' && ['student', 'teacher', 'university_admin'].includes(selectedRole)) {
+    if (result.detectedUniversity && result.status === 'approved' && ['student', 'teacher', 'university'].includes(selectedRole)) {
       form.setValue('institute', { id: result.detectedUniversity, name: result.detectedUniversity } as AutocompleteOption, { shouldValidate: false });
     }
   }, [watchedEmail, selectedRole]);
@@ -291,9 +292,9 @@ function RegisterView({
     try {
       const additionalData: any = {};
       if (data.role === 'student') { additionalData.university = data.institute || null; additionalData.major = data.major || null; }
-      else if (data.role === 'industry_professional') { additionalData.company = data.company || ''; }
+      else if (data.role === 'industry') { additionalData.company = data.company || ''; }
       else if (data.role === 'teacher') { additionalData.university = data.institute || null; additionalData.major = data.major || null; }
-      else if (data.role === 'university_admin') { additionalData.university = data.institute || null; }
+      else if (data.role === 'university') { additionalData.university = data.institute || null; }
 
       const result = await signUp(data.email, data.password, data.displayName, data.role, additionalData);
       if (result.skipOtp) {

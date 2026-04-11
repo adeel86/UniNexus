@@ -2,30 +2,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
+import { dashboardPathForRole, hasRole } from "@shared/roles";
 
 interface RoleGuardProps {
   allowedRoles: string[];
   children: React.ReactNode;
   fallback?: React.ReactNode;
   redirectToDashboard?: boolean;
-}
-
-function getDashboardPath(role: string): string {
-  switch (role) {
-    case 'teacher':
-      return '/teacher-dashboard';
-    case 'university':
-    case 'university_admin':
-      return '/university-dashboard';
-    case 'industry':
-    case 'industry_professional':
-      return '/industry-dashboard';
-    case 'admin':
-    case 'master_admin':
-      return '/master-admin-dashboard';
-    default:
-      return '/';
-  }
 }
 
 export function RoleGuard({ allowedRoles, children, fallback, redirectToDashboard = true }: RoleGuardProps) {
@@ -35,19 +18,7 @@ export function RoleGuard({ allowedRoles, children, fallback, redirectToDashboar
 
   useEffect(() => {
     if (!loading && userData) {
-      // Role mapping for flexible checks
-      const roleMap: Record<string, string[]> = {
-        'university_admin': ['university', 'university_admin'],
-        'university': ['university', 'university_admin'],
-        'industry_professional': ['industry', 'industry_professional'],
-        'industry': ['industry', 'industry_professional'],
-        'master_admin': ['admin', 'master_admin'],
-        'admin': ['admin', 'master_admin'],
-      };
-
-      const hasAccess = allowedRoles.some(role => 
-        role === userData.role || (roleMap[role] && roleMap[role].includes(userData.role))
-      );
+      const hasAccess = hasRole(userData.role, allowedRoles);
 
       if (!hasAccess) {
         toast({
@@ -57,7 +28,7 @@ export function RoleGuard({ allowedRoles, children, fallback, redirectToDashboar
         });
         
         if (redirectToDashboard) {
-          const dashboardPath = getDashboardPath(userData.role);
+          const dashboardPath = dashboardPathForRole(userData.role);
           setLocation(dashboardPath);
         }
       }
@@ -72,19 +43,7 @@ export function RoleGuard({ allowedRoles, children, fallback, redirectToDashboar
     return fallback || null;
   }
 
-  // Final access check for rendering
-  const roleMap: Record<string, string[]> = {
-    'university_admin': ['university', 'university_admin'],
-    'university': ['university', 'university_admin'],
-    'industry_professional': ['industry', 'industry_professional'],
-    'industry': ['industry', 'industry_professional'],
-    'master_admin': ['admin', 'master_admin'],
-    'admin': ['admin', 'master_admin'],
-  };
-
-  const hasAccess = allowedRoles.some(role => 
-    role === userData.role || (roleMap[role] && roleMap[role].includes(userData.role))
-  );
+  const hasAccess = hasRole(userData.role, allowedRoles);
 
   if (!hasAccess) {
     return fallback || null;

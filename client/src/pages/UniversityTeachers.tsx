@@ -5,6 +5,7 @@ import { UserListCard } from "@/components/UserListCard";
 import { Badge } from "@/components/ui/badge";
 import { Users, GraduationCap, Building2, Loader2 } from "lucide-react";
 import type { User } from "@shared/schema";
+import { hasRole } from "@shared/roles";
 
 type TeacherWithStats = User & {
   courseCount: number;
@@ -17,7 +18,7 @@ export default function UniversityTeachers() {
 
   const { data: teachers = [], isLoading } = useQuery<TeacherWithStats[]>({
     queryKey: ["/api/university/teachers"],
-    enabled: !!user && (user.role === 'university' || user.role === 'master_admin'),
+    enabled: !!user && hasRole(user.role, ['university', 'admin']),
   });
 
   if (!user) {
@@ -32,7 +33,7 @@ export default function UniversityTeachers() {
     );
   }
 
-  if (user.role !== 'university' && user.role !== 'master_admin') {
+  if (!hasRole(user.role, ['university', 'admin'])) {
     return (
       <div className="container mx-auto py-8 px-4">
         <Card>

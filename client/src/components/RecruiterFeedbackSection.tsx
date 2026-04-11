@@ -30,7 +30,7 @@ interface RecruiterFeedbackSectionProps {
 
 export function RecruiterFeedbackSection({ userId, isOwnProfile = true }: RecruiterFeedbackSectionProps) {
   const { data: insights, isLoading } = useQuery<FeedbackInsights>({
-    queryKey: ["/api/recruiter-feedback/insights", userId],
+    queryKey: [`/api/recruiter-feedback/insights/${userId}`],
     enabled: !!userId,
   });
 

@@ -3,6 +3,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { uploadToCloud } from "../cloudStorage";
+import { hasRole } from "@shared/roles";
 
 const router = Router();
 
@@ -31,8 +32,7 @@ export function blockRestrictedRoles(req: Request, res: Response, next: NextFunc
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  const restrictedRoles = ['master_admin'];
-  if (restrictedRoles.includes((req.user as any).role)) {
+  if (hasRole((req.user as any).role, ['admin'])) {
     return res.status(403).json({ 
       error: "Access Denied",
       message: "Master admin does not have access to social features." 
@@ -55,7 +55,7 @@ export function requireRole(...roles: string[]) {
       return res.status(401).json({ error: "Unauthorized" });
     }
     const userRole = (req.user as any)?.role;
-    if (!roles.includes(userRole)) {
+    if (!hasRole(userRole, roles)) {
       return res.status(403).json({ error: "Forbidden", message: `Role ${userRole} not authorized` });
     }
     next();

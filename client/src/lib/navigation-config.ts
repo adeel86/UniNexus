@@ -19,6 +19,7 @@ import {
   Users,
   Star,
 } from "lucide-react";
+import { normalizeRole, type RoleCode } from "@shared/roles";
 
 export interface MenuItem {
   icon: any;
@@ -32,7 +33,7 @@ export interface MenuItem {
  * Items are listed in the order they should appear on the icon launcher.
  * Mobile and Desktop navbars use this same config to stay in sync.
  */
-export const navigationConfig: Record<string, MenuItem[]> = {
+export const navigationConfig: Record<RoleCode, MenuItem[]> = {
   student: [
     { icon: Home,          label: "Feed",          path: "/student-feed",    color: "from-blue-500 to-blue-600" },
     { icon: Network,       label: "My Network",    path: "/network",         color: "from-purple-500 to-purple-600" },
@@ -70,7 +71,7 @@ export const navigationConfig: Record<string, MenuItem[]> = {
     { icon: LogOut,     label: "Logout",        path: "/logout",            color: "from-rose-500 to-rose-600" },
   ],
 
-  university_admin: [
+  university: [
     { icon: Home,          label: "Dashboard",     path: "/university-dashboard",   color: "from-blue-500 to-blue-600" },
     { icon: GraduationCap, label: "Teachers",      path: "/university-teachers",    color: "from-green-500 to-green-600" },
     { icon: Network,       label: "My Network",    path: "/network",                color: "from-purple-500 to-purple-600" },
@@ -87,7 +88,7 @@ export const navigationConfig: Record<string, MenuItem[]> = {
     { icon: LogOut,        label: "Logout",        path: "/logout",                 color: "from-rose-500 to-rose-600" },
   ],
 
-  industry_professional: [
+  industry: [
     { icon: Home,       label: "Dashboard",     path: "/industry-dashboard", color: "from-blue-500 to-blue-600" },
     { icon: Network,    label: "My Network",    path: "/network",            color: "from-purple-500 to-purple-600" },
     { icon: Search,     label: "Discover",      path: "/discovery",          color: "from-teal-500 to-teal-600" },
@@ -103,7 +104,7 @@ export const navigationConfig: Record<string, MenuItem[]> = {
     { icon: LogOut,     label: "Logout",        path: "/logout",             color: "from-rose-500 to-rose-600" },
   ],
 
-  master_admin: [
+  admin: [
     { icon: Home,        label: "Dashboard",      path: "/master-admin-dashboard", color: "from-blue-500 to-blue-600" },
     { icon: Trophy,      label: "Challenges",      path: "/challenges",            color: "from-red-500 to-red-600" },
     { icon: Star,        label: "Leaderboard",     path: "/leaderboard",           color: "from-yellow-500 to-yellow-600" },
@@ -119,20 +120,9 @@ export const navigationConfig: Record<string, MenuItem[]> = {
 
 /**
  * Get navigation items for a specific role.
- * Handles role aliases (industry_partner, industry, etc.)
+ * Handles legacy role aliases while keeping one navigation key per role.
  */
 export function getNavigationForRole(role?: string): MenuItem[] {
-  if (!role) return [];
-
-  if (role === "industry_partner" || role === "industry") {
-    role = "industry_professional";
-  }
-  if (role === "university") {
-    role = "university_admin";
-  }
-  if (role === "admin") {
-    role = "master_admin";
-  }
-
-  return navigationConfig[role] || [];
+  const normalizedRole = normalizeRole(role);
+  return normalizedRole ? navigationConfig[normalizedRole] : [];
 }

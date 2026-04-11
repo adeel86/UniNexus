@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/AuthContext";
+import { hasRole } from "@shared/roles";
 import {
   Dialog,
   DialogContent,
@@ -198,10 +199,10 @@ export default function Challenges() {
   };
 
   const isIndustryOwner = (challenge: Challenge) =>
-    userData?.role === "industry_professional" && challenge.organizerId === userData?.id;
+    hasRole(userData?.role, ["industry"]) && challenge.organizerId === userData?.id;
 
   const canJoin = (challenge: Challenge) => {
-    if (userData?.role === "university_admin") return false;
+    if (hasRole(userData?.role, ["university"])) return false;
     if (isIndustryOwner(challenge)) return false;
     if (challenge.status === "completed") return false;
     return !isParticipating(challenge.id);

@@ -19,6 +19,7 @@ import type { Notification } from "@shared/schema";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAccessGate } from "@/components/AccessGate";
 import { useToast } from "@/hooks/use-toast";
+import { hasRole, roleLabel } from "@shared/roles";
 
 interface NavbarProps {
   onMenuClick?: () => void;
@@ -71,28 +72,20 @@ export function Navbar({ onMenuClick }: NavbarProps) {
   const unreadCount = notifications.filter(n => !n.isRead).length;
   const unreadMessages = conversations.reduce((sum, conv) => sum + (conv.unreadCount || 0), 0);
 
-  const roleDisplay: Record<string, string> = {
-    student: "Student",
-    teacher: "Teacher",
-    university_admin: "University Admin",
-    industry_professional: "Industry Partner",
-    master_admin: "Master Admin",
-  };
-
-  const isStudent = user?.role === 'student';
-  const isTeacher = user?.role === 'teacher';
-  const isUniversity = user?.role === 'university_admin' || user?.role === 'university';
-  const isIndustry = user?.role === 'industry_professional' || user?.role === 'industry';
-  const isAdmin = user?.role === 'master_admin';
+  const isStudent = hasRole(user?.role, ['student']);
+  const isTeacher = hasRole(user?.role, ['teacher']);
+  const isUniversity = hasRole(user?.role, ['university']);
+  const isIndustry = hasRole(user?.role, ['industry']);
+  const isAdmin = hasRole(user?.role, ['admin']);
   const challengeNavItems = getNavigationForRole(user?.role).filter((item) =>
     item.path === "/challenges" || item.path === "/challenges/map"
   );
 
   return (
     <nav className="sticky top-0 z-50 border-b bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 text-white backdrop-blur-sm">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+      <div className="container mx-auto px-4 h-16 flex items-center gap-4 overflow-hidden">
         {/* Left: Logo & Menu */}
-        <div className="flex items-center gap-5">
+        <div className="flex min-w-0 flex-1 items-center gap-5">
           {onMenuClick && (
             <Button
               variant="ghost"
@@ -104,13 +97,13 @@ export function Navbar({ onMenuClick }: NavbarProps) {
               <Menu className="h-5 w-5" />
             </Button>
           )}
-          <Link href="/" data-testid="link-home" className="flex items-center gap-2">
+          <Link href="/" data-testid="link-home" className="flex flex-shrink-0 items-center gap-2">
             <img src="/assets/logo.png" alt="UniNexus Logo" className="h-8 w-8 object-contain" />
             <span className="font-heading font-bold text-xl hidden sm:inline">UniNexus</span>
           </Link>
 
           {/* Navigation Links */}
-          <div className="hidden md:flex items-center gap-2">
+          <div className="hidden min-w-0 flex-1 items-center gap-1 overflow-x-auto overscroll-x-contain md:flex [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [&>*]:flex-shrink-0">
             {/* Not available to master_admin */}
             {!isAdmin && (
               <>
@@ -314,7 +307,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
 
         {/* Right: User Menu */}
         {user && (
-          <div className="flex items-center gap-3">
+          <div className="flex flex-shrink-0 items-center gap-3">
             {/* Notifications */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -426,7 +419,7 @@ export function Navbar({ onMenuClick }: NavbarProps) {
                   <UserAvatar user={user} size="sm" />
                   <div className="hidden md:flex flex-col items-start">
                     <span className="text-sm font-medium">{user.firstName} {user.lastName}</span>
-                    <span className="text-xs opacity-90">{roleDisplay[user.role as keyof typeof roleDisplay]}</span>
+                    <span className="text-xs opacity-90">{roleLabel(user.role)}</span>
                   </div>
                 </Button>
               </DropdownMenuTrigger>

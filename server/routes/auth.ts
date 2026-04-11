@@ -11,6 +11,7 @@ import { updateUserStreak } from "../streakHelper";
 import { cleanupUnverifiedUsers } from "../unverifiedUserCleanup";
 import { createOtpForEmail, validateOtp, deleteOtpsForEmail } from "../otpService";
 import { sendOtpEmail } from "../emailService";
+import { hasRole, normalizeRole } from "@shared/roles";
 
 const router = Router();
 
@@ -78,7 +79,7 @@ router.post("/admin-login", async (req: Request, res: Response) => {
       .where(eq(users.email, normalizedEmail))
       .limit(1);
 
-    if (!user || user.role !== 'master_admin') {
+    if (!user || !hasRole(user.role, ['admin'])) {
       console.warn(`[adminLogin] Admin user not found or wrong role for: ${normalizedEmail}`);
       return res.status(401).json({ message: "Invalid credentials" });
     }
@@ -273,9 +274,9 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
     const ADMIN_EMAIL = "team@uninexus.uk";
     const isAdminEmail = email?.toLowerCase() === ADMIN_EMAIL;
 
-    // Block normal registration from claiming master_admin role
+    // Block normal registration from claiming the admin role
     const requestedRole = role || 'student';
-    if (requestedRole === 'master_admin' && !isAdminEmail) {
+    if (normalizeRole(requestedRole) === 'admin' && !isAdminEmail) {
       return res.status(403).json({ message: "Cannot register with admin role." });
     }
 
@@ -296,7 +297,7 @@ router.post("/register", async (req: AuthRequest, res: Response) => {
       displayName,
       firstName,
       lastName,
-      role: isAdminEmail ? 'master_admin' : (requestedRole === 'master_admin' ? 'student' : requestedRole),
+      role: isAdminEmail ? 'admin' : (normalizeRole(requestedRole) ?? 'student'),
       universityId: universityId || null,
       majorId: majorId || null,
       bio: bio || null,

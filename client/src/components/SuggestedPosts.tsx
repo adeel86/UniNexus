@@ -19,7 +19,7 @@ export function SuggestedPosts({ onSelectSuggestion }: SuggestedPostsProps) {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const { data, isLoading } = useQuery<{ posts?: PostSuggestion[] }>({
-    queryKey: ["/api/ai/suggest-posts", refreshKey],
+    queryKey: ["/api/ai/suggest-posts", { refresh: String(refreshKey) }],
     staleTime: 5 * 60 * 1000,
   });
 

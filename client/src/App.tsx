@@ -46,6 +46,7 @@ import MyStudents from "@/pages/MyStudents";
 import UniversityTeachers from "@/pages/UniversityTeachers";
 import UniversityLeaderboard from "@/pages/UniversityLeaderboard";
 import NotFound from "@/pages/not-found";
+import { normalizeRole } from "@shared/roles";
 
 function Router() {
   const { currentUser, userData, loading } = useAuth();
@@ -82,16 +83,13 @@ function Router() {
 
   // Determine home page based on role
   const getHomePage = () => {
-    switch (userData.role) {
+    switch (normalizeRole(userData.role)) {
       case 'teacher':
         return TeacherDashboard;
-      case 'university_admin':
       case 'university':
         return UniversityDashboard;
-      case 'industry_professional':
       case 'industry':
         return IndustryDashboard;
-      case 'master_admin':
       case 'admin':
         return MasterAdminDashboard;
       default:
@@ -132,7 +130,7 @@ function Router() {
     [/^\/master-admin-dashboard$/, "Admin Dashboard"],
   ];
   const mobileTitle = mobilePageTitles.find(([pattern]) => pattern.test(location))?.[1] ?? "UniNexus";
-  const challengeRoles = ['student', 'teacher', 'industry_professional', 'industry', 'university_admin', 'university', 'master_admin', 'admin'];
+  const challengeRoles = ['student', 'teacher', 'industry', 'university', 'admin'];
 
   return (
     <div className={`min-h-screen bg-background overflow-x-hidden ${isMobile ? "mobile-app-shell" : ""} ${isMobile && !isMobileLauncher ? "mobile-global-header-active" : ""}`}>
@@ -158,12 +156,12 @@ function Router() {
             {isMobile ? <MobileHome /> : <HomePage />}
           </Route>
           <Route path="/network">
-            <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional', 'university_admin']}>
+            <RoleGuard allowedRoles={['student', 'teacher', 'industry', 'university']}>
               <Network />
             </RoleGuard>
           </Route>
           <Route path="/discovery">
-            <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional', 'university_admin']}>
+            <RoleGuard allowedRoles={['student', 'teacher', 'industry', 'university']}>
               <Discovery />
             </RoleGuard>
           </Route>
@@ -173,17 +171,17 @@ function Router() {
             </RoleGuard>
           </Route>
           <Route path="/messages">
-            <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional', 'university_admin']}>
+            <RoleGuard allowedRoles={['student', 'teacher', 'industry', 'university']}>
               <Messages />
             </RoleGuard>
           </Route>
           <Route path="/groups/:id">
-            <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional', 'university_admin']}>
+            <RoleGuard allowedRoles={['student', 'teacher', 'industry', 'university']}>
               <GroupPage />
             </RoleGuard>
           </Route>
           <Route path="/groups">
-            <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional', 'university_admin']}>
+            <RoleGuard allowedRoles={['student', 'teacher', 'industry', 'university']}>
               <GroupsDiscovery />
             </RoleGuard>
           </Route>
@@ -200,17 +198,17 @@ function Router() {
             </RoleGuard>
           </Route>
           <Route path="/problem-solving">
-            <RoleGuard allowedRoles={['student', 'teacher', 'industry_professional']}>
+            <RoleGuard allowedRoles={['student', 'teacher', 'industry']}>
               <ProblemSolving />
             </RoleGuard>
           </Route>
           <Route path="/profile">
-            <RoleGuard allowedRoles={['student', 'teacher', 'university_admin', 'industry_professional']}>
+            <RoleGuard allowedRoles={['student', 'teacher', 'university', 'industry']}>
               <Profile />
             </RoleGuard>
           </Route>
           <Route path="/settings">
-            <RoleGuard allowedRoles={['student', 'teacher', 'university_admin', 'industry_professional', 'master_admin']}>
+            <RoleGuard allowedRoles={['student', 'teacher', 'university', 'industry', 'admin']}>
               <Settings />
             </RoleGuard>
           </Route>
@@ -242,12 +240,12 @@ function Router() {
             </RoleGuard>
           </Route>
           <Route path="/university-teachers">
-            <RoleGuard allowedRoles={['university', 'university_admin', 'master_admin']}>
+            <RoleGuard allowedRoles={['university', 'admin']}>
               <UniversityTeachers />
             </RoleGuard>
           </Route>
           <Route path="/university-leaderboard">
-            <RoleGuard allowedRoles={['university', 'university_admin']}>
+            <RoleGuard allowedRoles={['university']}>
               <UniversityLeaderboard />
             </RoleGuard>
           </Route>
@@ -259,17 +257,17 @@ function Router() {
             </RoleGuard>
           </Route>
           <Route path="/university-dashboard">
-            <RoleGuard allowedRoles={['university_admin', 'university']}>
+            <RoleGuard allowedRoles={['university']}>
               <UniversityDashboard />
             </RoleGuard>
           </Route>
           <Route path="/industry-dashboard">
-            <RoleGuard allowedRoles={['industry_professional', 'industry']}>
+            <RoleGuard allowedRoles={['industry']}>
               <IndustryDashboard />
             </RoleGuard>
           </Route>
           <Route path="/master-admin-dashboard">
-            <RoleGuard allowedRoles={['master_admin']}>
+            <RoleGuard allowedRoles={['admin']}>
               <MasterAdminDashboard />
             </RoleGuard>
           </Route>
