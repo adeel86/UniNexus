@@ -1,4 +1,3 @@
-import { useAuth } from '@/lib/AuthContext';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,7 +12,6 @@ import { useState } from 'react';
 import { MobilePageHeader, MobilePageWrapper } from '@/components/MobilePageHeader';
 
 export default function Notifications() {
-  const { userData } = useAuth();
   const [, navigate] = useLocation();
   const isMobile = useIsMobile();
   const { toast } = useToast();

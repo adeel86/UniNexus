@@ -4,7 +4,6 @@ import { db } from "../db";
 import { applyPointDelta } from "../pointsHelper";
 import {
   users,
-  userStats,
   badges,
   userBadges,
   skills,

@@ -140,7 +140,7 @@ export default function Discovery() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-5 md:py-8 max-w-5xl min-h-[calc(100dvh-3.5rem)] md:h-[calc(100vh-64px)] overflow-hidden flex flex-col">
+    <div className="container mx-auto px-4 py-5 md:py-8 max-w-5xl min-h-[calc(100dvh-3.5rem)] md:h-[calc(100vh-64px)] md:overflow-hidden flex flex-col">
       <div className="mb-6 hidden md:flex items-center gap-3 shrink-0 px-2">
         <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-xl">
           <Search className="h-8 w-8 text-blue-600" />

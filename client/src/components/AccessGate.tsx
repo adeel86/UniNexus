@@ -91,7 +91,7 @@ export function AccessGate({ children }: AccessGateProps) {
 
   if (!accessToken) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 p-4 overflow-y-auto">
         <div className="w-full max-w-sm">
           <div className="bg-white/5 border border-white/10 rounded-2xl p-8 backdrop-blur-sm shadow-2xl">
             <div className="flex flex-col items-center mb-8">

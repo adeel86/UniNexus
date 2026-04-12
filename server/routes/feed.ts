@@ -10,7 +10,6 @@ import {
   comments,
   reactions,
   users,
-  userStats,
   followers,
   notifications,
   universities,

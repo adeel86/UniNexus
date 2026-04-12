@@ -106,9 +106,7 @@ export const navigationConfig: Record<RoleCode, MenuItem[]> = {
 
   admin: [
     { icon: Home,        label: "Dashboard",      path: "/master-admin-dashboard", color: "from-blue-500 to-blue-600" },
-    { icon: Trophy,      label: "Challenges",      path: "/challenges",            color: "from-red-500 to-red-600" },
     { icon: Star,        label: "Leaderboard",     path: "/leaderboard",           color: "from-yellow-500 to-yellow-600" },
-    { icon: Map,         label: "Challenge Map",   path: "/challenges/map",        color: "from-emerald-500 to-emerald-600" },
     { icon: ShieldCheck, label: "Ethics",          path: "/ethics",                color: "from-indigo-500 to-indigo-600" },
     { icon: FileText,    label: "Transparency",    path: "/transparency",          color: "from-teal-500 to-teal-600" },
     { icon: Lightbulb,   label: "AI Career",       path: "/careerbot",             color: "from-amber-500 to-amber-600" },

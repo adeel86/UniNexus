@@ -202,29 +202,6 @@ export function Navbar({ onMenuClick }: NavbarProps) {
               </>
             )}
             
-            {isAdmin && (
-              challengeNavItems.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <Button
-                    key={item.path}
-                    asChild
-                    variant="ghost"
-                    size="sm"
-                    className={`text-white hover:bg-white/20 gap-2 ${location === item.path ? 'bg-white/20' : ''}`}
-                    data-testid={`nav-link-${item.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-admin`}
-                  >
-                    <Link href={item.path}>
-                      <div className="flex items-center gap-2">
-                        <Icon className="h-4 w-4" />
-                        <span>{item.label}</span>
-                      </div>
-                    </Link>
-                  </Button>
-                );
-              })
-            )}
-
             {(isUniversity || isTeacher || isIndustry || isAdmin) && (
               <Button
                 asChild

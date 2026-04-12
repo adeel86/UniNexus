@@ -23,7 +23,6 @@ import {
   contentScanResults,
   contentReports,
   insertAnnouncementSchema,
-  insertContentScanResultSchema,
 } from "@shared/schema";
 import { moderatePostContent } from "../services/contentModeration";
 import { logAdminAction } from "../services/adminLogger";
@@ -129,6 +128,9 @@ router.get("/admin/users", isAuthenticated, async (req: AuthRequest, res: Respon
         profileImageUrl: users.profileImageUrl,
         bio: users.bio,
         createdAt: users.createdAt,
+        isBanned: users.isBanned,
+        suspendedUntil: users.suspendedUntil,
+        violationCount: users.violationCount,
         engagementScore: userStats.engagementScore,
         problemSolverScore: userStats.problemSolverScore,
         challengePoints: userStats.challengePoints,
@@ -257,14 +259,6 @@ router.post("/admin/moderation/:postId/reject", isAuthenticated, async (req: Aut
 
     if (newCount >= 4) {
       enforcementAction = 'deleted';
-
-      await db.insert(notifications).values({
-        userId: authorId,
-        type: 'moderation',
-        title: 'Account Permanently Deleted',
-        message: 'Your account has been permanently deleted due to repeated policy violations (4th violation).',
-        link: '/feed',
-      }).catch(() => {});
 
       if (updatedUser?.firebaseUid && firebaseAdmin) {
         try {
@@ -1538,6 +1532,9 @@ router.get("/university/leaderboard", isAuthenticated, async (req: AuthRequest, 
 // ========================================================================
 
 router.get("/ethics/metrics", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  if (!req.user || !hasRole(req.user.role, ["admin", "university"])) {
+    return res.status(403).json({ error: "Access denied" });
+  }
   try {
     // Ranking distribution by tier
     const rankingRows = await db
@@ -1616,6 +1613,9 @@ router.get("/ethics/metrics", isAuthenticated, async (req: AuthRequest, res: Res
 // ========================================================================
 
 router.get("/transparency/metrics", isAuthenticated, async (req: AuthRequest, res: Response) => {
+  if (!req.user || !hasRole(req.user.role, ["admin", "university"])) {
+    return res.status(403).json({ error: "Access denied" });
+  }
   try {
     // Participation stats
     const [totalUsersRow] = await db

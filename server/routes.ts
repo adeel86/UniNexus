@@ -30,13 +30,7 @@ import { sharedRouter } from "./routes/shared";
 export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app);
 
-  initializeCloudStorage().then(available => {
-    if (available) {
-      console.log('Cloud storage ready for file uploads');
-    } else {
-      console.log('Cloud storage unavailable, using local storage fallback');
-    }
-  });
+  initializeCloudStorage();
 
   const uploadsDir = path.join(process.cwd(), 'uploads');
   const imagesDir = path.join(uploadsDir, 'images');

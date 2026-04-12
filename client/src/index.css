@@ -454,8 +454,7 @@
     #root {
       width: 100%;
       max-width: 100%;
-      overflow-x: hidden;
-      overflow-y: auto;
+      overflow-x: clip;
       min-height: 100%;
       height: auto;
       touch-action: pan-y;

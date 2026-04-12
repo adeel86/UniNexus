@@ -809,7 +809,7 @@ router.delete("/education/:id", requireAuth, async (req: Request, res: Response)
   }
 });
 
-router.get("/users/:userId/job-experience", async (req: Request, res: Response) => {
+router.get("/users/:userId/job-experience", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
 
@@ -1116,6 +1116,12 @@ router.post("/user-profiles", requireAuth, async (req: Request, res: Response) =
 router.get("/cv-export/:userId", requireAuth, async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
+
+    const requestingUser = req.user!;
+    const allowedRoles = ["admin", "recruiter"];
+    if (requestingUser.id !== userId && !allowedRoles.includes(requestingUser.role)) {
+      return res.status(403).json({ error: "Access denied. You can only export your own CV." });
+    }
 
     const [user] = await db
       .select({

@@ -65,7 +65,7 @@ export function MobilePageHeader({ title, subtitle, rightAction, backTo, classNa
 export function MobilePageWrapper({ children, className }: { children: React.ReactNode; className?: string }) {
   const isMobile = useIsMobile();
   return (
-    <div className={cn(isMobile ? "pt-0" : "", "min-h-screen overflow-x-hidden", className)}>
+    <div className={cn(isMobile ? "pt-0" : "", "min-h-screen", className)}>
       {children}
     </div>
   );

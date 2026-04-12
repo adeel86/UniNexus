@@ -86,9 +86,6 @@ export default function StudentHome() {
               />
             </div>
 
-            <div className="flex gap-3 flex-wrap">
-              {/* Stats removed - now shown on profile only */}
-            </div>
           </Card>
 
           {/* Feed Type Tabs */}

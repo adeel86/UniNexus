@@ -6,11 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { 
   BookOpen, 
-  Users, 
-  MessageSquare, 
   Sparkles,
   GraduationCap,
-  ArrowRight,
   CheckCircle,
   FileText
 } from "lucide-react";

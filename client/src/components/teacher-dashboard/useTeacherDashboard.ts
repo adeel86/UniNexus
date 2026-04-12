@@ -166,16 +166,6 @@ export function useTeacherDashboard() {
     setCareerInsightsModalOpen(true);
   };
 
-  const handleCreatePost = () => {
-    setPostInitialValues({ content: "", category: "academic", tags: "" });
-    setCreatePostOpen(true);
-  };
-
-  const handleSelectSuggestion = (content: string, category: string, tags: string[]) => {
-    setPostInitialValues({ content, category, tags: tags.join(", ") });
-    setCreatePostOpen(true);
-  };
-
   return {
     searchTerm,
     setSearchTerm,
@@ -208,7 +198,5 @@ export function useTeacherDashboard() {
     handleEndorseClick,
     handleIssueCertificateClick,
     handleCareerInsightsClick,
-    handleCreatePost,
-    handleSelectSuggestion,
   };
 }

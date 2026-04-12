@@ -319,6 +319,11 @@ export const verifyToken = async (
   res: Response,
   next: NextFunction
 ) => {
+  // If the global auth middleware already resolved the user, trust it
+  if (req.user) {
+    return next();
+  }
+
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {

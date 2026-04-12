@@ -1,12 +1,11 @@
 import { Router, Request, Response } from "express";
-import { eq, desc, sql, and, ilike, or } from "drizzle-orm";
+import { eq, desc, sql, and, ilike } from "drizzle-orm";
 import { db } from "../db";
 import { storage } from "../storage";
 import { isAuthenticated, type AuthRequest } from "../firebaseAuth";
 import { applyPointDelta } from "../pointsHelper";
 import {
   users,
-  userStats,
   universities,
   majors,
   courses,
@@ -24,7 +23,6 @@ import {
   getEnrolledCoursesForStudent,
   validateStudentCourse,
   removeValidation,
-  getCoursesWithStats,
   deleteCourseWithRelatedData,
   getTeacherStudents,
   getStudentTeachers,

@@ -133,7 +133,7 @@ function Router() {
   const challengeRoles = ['student', 'teacher', 'industry', 'university', 'admin'];
 
   return (
-    <div className={`min-h-screen bg-background overflow-x-hidden ${isMobile ? "mobile-app-shell" : ""} ${isMobile && !isMobileLauncher ? "mobile-global-header-active" : ""}`}>
+    <div className={`min-h-screen bg-background ${isMobile ? "mobile-app-shell" : "overflow-x-hidden"} ${isMobile && !isMobileLauncher ? "mobile-global-header-active" : ""}`}>
       <Navbar />
       {isMobile && !isMobileLauncher && (
         <MobilePageHeader title={mobileTitle} global />

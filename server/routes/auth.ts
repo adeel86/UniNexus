@@ -85,7 +85,6 @@ router.post("/admin-login", async (req: Request, res: Response) => {
     }
 
     const result = await issueDevToken(user, DEV_JWT_SECRET);
-    console.log(`[adminLogin] Admin logged in: ${normalizedEmail}`);
     return res.json(result);
   } catch (error) {
     console.error("Admin login error:", error);
@@ -635,9 +634,7 @@ router.post("/dev/trigger-cleanup", async (req: Request, res: Response) => {
   }
 
   try {
-    console.log("[DEV] Manually triggering unverified user cleanup...");
     const stats = await cleanupUnverifiedUsers();
-    console.log("[DEV] Cleanup complete:", stats);
     return res.json({ message: "Cleanup complete", stats });
   } catch (error: any) {
     console.error("[DEV] Cleanup trigger error:", error);

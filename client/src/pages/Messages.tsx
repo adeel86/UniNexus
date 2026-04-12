@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { UserAvatar } from "@/components/UserAvatar";
-import { Send, MessageCircle, Plus, Search, Users } from "lucide-react";
+import { Send, MessageCircle, Plus, Search } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/lib/AuthContext";
 import { formatDistanceToNow } from "date-fns";
@@ -168,7 +168,7 @@ export default function Messages() {
   ) || [];
 
   return (
-    <div className="container mx-auto px-4 py-5 md:py-8 max-w-5xl min-h-[calc(100dvh-3.5rem)] md:h-[calc(100vh-64px)] overflow-hidden flex flex-col">
+    <div className="container mx-auto px-4 py-5 md:py-8 max-w-5xl min-h-[calc(100dvh-3.5rem)] md:h-[calc(100vh-64px)] md:overflow-hidden flex flex-col">
       <div className="mb-4 md:mb-6 hidden md:flex items-center gap-3 shrink-0 px-2">
         <div className="p-3 bg-pink-100 dark:bg-pink-900/30 rounded-xl">
           <MessageCircle className="h-8 w-8 text-pink-600" />
