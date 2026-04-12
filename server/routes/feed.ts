@@ -44,7 +44,7 @@ async function enrichWithOriginalPosts(postsWithDetails: any[]) {
     })
     .from(posts)
     .leftJoin(users, eq(posts.authorId, users.id))
-    .where(inArray(posts.id, originalPostIds));
+    .where(and(inArray(posts.id, originalPostIds), ne(posts.moderationStatus, 'rejected')));
 
   const originalPostsMap = new Map(originalPosts.map((op) => [op.id, op]));
 
@@ -230,7 +230,8 @@ router.get("/feed/personalized", isAuthenticated, async (req: AuthRequest, res: 
       .where(
         and(
           category && category !== 'all' ? eq(posts.category, category) : sql`true`,
-          inArray(posts.authorId, allowedIds)
+          inArray(posts.authorId, allowedIds),
+          ne(posts.moderationStatus, 'rejected')
         )
       )
       .orderBy(desc(posts.createdAt))
@@ -366,7 +367,7 @@ router.get("/feed/following", isAuthenticated, async (req: AuthRequest, res: Res
       .orderBy(desc(posts.createdAt))
       .$dynamic();
     
-    const conditions = [inArray(posts.authorId, followedIds)];
+    const conditions = [inArray(posts.authorId, followedIds), ne(posts.moderationStatus, 'rejected')];
     if (category && category !== 'all') {
       conditions.push(eq(posts.category, category));
     }
@@ -435,7 +436,7 @@ router.get("/feed/trending", isAuthenticated, async (req: AuthRequest, res: Resp
       .orderBy(desc(posts.createdAt))
       .$dynamic();
     
-    const conditions = [sql`${posts.createdAt} > ${fortyEightHoursAgo.toISOString()}`];
+    const conditions = [sql`${posts.createdAt} > ${fortyEightHoursAgo.toISOString()}`, ne(posts.moderationStatus, 'rejected')];
     if (category && category !== 'all') {
       conditions.push(eq(posts.category, category));
     }
