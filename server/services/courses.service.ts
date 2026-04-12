@@ -11,6 +11,7 @@ import {
   aiChatSessions,
   notifications,
 } from "@shared/schema";
+import { hasRole } from "@shared/roles";
 
 export async function getStudentCoursesForUser(userId: string) {
   const coursesResult = await db
@@ -302,7 +303,7 @@ export async function deleteCourseWithRelatedData(
     throw new Error("Course not found");
   }
 
-  if (existingCourse.instructorId !== userId && userRole !== "master_admin") {
+  if (existingCourse.instructorId !== userId && !hasRole(userRole, ["admin"])) {
     throw new Error("Not authorized to delete this course");
   }
 

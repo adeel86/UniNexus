@@ -10,6 +10,7 @@ import {
   insertCertificationSchema,
 } from "@shared/schema";
 import { recalculateUserRank } from "../pointsHelper";
+import { hasRole } from "@shared/roles";
 
 const router = Router();
 
@@ -60,8 +61,7 @@ router.get("/certifications/user/:userId", isAuthenticated, async (req: Request,
 });
 
 router.post("/certifications", isAuthenticated, async (req: Request, res: Response) => {
-  const authorizedRoles = ['teacher', 'university_admin', 'industry_professional', 'master_admin'];
-  if (!authorizedRoles.includes(req.user!.role)) {
+  if (!hasRole(req.user!.role, ["teacher", "university", "industry", "admin"])) {
     return res.status(403).json({ 
       error: "Forbidden: Only teachers, administrators, and industry professionals can issue certificates" 
     });
@@ -81,13 +81,13 @@ router.post("/certifications", isAuthenticated, async (req: Request, res: Respon
     }
 
     if (recipient.role === 'teacher') {
-      if (!['university_admin', 'industry_professional', 'master_admin'].includes(req.user!.role)) {
+      if (!hasRole(req.user!.role, ["university", "industry", "admin"])) {
         return res.status(403).json({
           error: "Teachers can only receive certificates from Universities and Industry Professionals"
         });
       }
     } else if (recipient.role === 'student') {
-      if (!['teacher', 'university_admin', 'industry_professional', 'master_admin'].includes(req.user!.role)) {
+      if (!hasRole(req.user!.role, ["teacher", "university", "industry", "admin"])) {
         return res.status(403).json({
           error: "Students can receive certificates from Teachers, Universities, and Industry Professionals"
         });

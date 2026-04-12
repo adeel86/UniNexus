@@ -34,6 +34,7 @@ import {
   getDiscussionById,
 } from "../services";
 import { updateUserStreakForActivity } from "../streakHelper";
+import { hasRole } from "@shared/roles";
 
 const router = Router();
 
@@ -145,7 +146,7 @@ router.get("/majors", async (_req: Request, res: Response) => {
 
 router.post("/student-courses/:id/validate", isAuthenticated, async (req: Request, res: Response) => {
   if (!req.user) return res.status(401).send("Unauthorized");
-  if (req.user.role !== "teacher") return res.status(403).json({ error: "Only teachers can validate courses" });
+  if (!hasRole(req.user.role, ["teacher"])) return res.status(403).json({ error: "Only teachers can validate courses" });
 
   try {
     const { action, validationNote } = req.body; // 'approve' or 'reject'
@@ -211,7 +212,7 @@ router.get("/me/enrolled-courses", isAuthenticated, async (req: Request, res: Re
 
 router.get("/teacher/courses", isAuthenticated, async (req: Request, res: Response) => {
   if (!req.user) return res.status(401).send("Unauthorized");
-  if (req.user.role !== "teacher") return res.status(403).json({ error: "Only teachers can view their assigned courses" });
+  if (!hasRole(req.user.role, ["teacher"])) return res.status(403).json({ error: "Only teachers can view their assigned courses" });
 
   try {
     const teacherCourses = await db
@@ -245,7 +246,7 @@ router.get("/teacher/courses", isAuthenticated, async (req: Request, res: Respon
 
 router.get("/teacher/pending-validations", isAuthenticated, async (req: Request, res: Response) => {
   if (!req.user) return res.status(401).send("Unauthorized");
-  if (req.user.role !== "teacher") return res.status(403).json({ error: "Only teachers can view pending validations" });
+  if (!hasRole(req.user.role, ["teacher"])) return res.status(403).json({ error: "Only teachers can view pending validations" });
 
   try {
     const teacherUniversityId = req.user.universityId;
@@ -317,7 +318,8 @@ router.get("/courses", async (_req: Request, res: Response) => {
 
 router.get("/me/created-courses", isAuthenticated, async (req: Request, res: Response) => {
   if (!req.user) return res.status(401).send("Unauthorized");
-  if (req.user.role !== "teacher" && req.user.role !== "master_admin") {
+  const canViewCreatedCourses = hasRole(req.user.role, ["teacher", "admin"]);
+  if (!canViewCreatedCourses) {
     return res.status(403).json({ error: "Only teachers can view created courses" });
   }
 
@@ -330,7 +332,7 @@ router.get("/me/created-courses", isAuthenticated, async (req: Request, res: Res
       .select()
       .from(courses)
       .where(
-        req.user.role === "master_admin" 
+        hasRole(req.user.role, ["admin"]) 
           ? undefined 
           : and(
               eq(courses.instructorId, instructorId),
@@ -366,7 +368,7 @@ router.get("/me/created-courses", isAuthenticated, async (req: Request, res: Res
 
 router.post("/courses", isAuthenticated, async (req: Request, res: Response) => {
   if (!req.user) return res.status(401).send("Unauthorized");
-  if (req.user.role !== "teacher" && req.user.role !== "master_admin") return res.status(403).json({ error: "Only teachers can create courses" });
+  if (!hasRole(req.user.role, ["teacher", "admin"])) return res.status(403).json({ error: "Only teachers can create courses" });
 
   try {
     const courseValidation = insertCourseSchema.safeParse({ ...req.body, instructorId: req.user.id });
@@ -410,7 +412,7 @@ router.patch("/courses/:id", isAuthenticated, async (req: Request, res: Response
     const courseId = req.params.id;
     const [existingCourse] = await db.select().from(courses).where(eq(courses.id, courseId)).limit(1);
     if (!existingCourse) return res.status(404).json({ error: "Course not found" });
-    if (existingCourse.instructorId !== req.user.id && req.user.role !== "master_admin") {
+    if (existingCourse.instructorId !== req.user.id && !hasRole(req.user.role, ["admin"])) {
       return res.status(403).json({ error: "Not authorized to update this course" });
     }
 
@@ -446,7 +448,7 @@ router.delete("/courses/:id", isAuthenticated, async (req: Request, res: Respons
 
 router.post("/courses/:id/request-validation", isAuthenticated, async (req: Request, res: Response) => {
   if (!req.user) return res.status(401).send("Unauthorized");
-  if (req.user.role !== "teacher") return res.status(403).json({ error: "Only teachers can request course validation" });
+  if (!hasRole(req.user.role, ["teacher"])) return res.status(403).json({ error: "Only teachers can request course validation" });
 
   try {
     const courseId = req.params.id;
@@ -474,13 +476,13 @@ router.post("/courses/:id/request-validation", isAuthenticated, async (req: Requ
 
 router.get("/university/pending-course-validations", isAuthenticated, async (req: Request, res: Response) => {
   if (!req.user) return res.status(401).send("Unauthorized");
-  if (req.user.role !== "university_admin" && req.user.role !== "master_admin") {
+  if (!hasRole(req.user.role, ["university", "admin"])) {
     return res.status(403).json({ error: "Only university admins can view pending validations" });
   }
 
   try {
     const adminUniversityId = req.user.universityId;
-    if (!adminUniversityId && req.user.role !== "master_admin") {
+    if (!adminUniversityId && !hasRole(req.user.role, ["admin"])) {
       return res.status(400).json({ error: "University admin must have a university set" });
     }
 
@@ -488,7 +490,7 @@ router.get("/university/pending-course-validations", isAuthenticated, async (req
       .select({ course: courses, instructor: users })
       .from(courses)
       .leftJoin(users, eq(courses.instructorId, users.id))
-      .where(and(eq(courses.universityValidationStatus, "pending"), req.user.role === "master_admin" ? undefined : eq(courses.universityId, adminUniversityId!)))
+      .where(and(eq(courses.universityValidationStatus, "pending"), hasRole(req.user.role, ["admin"]) ? undefined : eq(courses.universityId, adminUniversityId!)))
       .orderBy(desc(courses.validationRequestedAt));
 
     const result = pendingCourses.map(({ course, instructor }) => ({
@@ -505,7 +507,7 @@ router.get("/university/pending-course-validations", isAuthenticated, async (req
 
 router.post("/courses/:id/university-validation", isAuthenticated, async (req: Request, res: Response) => {
   if (!req.user) return res.status(401).send("Unauthorized");
-  if (req.user.role !== "university_admin" && req.user.role !== "master_admin") {
+  if (!hasRole(req.user.role, ["university", "admin"])) {
     return res.status(403).json({ error: "Only university admins can validate courses" });
   }
 
@@ -518,7 +520,7 @@ router.post("/courses/:id/university-validation", isAuthenticated, async (req: R
     if (!existingCourse) return res.status(404).json({ error: "Course not found" });
     
     // Check if admin belongs to the same university
-    if (req.user.role !== "master_admin" && existingCourse.universityId !== req.user.universityId) {
+    if (!hasRole(req.user.role, ["admin"]) && existingCourse.universityId !== req.user.universityId) {
       return res.status(403).json({ error: "Can only validate courses from your university" });
     }
 
@@ -543,7 +545,7 @@ router.post("/courses/:id/university-validation", isAuthenticated, async (req: R
         type: "validation",
         title: isApproved ? "Course Approved!" : "Course Rejected",
         message: `Your course "${existingCourse.name}" was ${isApproved ? 'approved' : 'rejected'} by the university.`,
-        link: "/dashboard",
+        link: "/teacher-dashboard",
       });
     }
 
@@ -555,7 +557,7 @@ router.post("/courses/:id/university-validation", isAuthenticated, async (req: R
 
 router.get("/teacher/my-students", isAuthenticated, async (req: Request, res: Response) => {
   if (!req.user) return res.status(401).send("Unauthorized");
-  if (req.user.role !== "teacher" && req.user.role !== "master_admin") {
+  if (!hasRole(req.user.role, ["teacher", "admin"])) {
     return res.status(403).json({ error: "Only teachers can view their students" });
   }
 
@@ -672,7 +674,7 @@ router.put("/discussions/:discussionId", isAuthenticated, async (req: Request, r
     }
 
     // Only the author or master_admin can update
-    if (discussion.authorId !== req.user.id && req.user.role !== 'master_admin') {
+    if (discussion.authorId !== req.user.id && !hasRole(req.user.role, ["admin"])) {
       return res.status(403).json({ error: "Not authorized to update this discussion" });
     }
 
@@ -709,7 +711,7 @@ router.delete("/discussions/:discussionId", isAuthenticated, async (req: Request
     }
 
     // Only the author or master_admin can delete
-    if (discussion.authorId !== req.user.id && req.user.role !== 'master_admin') {
+    if (discussion.authorId !== req.user.id && !hasRole(req.user.role, ["admin"])) {
       return res.status(403).json({ error: "Not authorized to delete this discussion" });
     }
 
@@ -788,7 +790,7 @@ router.put("/replies/:replyId", isAuthenticated, async (req: Request, res: Respo
     }
 
     // Only the author or master_admin can update
-    if (reply.authorId !== req.user.id && req.user.role !== 'master_admin') {
+    if (reply.authorId !== req.user.id && !hasRole(req.user.role, ["admin"])) {
       return res.status(403).json({ error: "Not authorized to update this reply" });
     }
 
@@ -820,7 +822,7 @@ router.delete("/replies/:replyId", isAuthenticated, async (req: Request, res: Re
     }
 
     // Only the author or master_admin can delete
-    if (reply.authorId !== req.user.id && req.user.role !== 'master_admin') {
+    if (reply.authorId !== req.user.id && !hasRole(req.user.role, ["admin"])) {
       return res.status(403).json({ error: "Not authorized to delete this reply" });
     }
 

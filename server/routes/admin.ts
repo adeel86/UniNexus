@@ -27,6 +27,7 @@ import {
 } from "@shared/schema";
 import { moderatePostContent } from "../services/contentModeration";
 import { logAdminAction } from "../services/adminLogger";
+import { hasRole } from "@shared/roles";
 
 const router = express.Router();
 
@@ -35,7 +36,7 @@ const router = express.Router();
 // ========================================================================
 
 router.delete("/admin/users/:userId", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || req.user.role !== 'master_admin') {
+  if (!req.user || !hasRole(req.user.role, ["admin"])) {
     return res.status(403).send("Forbidden");
   }
 
@@ -74,7 +75,7 @@ router.delete("/admin/users/:userId", isAuthenticated, async (req: AuthRequest, 
 });
 
 router.delete("/university/users/:userId", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || !['university_admin', 'university'].includes(req.user.role)) {
+  if (!req.user || !hasRole(req.user.role, ["university"])) {
     return res.status(403).send("Forbidden");
   }
 
@@ -110,7 +111,7 @@ router.delete("/university/users/:userId", isAuthenticated, async (req: AuthRequ
 });
 
 router.get("/admin/users", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || req.user.role !== 'master_admin') {
+  if (!req.user || !hasRole(req.user.role, ["admin"])) {
     return res.status(403).send("Forbidden");
   }
 
@@ -146,7 +147,7 @@ router.get("/admin/users", isAuthenticated, async (req: AuthRequest, res: Respon
 });
 
 router.get("/admin/posts", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || req.user.role !== 'master_admin') {
+  if (!req.user || !hasRole(req.user.role, ["admin"])) {
     return res.status(403).send("Forbidden");
   }
 
@@ -163,7 +164,7 @@ router.get("/admin/posts", isAuthenticated, async (req: AuthRequest, res: Respon
 // ========================================================================
 
 router.get("/admin/flagged-content", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || req.user.role !== 'master_admin') {
+  if (!req.user || !hasRole(req.user.role, ["admin"])) {
     return res.status(403).send("Forbidden");
   }
   try {
@@ -199,7 +200,7 @@ router.get("/admin/flagged-content", isAuthenticated, async (req: AuthRequest, r
 });
 
 router.post("/admin/moderation/:postId/approve", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || req.user.role !== 'master_admin') {
+  if (!req.user || !hasRole(req.user.role, ["admin"])) {
     return res.status(403).send("Forbidden");
   }
   try {
@@ -224,7 +225,7 @@ router.post("/admin/moderation/:postId/approve", isAuthenticated, async (req: Au
 });
 
 router.post("/admin/moderation/:postId/reject", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || req.user.role !== 'master_admin') {
+  if (!req.user || !hasRole(req.user.role, ["admin"])) {
     return res.status(403).send("Forbidden");
   }
   try {
@@ -341,7 +342,7 @@ router.post("/admin/moderation/:postId/reject", isAuthenticated, async (req: Aut
 });
 
 router.post("/admin/users/:userId/warn", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || req.user.role !== 'master_admin') {
+  if (!req.user || !hasRole(req.user.role, ["admin"])) {
     return res.status(403).send("Forbidden");
   }
   try {
@@ -362,7 +363,7 @@ router.post("/admin/users/:userId/warn", isAuthenticated, async (req: AuthReques
 });
 
 router.post("/admin/users/:userId/suspend", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || req.user.role !== 'master_admin') {
+  if (!req.user || !hasRole(req.user.role, ["admin"])) {
     return res.status(403).send("Forbidden");
   }
   try {
@@ -385,7 +386,7 @@ router.post("/admin/users/:userId/suspend", isAuthenticated, async (req: AuthReq
 });
 
 router.post("/admin/users/:userId/ban", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || req.user.role !== 'master_admin') {
+  if (!req.user || !hasRole(req.user.role, ["admin"])) {
     return res.status(403).send("Forbidden");
   }
   try {
@@ -406,7 +407,7 @@ router.post("/admin/users/:userId/ban", isAuthenticated, async (req: AuthRequest
 });
 
 router.post("/admin/users/:userId/unban", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || req.user.role !== 'master_admin') {
+  if (!req.user || !hasRole(req.user.role, ["admin"])) {
     return res.status(403).send("Forbidden");
   }
   try {
@@ -422,7 +423,7 @@ router.post("/admin/users/:userId/unban", isAuthenticated, async (req: AuthReque
 });
 
 router.get("/admin/moderation-logs", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || req.user.role !== 'master_admin') {
+  if (!req.user || !hasRole(req.user.role, ["admin"])) {
     return res.status(403).send("Forbidden");
   }
   try {
@@ -447,7 +448,7 @@ router.get("/admin/moderation-logs", isAuthenticated, async (req: AuthRequest, r
 });
 
 router.get("/admin/action-logs", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || req.user.role !== 'master_admin') {
+  if (!req.user || !hasRole(req.user.role, ["admin"])) {
     return res.status(403).send("Forbidden");
   }
   try {
@@ -478,7 +479,7 @@ router.get("/admin/action-logs", isAuthenticated, async (req: AuthRequest, res: 
 // ========================================================================
 
 router.post("/admin/moderation/bulk-scan", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || req.user.role !== 'master_admin') {
+  if (!req.user || !hasRole(req.user.role, ["admin"])) {
     return res.status(403).send("Forbidden");
   }
   try {
@@ -552,7 +553,7 @@ router.post("/admin/moderation/bulk-scan", isAuthenticated, async (req: AuthRequ
 // ========================================================================
 
 router.get("/admin/moderation/analytics", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || req.user.role !== 'master_admin') {
+  if (!req.user || !hasRole(req.user.role, ["admin"])) {
     return res.status(403).send("Forbidden");
   }
   try {
@@ -642,7 +643,7 @@ router.get("/admin/moderation/analytics", isAuthenticated, async (req: AuthReque
 // ========================================================================
 
 router.get("/admin/moderation/weekly-report", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || req.user.role !== 'master_admin') {
+  if (!req.user || !hasRole(req.user.role, ["admin"])) {
     return res.status(403).send("Forbidden");
   }
   try {
@@ -720,7 +721,7 @@ router.get("/admin/moderation/weekly-report", isAuthenticated, async (req: AuthR
 // ========================================================================
 
 router.get("/admin/content/reports", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || req.user.role !== 'master_admin') {
+  if (!req.user || !hasRole(req.user.role, ["admin"])) {
     return res.status(403).send("Forbidden");
   }
   try {
@@ -753,7 +754,7 @@ router.get("/admin/content/reports", isAuthenticated, async (req: AuthRequest, r
 });
 
 router.post("/admin/content/reports/:reportId/resolve", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || req.user.role !== 'master_admin') {
+  if (!req.user || !hasRole(req.user.role, ["admin"])) {
     return res.status(403).send("Forbidden");
   }
   try {
@@ -792,7 +793,7 @@ router.post("/admin/content/reports/:reportId/resolve", isAuthenticated, async (
 // ========================================================================
 
 router.get("/admin/courses", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || req.user.role !== 'master_admin') {
+  if (!req.user || !hasRole(req.user.role, ["admin"])) {
     return res.status(403).send("Forbidden");
   }
   try {
@@ -820,7 +821,7 @@ router.get("/admin/courses", isAuthenticated, async (req: AuthRequest, res: Resp
 });
 
 router.delete("/admin/courses/:courseId", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || req.user.role !== 'master_admin') {
+  if (!req.user || !hasRole(req.user.role, ["admin"])) {
     return res.status(403).send("Forbidden");
   }
   try {
@@ -835,7 +836,7 @@ router.delete("/admin/courses/:courseId", isAuthenticated, async (req: AuthReque
 });
 
 router.patch("/admin/courses/:courseId/validate", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || req.user.role !== 'master_admin') {
+  if (!req.user || !hasRole(req.user.role, ["admin"])) {
     return res.status(403).send("Forbidden");
   }
   try {
@@ -859,7 +860,7 @@ router.patch("/admin/courses/:courseId/validate", isAuthenticated, async (req: A
 // ========================================================================
 
 router.get("/admin/groups", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || req.user.role !== 'master_admin') {
+  if (!req.user || !hasRole(req.user.role, ["admin"])) {
     return res.status(403).send("Forbidden");
   }
   try {
@@ -887,7 +888,7 @@ router.get("/admin/groups", isAuthenticated, async (req: AuthRequest, res: Respo
 });
 
 router.delete("/admin/groups/:groupId", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || req.user.role !== 'master_admin') {
+  if (!req.user || !hasRole(req.user.role, ["admin"])) {
     return res.status(403).send("Forbidden");
   }
   try {
@@ -913,7 +914,7 @@ router.get("/announcements", isAuthenticated, async (req: AuthRequest, res: Resp
     // University admins only see their own university's announcements (scoped at DB level)
     // master_admin sees all; other roles see only their university's announcements
     let whereClause;
-    if (role === 'master_admin') {
+    if (hasRole(role, ["admin"])) {
       whereClause = undefined; // no filter — see everything
     } else if (universityId) {
       whereClause = eq(announcements.universityId, universityId);
@@ -949,7 +950,7 @@ router.get("/announcements", isAuthenticated, async (req: AuthRequest, res: Resp
 });
 
 router.post("/announcements", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || !['university_admin', 'master_admin'].includes(req.user.role)) {
+  if (!req.user || !hasRole(req.user.role, ["university", "admin"])) {
     return res.status(403).send("Forbidden");
   }
 
@@ -1002,12 +1003,12 @@ router.post("/announcements", isAuthenticated, async (req: AuthRequest, res: Res
 
 // Get Challenge Participation & Badge Metrics for Retention Overview
 router.get("/university/retention/overview", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || !['university_admin', 'master_admin'].includes(req.user.role)) {
+  if (!req.user || !hasRole(req.user.role, ["university", "admin"])) {
     return res.status(403).send("Forbidden");
   }
 
   try {
-    const isMasterAdmin = req.user.role === 'master_admin';
+    const isMasterAdmin = hasRole(req.user.role, ["admin"]);
     const uniFilter = req.user.universityId ?? '';
 
     if (!isMasterAdmin && !uniFilter) {
@@ -1125,12 +1126,12 @@ router.get("/university/retention/overview", isAuthenticated, async (req: AuthRe
 
 // Get Career Pathway & Employability Metrics
 router.get("/university/retention/career", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || !['university_admin', 'master_admin'].includes(req.user.role)) {
+  if (!req.user || !hasRole(req.user.role, ["university", "admin"])) {
     return res.status(403).send("Forbidden");
   }
 
   try {
-    const isMasterAdmin = req.user.role === 'master_admin';
+    const isMasterAdmin = hasRole(req.user.role, ["admin"]);
     const uniFilter = req.user.universityId ?? '';
 
     if (!isMasterAdmin && !uniFilter) {
@@ -1285,12 +1286,12 @@ router.get("/university/retention/career", isAuthenticated, async (req: AuthRequ
 
 // Get Engagement Trend, Department Retention, and month-over-month deltas for analytics charts
 router.get("/university/analytics", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || !['university_admin', 'master_admin'].includes(req.user.role)) {
+  if (!req.user || !hasRole(req.user.role, ["university", "admin"])) {
     return res.status(403).send("Forbidden");
   }
 
   try {
-    const isMasterAdmin = req.user.role === 'master_admin';
+    const isMasterAdmin = hasRole(req.user.role, ["admin"]);
     const uniFilter = req.user.universityId ?? '';
 
     if (!isMasterAdmin && !uniFilter) {
@@ -1392,12 +1393,12 @@ router.get("/university/analytics", isAuthenticated, async (req: AuthRequest, re
 
 // University-scoped course enrollment and completion statistics
 router.get("/university/courses-stats", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || !['university_admin', 'master_admin'].includes(req.user.role)) {
+  if (!req.user || !hasRole(req.user.role, ["university", "admin"])) {
     return res.status(403).send("Forbidden");
   }
 
   try {
-    const isMasterAdmin = req.user.role === 'master_admin';
+    const isMasterAdmin = hasRole(req.user.role, ["admin"]);
     const uniFilter = req.user.universityId ?? '';
 
     if (!isMasterAdmin && !uniFilter) {
@@ -1464,12 +1465,12 @@ router.get("/university/courses-stats", isAuthenticated, async (req: AuthRequest
 
 // University-scoped leaderboard: top students ranked by totalPoints
 router.get("/university/leaderboard", isAuthenticated, async (req: AuthRequest, res: Response) => {
-  if (!req.user || !['university_admin', 'master_admin'].includes(req.user.role)) {
+  if (!req.user || !hasRole(req.user.role, ["university", "admin"])) {
     return res.status(403).send("Forbidden");
   }
 
   try {
-    const isMasterAdmin = req.user.role === 'master_admin';
+    const isMasterAdmin = hasRole(req.user.role, ["admin"]);
     const uniParam = req.user.universityId ?? '';
     const limit = Math.min(Number(req.query.limit) || 10, 50);
 

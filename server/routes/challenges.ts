@@ -15,6 +15,7 @@ import {
 import { applyPointDelta, recalculateUserRank } from "../pointsHelper";
 import { calculateChallengePoints } from "../rankTiers";
 import { updateUserStreakForActivity } from "../streakHelper";
+import { hasRole } from "@shared/roles";
 
 const router = Router();
 
@@ -136,8 +137,7 @@ router.get("/challenges/university-results", isAuthenticated, async (req: Reques
     return res.status(401).send("Unauthorized");
   }
 
-  const allowedRoles = ['university_admin', 'master_admin'];
-  if (!allowedRoles.includes(req.user.role)) {
+  if (!hasRole(req.user.role, ["university", "admin"])) {
     return res.status(403).json({ error: "Access denied" });
   }
 
@@ -243,8 +243,7 @@ router.post("/challenges", isAuthenticated, async (req: Request, res: Response) 
     return res.status(401).send("Unauthorized");
   }
 
-  const allowedRoles = ['master_admin', 'industry_professional'];
-  if (!allowedRoles.includes(req.user.role)) {
+  if (!hasRole(req.user.role, ["admin", "industry"])) {
     return res.status(403).json({ error: "Only industry partners can create challenges" });
   }
 
@@ -280,8 +279,7 @@ router.patch("/challenges/:challengeId", isAuthenticated, async (req: Request, r
       return res.status(404).json({ error: "Challenge not found" });
     }
 
-    const allowedRoles = ['master_admin'];
-    if (challenge.organizerId !== req.user.id && !allowedRoles.includes(req.user.role)) {
+    if (challenge.organizerId !== req.user.id && !hasRole(req.user.role, ["admin"])) {
       return res.status(403).json({ error: "Only the challenge organizer can edit this challenge" });
     }
 
@@ -324,7 +322,7 @@ router.delete("/challenges/:challengeId", isAuthenticated, async (req: Request, 
       return res.status(404).json({ error: "Challenge not found" });
     }
 
-    if (challenge.organizerId !== req.user.id && req.user.role !== 'master_admin') {
+    if (challenge.organizerId !== req.user.id && !hasRole(req.user.role, ["admin"])) {
       return res.status(403).json({ error: "Only the challenge organizer can delete this challenge" });
     }
 
@@ -355,7 +353,7 @@ router.post("/challenges/:challengeId/publish-results", isAuthenticated, async (
       return res.status(404).json({ error: "Challenge not found" });
     }
 
-    if (challenge.organizerId !== req.user.id && req.user.role !== 'master_admin') {
+    if (challenge.organizerId !== req.user.id && !hasRole(req.user.role, ["admin"])) {
       return res.status(403).json({ error: "Only the challenge organizer can publish results" });
     }
 
@@ -459,8 +457,7 @@ router.post("/challenges/:challengeId/join", isAuthenticated, async (req: Reques
     return res.status(401).send("Unauthorized");
   }
 
-  const blockedRoles = ['university_admin'];
-  if (blockedRoles.includes(req.user.role)) {
+  if (hasRole(req.user.role, ["university"])) {
     return res.status(403).json({ error: "University admins cannot join challenges" });
   }
 
@@ -674,8 +671,7 @@ router.get("/challenges/:challengeId/participants", isAuthenticated, async (req:
     }
 
     // Only organizer, master admin, or challenge participants can view
-    const allowedRoles = ['master_admin', 'industry_professional', 'university_admin'];
-    if (!allowedRoles.includes(req.user.role) && challenge.organizerId !== req.user.id) {
+    if (!hasRole(req.user.role, ["admin", "industry", "university"]) && challenge.organizerId !== req.user.id) {
       // Check if user is a participant
       const [participation] = await db
         .select()
@@ -722,8 +718,7 @@ router.post("/challenges/:participantId/award-rank-points", isAuthenticated, asy
     return res.status(401).send("Unauthorized");
   }
 
-  const allowedRoles = ['master_admin', 'industry_professional', 'university_admin'];
-  if (!allowedRoles.includes(req.user.role)) {
+  if (!hasRole(req.user.role, ["admin", "industry", "university"])) {
     return res.status(403).json({ error: "Only challenge organizers and admins can evaluate submissions" });
   }
 
@@ -756,7 +751,7 @@ router.post("/challenges/:participantId/award-rank-points", isAuthenticated, asy
     }
 
     // Verify organizer ownership (unless master_admin)
-    if (req.user.role !== 'master_admin' && challenge.organizerId !== req.user.id) {
+    if (!hasRole(req.user.role, ["admin"]) && challenge.organizerId !== req.user.id) {
       return res.status(403).json({ error: "Only the challenge organizer can evaluate submissions" });
     }
 
@@ -845,7 +840,7 @@ router.post("/users/:userId/recalculate-rank", isAuthenticated, async (req: Requ
   try {
     const { userId } = req.params;
     
-    if (req.user.role !== 'master_admin' && req.user.id !== userId) {
+    if (!hasRole(req.user.role, ["admin"]) && req.user.id !== userId) {
       return res.status(403).json({ error: "Unauthorized" });
     }
 

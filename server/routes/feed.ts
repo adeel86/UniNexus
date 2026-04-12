@@ -3,6 +3,7 @@ import { eq, desc, sql, and, inArray, ne } from "drizzle-orm";
 import { db } from "../db";
 import { isAuthenticated, type AuthRequest } from "../firebaseAuth";
 import { updateUserStreakForActivity } from "../streakHelper";
+import { hasRole } from "@shared/roles";
 import { applyPointDelta } from "../pointsHelper";
 import {
   posts,
@@ -635,7 +636,7 @@ router.delete("/posts/:postId", isAuthenticated, async (req: AuthRequest, res: R
       return res.status(404).json({ error: "Post not found" });
     }
 
-    const isAdmin = req.user!.role === 'master_admin' || req.user!.role === 'university_admin';
+    const isAdmin = hasRole(req.user!.role, ["admin", "university"]);
     if (existingPost.authorId !== req.user!.id && !isAdmin) {
       return res.status(403).json({ error: "You can only delete your own posts" });
     }
@@ -720,7 +721,7 @@ router.delete("/comments/:commentId", isAuthenticated, async (req: AuthRequest, 
       return res.status(404).json({ error: "Comment not found" });
     }
 
-    const isAdmin = req.user!.role === 'master_admin' || req.user!.role === 'university_admin';
+    const isAdmin = hasRole(req.user!.role, ["admin", "university"]);
     if (existingComment.authorId !== req.user!.id && !isAdmin) {
       return res.status(403).json({ error: "You can only delete your own comments" });
     }

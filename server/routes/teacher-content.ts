@@ -12,6 +12,7 @@ import {
 } from "@shared/schema";
 import { uploadToCloud, isCloudStorageAvailable } from "../cloudStorage";
 import { requireAuth, requireRole, saveFileLocally, uploadsDir, AuthRequest } from "./shared";
+import { hasRole } from "@shared/roles";
 
 const router = Router();
 
@@ -43,7 +44,7 @@ const documentUpload = multer({
   }
 });
 
-router.post("/:contentId/index", requireAuth, requireRole('teacher', 'master_admin'), async (req: Request, res: Response) => {
+router.post("/:contentId/index", requireAuth, requireRole('teacher', 'admin'), async (req: Request, res: Response) => {
   try {
     const { contentId } = req.params;
     const aiChatbot = await import("../aiChatbot");
@@ -54,7 +55,7 @@ router.post("/:contentId/index", requireAuth, requireRole('teacher', 'master_adm
   }
 });
 
-router.post("/upload", requireAuth, requireRole('teacher', 'master_admin'), documentUpload.single('document'), async (req: Request, res: Response) => {
+router.post("/upload", requireAuth, requireRole('teacher', 'admin'), documentUpload.single('document'), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No document file provided" });
@@ -83,15 +84,15 @@ router.post("/upload", requireAuth, requireRole('teacher', 'master_admin'), docu
     const isOwner = targetCourse.instructorId === user.id;
     const sameUniversity = !user.universityId || !targetCourse.universityId || user.universityId === targetCourse.universityId;
 
-    if (!isOwner && user.role !== 'master_admin') {
+    if (!isOwner && !hasRole(user.role, ["admin"])) {
       return res.status(403).json({ error: "You can only upload to your own courses" });
     }
 
-    if (!sameUniversity && user.role !== 'master_admin') {
+    if (!sameUniversity && !hasRole(user.role, ["admin"])) {
       return res.status(403).json({ error: "You are not authorized to upload to a course outside your university" });
     }
 
-    if (!targetCourse.isUniversityValidated && user.role !== 'master_admin') {
+    if (!targetCourse.isUniversityValidated && !hasRole(user.role, ["admin"])) {
       return res.status(400).json({ 
         error: "Course must be validated by the university before uploading materials" 
       });
@@ -189,7 +190,7 @@ router.post("/upload", requireAuth, requireRole('teacher', 'master_admin'), docu
   }
 });
 
-router.post("/", requireAuth, requireRole('teacher', 'master_admin'), async (req: Request, res: Response) => {
+router.post("/", requireAuth, requireRole('teacher', 'admin'), async (req: Request, res: Response) => {
   try {
     const validatedData = insertTeacherContentSchema.parse({
       ...req.body,
@@ -254,7 +255,7 @@ router.patch("/:id", requireAuth, async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Content not found" });
     }
 
-    if (existingContent.teacherId !== user.id && user.role !== 'master_admin') {
+    if (existingContent.teacherId !== user.id && !hasRole(user.role, ["admin"])) {
       return res.status(403).json({ error: "Not authorized to update this content" });
     }
 
@@ -290,7 +291,7 @@ router.delete("/:id", requireAuth, async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Content not found" });
     }
 
-    if (content.teacherId !== user.id && user.role !== 'master_admin') {
+    if (content.teacherId !== user.id && !hasRole(user.role, ["admin"])) {
       return res.status(403).json({ error: "Not authorized to delete this content" });
     }
 

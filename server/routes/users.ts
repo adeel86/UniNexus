@@ -36,6 +36,7 @@ import {
   insertStudentCourseSchema,
   insertUserProfileSchema,
 } from "@shared/schema";
+import { hasRole } from "@shared/roles";
 
 const router = Router();
 
@@ -118,7 +119,7 @@ router.get("/teachers", requireAuth, async (req: Request, res: Response) => {
     const user = req.user as any;
 
     let whereClause = eq(users.role, "teacher") as any;
-    if (user.role === 'university_admin' || user.role === 'university') {
+    if (hasRole(user.role, ["university"])) {
       if (!user.universityId) return res.json([]);
       whereClause = and(eq(users.role, "teacher"), eq(users.universityId, user.universityId));
     }
@@ -142,13 +143,14 @@ router.get("/students", requireAuth, async (req: Request, res: Response) => {
     const user = req.user as any;
 
     // Scope restriction: Teachers and University Admins only see affiliated students
-    if (user.role === 'teacher' || user.role === 'university_admin' || user.role === 'university') {
+    const shouldScopeByUniversity = hasRole(user.role, ["teacher", "university"]);
+    if (shouldScopeByUniversity) {
       if (!user.universityId) {
         return res.json([]);
       }
     }
 
-    const whereClause = (user.role === 'teacher' || user.role === 'university_admin' || user.role === 'university') && user.universityId
+    const whereClause = shouldScopeByUniversity && user.universityId
       ? and(eq(users.role, "student"), eq(users.universityId, user.universityId))
       : eq(users.role, "student");
 
@@ -179,8 +181,7 @@ router.get("/students", requireAuth, async (req: Request, res: Response) => {
 router.get("/leaderboard", requireAuth, async (req: Request, res: Response) => {
   try {
     const currentUser = req.user as any;
-    const isUniversityRole =
-      currentUser.role === "university_admin" || currentUser.role === "university";
+    const isUniversityRole = hasRole(currentUser.role, ["university"]);
 
     const category = (req.query.category as string) || "total";
     const roleFilter = req.query.role as string | undefined;
@@ -323,7 +324,7 @@ router.get("/teachers/:teacherId/students", requireAuth, async (req: Request, re
 });
 
 router.get("/university/teachers", requireAuth, async (req: Request, res: Response) => {
-  const isUniversityAdmin = ['university', 'university_admin', 'master_admin'].includes(req.user!.role);
+  const isUniversityAdmin = hasRole(req.user!.role, ["university", "admin"]);
   if (!isUniversityAdmin) {
     return res.status(403).json({ error: "Only university admins can access this" });
   }
@@ -973,7 +974,7 @@ router.patch("/student-courses/:id", requireAuth, async (req: Request, res: Resp
     }
 
     const isOwner = existing.userId === req.user!.id;
-    const isPrivileged = req.user!.role === "teacher" || req.user!.role === "university_admin" || req.user!.role === "master_admin";
+    const isPrivileged = hasRole(req.user!.role, ["teacher", "university", "admin"]);
 
     if (!isOwner && !isPrivileged) {
       return res.status(403).json({ error: "Not authorized to update this course" });
@@ -1194,7 +1195,7 @@ router.post("/users/:userId/recalculate-points", requireAuth, async (req: Reques
     const currentUser = req.user!;
 
     // Only allow users to recalculate their own points or admins
-    if (currentUser.id !== userId && currentUser.role !== 'master_admin') {
+    if (currentUser.id !== userId && !hasRole(currentUser.role, ["admin"])) {
       return res.status(403).json({ error: "Not authorized to recalculate this user's points" });
     }
 

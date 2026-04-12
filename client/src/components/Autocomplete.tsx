@@ -1,11 +1,11 @@
-import React, { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
+import type { ChangeEvent, KeyboardEvent, MouseEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CheckCircle2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { apiRequest } from "@/lib/queryClient";
 
 export interface AutocompleteOption {
   id: string;
@@ -40,6 +40,7 @@ export function Autocomplete({
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState(value?.name || "");
   const [searchQuery, setSearchQuery] = useState("");
+  const [customEntryError, setCustomEntryError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout>();
 
@@ -51,18 +52,13 @@ export function Autocomplete({
   }, [value?.id]);
 
   // Fetch search results
-  const { data: searchResults = [], isLoading: isFetching } = useQuery({
+  const { data: searchResults = [] } = useQuery({
     queryKey: ["autocomplete-search", searchEndpoint, searchQuery],
     queryFn: async () => {
       if (searchQuery.length < 1) return [];
 
       try {
-        const response = await fetch(
-          `${searchEndpoint}?q=${encodeURIComponent(searchQuery)}`
-        );
-        if (!response.ok) {
-          return [];
-        }
+        const response = await apiRequest("GET", `${searchEndpoint}?q=${encodeURIComponent(searchQuery)}`);
         const data = await response.json();
         return data;
       } catch (error) {
@@ -76,9 +72,10 @@ export function Autocomplete({
 
   // Handle input change - update display value immediately, debounce search query
   const handleInputChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
+    (e: ChangeEvent<HTMLInputElement>) => {
       const newValue = e.target.value;
       setInputValue(newValue);
+      setCustomEntryError(null);
       
       // Clear any pending debounce timers
       if (debounceTimerRef.current) {
@@ -118,40 +115,29 @@ export function Autocomplete({
           ? '/api/universities'
           : '/api/majors';
         
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            name: inputValue.trim(),
-            category: searchEndpoint.includes('majors') ? undefined : undefined,
-          }),
+        const response = await apiRequest("POST", endpoint, {
+          name: inputValue.trim(),
+          category: searchEndpoint.includes('majors') ? undefined : undefined,
         });
-
-        if (!response.ok) {
-          throw new Error('Failed to save entry');
-        }
 
         const savedEntry: AutocompleteOption = await response.json();
         onCustomEntry?.(inputValue.trim());
         onChange?.(savedEntry);
+        setCustomEntryError(null);
         setSearchQuery("");
         setOpen(false);
       } catch (error) {
-        // Fallback: still call onCustomEntry even if save fails
-        onCustomEntry?.(inputValue.trim());
-        setSearchQuery("");
-        setOpen(false);
+        setCustomEntryError("Could not save this entry. Please try again.");
       }
     }
   };
 
   // Clear selection
-  const handleClear = (e: React.MouseEvent) => {
+  const handleClear = (e: MouseEvent) => {
     e.stopPropagation();
     setInputValue("");
     setSearchQuery("");
+    setCustomEntryError(null);
     onChange?.(null);
     setOpen(false);
     inputRef.current?.focus();
@@ -165,7 +151,7 @@ export function Autocomplete({
   };
 
   // Handle keyboard events
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Escape") {
       setOpen(false);
     } else if (
@@ -217,6 +203,7 @@ export function Autocomplete({
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
               tabIndex={-1}
               type="button"
+              data-testid={`${testId || "autocomplete"}-clear`}
             >
               <X className="h-4 w-4" />
             </button>
@@ -232,6 +219,7 @@ export function Autocomplete({
                     key={option.id}
                     type="button"
                     onClick={() => handleSelect(option)}
+                    data-testid={`${testId || "autocomplete"}-option-${option.id}`}
                     className={cn(
                       "w-full text-left px-3 py-2 rounded-md text-sm transition-colors",
                       "hover:bg-accent hover:text-accent-foreground",
@@ -258,6 +246,7 @@ export function Autocomplete({
                     <button
                       type="button"
                       onClick={handleCustomEntry}
+                      data-testid={`${testId || "autocomplete"}-custom-entry`}
                       className="w-full text-left px-3 py-2 rounded-md text-sm transition-colors hover:bg-accent hover:text-accent-foreground text-muted-foreground"
                     >
                       <span className="text-xs">
@@ -269,6 +258,11 @@ export function Autocomplete({
               </div>
             </ScrollArea>
           </div>
+        )}
+        {customEntryError && (
+          <p className="mt-2 text-sm text-destructive" data-testid={`${testId || "autocomplete"}-error`}>
+            {customEntryError}
+          </p>
         )}
       </div>
     </div>

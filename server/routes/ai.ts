@@ -624,7 +624,7 @@ Be lenient with academic discussions, debates, and Gen Z slang. Only flag clearl
   }
 });
 
-router.get("/ai/career-summary/:userId", requireAuth, requireRole('teacher', 'university_admin', 'master_admin'), async (req: Request, res: Response) => {
+router.get("/ai/career-summary/:userId", requireAuth, requireRole('teacher', 'university', 'admin'), async (req: Request, res: Response) => {
   try {
     if (!openai) {
       return res.status(503).json({ 

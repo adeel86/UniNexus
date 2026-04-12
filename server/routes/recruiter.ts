@@ -12,6 +12,7 @@ import {
   insertRecruiterFeedbackSchema,
 } from "@shared/schema";
 import { recalculateUserRank } from "../pointsHelper";
+import { hasRole } from "@shared/roles";
 
 const router = express.Router();
 
@@ -56,7 +57,7 @@ router.get("/recruiter-feedback/student/:studentId", isAuthenticated, async (req
 // Submit recruiter feedback (industry professionals only)
 router.post("/recruiter-feedback", isAuthenticated, async (req: AuthRequest, res: Response) => {
   // Only industry professionals can submit recruiter feedback
-  if (req.user!.role !== 'industry_professional') {
+  if (!hasRole(req.user!.role, ["industry"])) {
     return res.status(403).json({ 
       error: "Forbidden: Only industry professionals can submit recruiter feedback" 
     });
@@ -160,7 +161,7 @@ router.get("/recruiter-feedback/my-feedback", isAuthenticated, async (req: AuthR
     return res.status(401).send("Unauthorized");
   }
 
-  if (req.user!.role !== 'industry_professional') {
+  if (!hasRole(req.user!.role, ["industry"])) {
     return res.status(403).json({ error: "Forbidden: Only industry professionals can access this endpoint" });
   }
 
